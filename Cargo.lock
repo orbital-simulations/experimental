@@ -896,6 +896,7 @@ dependencies = [
  "comfy",
  "egui",
  "env_logger",
+ "glam",
 ]
 
 [[package]]
