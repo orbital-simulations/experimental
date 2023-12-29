@@ -3,7 +3,7 @@ use comfy::{
     GameConfig, GameLoop, TextAlign, RED, WHITE,
 };
 use glam::{dvec2, DVec2};
-use physics::physics::{Engine, Particle};
+use physics::{Engine, Particle, Shape};
 
 simple_game!("experimental", GameState, config, setup, update);
 
@@ -11,12 +11,10 @@ pub struct GameState {
     engine: Engine,
 }
 
-const GRAVITY: DVec2 = DVec2::new(0.0, -9.81);
-
 impl GameState {
     pub fn new(_c: &EngineState) -> Self {
         Self {
-            engine: Engine::new(GRAVITY),
+            engine: Engine::default(),
         }
     }
 }
@@ -32,8 +30,9 @@ fn config(config: GameConfig) -> GameConfig {
 fn setup(state: &mut GameState, _c: &mut EngineContext) {
     state.engine.particles = vec![Particle {
         mass: 1.0,
-        pos: dvec2(0.0, 5.0),
+        pos: dvec2(0.0, 10.0),
         vel: DVec2::ZERO,
+        shape: Shape::Circle(0.5),
     }]
 }
 
@@ -53,7 +52,9 @@ fn update(state: &mut GameState, _c: &mut EngineContext) {
     state.engine.step(dt as f64);
 
     for p in &state.engine.particles {
-        draw_circle(p.pos.as_vec2(), 0.5, RED * 5.0, 0);
+        if let Shape::Circle(radius) = p.shape {
+            draw_circle(p.pos.as_vec2(), radius as f32, RED * 5.0, 0);
+        }
     }
 
     draw_text(
