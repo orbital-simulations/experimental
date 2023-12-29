@@ -1,0 +1,32 @@
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+name: build
+jobs:
+  stable-build:
+    runs-on: ubuntu-latest
+    name: stable build
+    steps:
+      - name: Install system dependencies
+        run: sudo apt-get install -y libwayland-dev libasound2-dev libxkbcommon-dev
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: cargo build --release
+        run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          path: target/release/experimental
+          if-no-files-found: error

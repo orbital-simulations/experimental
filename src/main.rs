@@ -1,4 +1,6 @@
-use comfy::{simple_game, EngineContext, RED, GameLoop, egui, draw_circle, vec2, draw_text, WHITE, TextAlign};
+use comfy::{
+    draw_circle, draw_text, egui, simple_game, vec2, EngineContext, GameLoop, TextAlign, RED, WHITE,
+};
 
 simple_game!("egui example", update);
 
