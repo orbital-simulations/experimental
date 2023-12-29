@@ -9,3 +9,5 @@ edition = "2021"
 comfy = { version = "0.3", features = ["wayland"] }
 egui = "0.24"
 env_logger = "0.10"
+# comfy 0.3 uses glam 0.24
+glam = "0.24"
