@@ -27,7 +27,10 @@ fn config(config: GameConfig) -> GameConfig {
     }
 }
 
+const GRAVITY: DVec2 = DVec2::new(0.0, -9.81);
+
 fn setup(state: &mut GameState, _c: &mut EngineContext) {
+    state.engine.gravity = GRAVITY;
     state.engine.particles = vec![Particle {
         mass: 1.0,
         pos: dvec2(0.0, 10.0),

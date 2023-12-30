@@ -3,12 +3,12 @@ use glam::DVec2;
 pub struct Contact {
     pub pos: DVec2,
     pub normal: DVec2,
-    pub depth: f64
+    pub separation: f64,
 }
 
 pub struct Circle {
     pub pos: DVec2,
-    pub radius: f64
+    pub radius: f64,
 }
 
 impl Circle {
@@ -25,20 +25,19 @@ impl Circle {
         let normal = diff.try_normalize()?;
         let distance = diff.length();
 
+        let separation = distance - self.radius - other.radius;
         // No collision
-        if distance > self.radius + other.radius {
+        if separation > 0.0 {
             None
-        } 
-        // Overlap
-        else if distance > self.radius {
-            let depth = -(distance - self.radius - other.radius);
-            let pos = self.pos + self.radius * normal;
-            Some(Contact{pos, normal, depth})
         }
-        // Subsumption
+        // Overlap
         else {
-            // TODO decide how to handle subsumption
-            None
+            let pos = self.pos + self.radius * normal;
+            Some(Contact {
+                pos,
+                normal,
+                separation,
+            })
         }
     }
 }

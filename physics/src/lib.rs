@@ -1,6 +1,5 @@
-use glam::{dvec2, DVec2};
-
-use self::geometry::Contact;
+use geometry::Contact;
+use glam::DVec2;
 
 mod geometry;
 
@@ -22,28 +21,30 @@ pub struct Engine {
     pub solver_iterations: usize,
 }
 
-const GRAVITY: DVec2 = dvec2(0.0, -9.81);
-
 impl Default for Engine {
     fn default() -> Self {
         Self {
             particles: Default::default(),
-            gravity: GRAVITY,
+            gravity: Default::default(),
             solver_iterations: 10,
         }
     }
 }
 
 #[allow(dead_code)]
-struct Collision {
-    a: usize,
-    b: usize,
-    contact: Contact,
+pub struct Collision {
+    pub id_a: usize,
+    pub id_b: usize,
+    pub contact: Contact,
 }
 
 impl Collision {
     fn new(a: usize, b: usize, contact: Contact) -> Collision {
-        Collision { a, b, contact }
+        Collision {
+            id_a: a,
+            id_b: b,
+            contact,
+        }
     }
 }
 
@@ -64,7 +65,7 @@ fn get_contacts(a: &Particle, b: &Particle) -> Vec<Contact> {
 }
 
 impl Engine {
-    fn detect_collisions(&self) -> Vec<Collision> {
+    pub fn detect_collisions(&self) -> Vec<Collision> {
         let mut collisions = vec![];
         for (i, a) in self.particles.iter().enumerate() {
             for (j, b) in self.particles.iter().enumerate() {

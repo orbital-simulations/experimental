@@ -17,20 +17,19 @@ impl GameState {
             mass: 1.0,
             pos: dvec2(400.0, 200.0),
             vel: DVec2::ZERO,
-            shape: Shape::Circle(10.0)
+            shape: Shape::Circle(10.0),
         }]
     }
 
     fn update(&mut self) {
         let dt = get_frame_time();
-
         self.engine.step(dt as f64);
     }
 
     fn render(&self) {
         for p in &self.engine.particles {
             let pos = p.pos.as_vec2();
-            draw_circle(pos.x, pos.y, 5.0, RED);
+            draw_circle(pos.x, pos.y, 20.0, RED);
         }
     }
 }
