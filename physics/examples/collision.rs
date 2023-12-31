@@ -10,19 +10,18 @@ impl GameState {
     fn setup(&mut self) {
         use physics::{Particle, Shape};
 
-        let half_width = 50.0;
-        let speed = 10.0;
+        let half_width = 100.0;
         self.engine.particles = vec![
             Particle {
                 pos: dvec2(400.0 - half_width, 300.0),
-                vel: dvec2(speed, 0.0),
-                omega: 1.0,
+                vel: dvec2(100.0, 0.0),
                 shape: Shape::Circle(40.0),
                 ..Default::default()
             },
             Particle {
+                mass: 10.0,
                 pos: dvec2(400.0 + half_width, 330.0),
-                vel: dvec2(-speed, 0.0),
+                vel: dvec2(-50.0, 0.0),
                 shape: Shape::Circle(60.0),
                 ..Default::default()
             },
