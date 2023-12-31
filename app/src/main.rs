@@ -2,8 +2,8 @@ use comfy::{
     draw_circle, draw_text, egui, frame_time, simple_game, vec2, EngineContext, EngineState,
     GameConfig, GameLoop, TextAlign, RED, WHITE,
 };
-use experimental::physics::{Engine, Particle};
 use glam::{dvec2, DVec2};
+use physics::physics::{Engine, Particle};
 
 simple_game!("experimental", GameState, config, setup, update);
 
