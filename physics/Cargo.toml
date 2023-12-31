@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 glam = "0.24"
-# Macroquad is only needed by examples
+
+[dev-dependencies]
 macroquad = "0.4"

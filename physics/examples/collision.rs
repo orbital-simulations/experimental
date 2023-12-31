@@ -1,6 +1,8 @@
 use glam::dvec2;
 use physics::Engine;
 
+mod shared;
+
 #[derive(Default)]
 pub struct GameState {
     engine: Engine,
@@ -36,6 +38,8 @@ impl GameState {
     }
 
     fn render(&self) {
+        use shared::draw::Draw;
+
         for p in &self.engine.particles {
             p.draw();
         }

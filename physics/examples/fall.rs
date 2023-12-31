@@ -2,6 +2,8 @@ use glam::{dvec2, DVec2};
 use macroquad::{time::get_frame_time, window::next_frame};
 use physics::{Engine, Particle, Shape};
 
+mod shared;
+
 #[derive(Default)]
 pub struct GameState {
     engine: Engine,
@@ -25,6 +27,7 @@ impl GameState {
     }
 
     fn render(&self) {
+        use shared::draw::Draw;
         for p in &self.engine.particles {
             p.draw();
         }

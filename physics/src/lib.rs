@@ -1,9 +1,10 @@
 use geometry::Contact;
 use glam::DVec2;
 
-mod draw;
-mod geometry;
+pub mod geometry;
 
+/// A representation of a rigid body possessing geometry (`pos`, `angle`, `shape`),
+/// kinematics (`vel`, `omega`) and dynamics (`mass`, `force`, `inertia`, `torque`).
 pub struct Particle {
     pub mass: f64,
     pub pos: DVec2,
@@ -38,6 +39,7 @@ impl Default for Particle {
     }
 }
 
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum Shape {
     Circle(f64),
@@ -87,7 +89,7 @@ fn get_contacts(a: &Particle, b: &Particle) -> Vec<Contact> {
                 pos: b.pos,
                 radius: *r2,
             };
-            c1.collide_with_circle(&c2).into_iter().collect()
+            c1.test_contact_with_circle(&c2).into_iter().collect()
         }
     }
 }

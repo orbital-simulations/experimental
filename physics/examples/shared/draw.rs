@@ -1,17 +1,21 @@
 use glam::DVec2;
 use macroquad::color::Color;
 
-use crate::{Collision, Particle, Shape};
+use physics::{Collision, Particle, Shape};
 
-fn draw_vec_line(from: DVec2, to: DVec2, thickness: f32, color: Color) {
+pub fn draw_vec_line(from: DVec2, to: DVec2, thickness: f32, color: Color) {
     use macroquad::shapes::draw_line;
     let from = from.as_vec2();
     let to = to.as_vec2();
     draw_line(from.x, from.y, to.x, to.y, thickness, color)
 }
 
-impl Particle {
-    pub fn draw(&self) {
+pub trait Draw {
+    fn draw(&self);
+}
+
+impl Draw for Particle {
+    fn draw(&self) {
         use glam::DMat2;
         use macroquad::color::WHITE;
         use macroquad::shapes::draw_circle_lines;
@@ -26,12 +30,15 @@ impl Particle {
                 draw_vec_line(pos + x, pos - x, 1.0, WHITE);
                 draw_vec_line(pos + y, pos - y, 1.0, WHITE);
             }
+            _ => {
+                unimplemented!("Uknown shape {:?}", self.shape)
+            }
         }
     }
 }
 
-impl Collision {
-    pub fn draw(&self) {
+impl Draw for Collision {
+    fn draw(&self) {
         use macroquad::color::RED;
         let contact = &self.contact;
         let pos_inside = contact.pos + contact.separation * contact.normal;

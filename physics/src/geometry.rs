@@ -1,3 +1,4 @@
+//! This module provides basic shapes and methods for testing overlaps between them.
 use glam::DVec2;
 
 pub struct Contact {
@@ -12,14 +13,14 @@ pub struct Circle {
 }
 
 impl Circle {
-    /*
-    Implementation choices:
-        0. Contact position is in the same coordinates as inputs.
-        1. The normal is outward-facing from `self`.
-        2. The contact position is on the self's boundary.
-        3. Concentric and subsumed circles are ignored, for now.
-     */
-    pub fn collide_with_circle(&self, other: &Circle) -> Option<Contact> {
+    pub fn test_contact_with_circle(&self, other: &Circle) -> Option<Contact> {
+        /*
+        Implementation choices:
+            0. Contact position is in the same coordinates as inputs.
+            1. The normal is outward-facing from `self`.
+            2. The contact position is on the self's boundary.
+            3. Concentric circles are ignored, for now.
+         */
         let diff = other.pos - self.pos;
         // TODO: decide how to handle concentricity
         let normal = diff.try_normalize()?;
