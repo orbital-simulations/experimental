@@ -1,13 +1,41 @@
 use geometry::Contact;
 use glam::DVec2;
 
+mod draw;
 mod geometry;
 
 pub struct Particle {
     pub mass: f64,
     pub pos: DVec2,
     pub vel: DVec2,
+    pub force: DVec2,
+    pub inertia: f64,
+    pub angle: f64,
+    pub omega: f64,
+    pub torque: f64,
     pub shape: Shape,
+}
+
+impl Particle {
+    pub fn new(mass: f64, inertia: f64, shape: Shape) -> Particle {
+        Particle {
+            mass,
+            pos: DVec2::ZERO,
+            vel: DVec2::ZERO,
+            force: DVec2::ZERO,
+            inertia,
+            angle: 0.0,
+            omega: 0.0,
+            torque: 0.0,
+            shape,
+        }
+    }
+}
+
+impl Default for Particle {
+    fn default() -> Self {
+        Self::new(1.0, 1.0, Shape::Circle(1.0))
+    }
 }
 
 #[non_exhaustive]
@@ -82,6 +110,16 @@ impl Engine {
         collisions
     }
 
+    // The goal of collision resolution is to solve all the constraints between particles.
+    // These constraints can be explicitly set by the user (TBI) but they can also arise
+    // implicitly to avoid penetration.
+    //
+    // The penetration constraints add requirements for relative normal velocity at contact points.
+    // For static contacts this velocity should be non-negative, or positive to offset penetration
+    // that has already occurred.
+    //
+    // For dynamic contacts it should reflect the initial velocity to conserve energy, possibly
+    // divided by restitution factor to account for inelastic collisions.
     fn resolve_collisions(&mut self, collisions: &[Collision]) {
         for _ in 0..self.solver_iterations {
             for _col in collisions {
@@ -91,11 +129,17 @@ impl Engine {
     }
 
     pub fn step(&mut self, dt: f64) {
-        // 1. Update velocities
+        // 1. Update velocities from forces
         for p in &mut self.particles {
-            let acc = self.gravity / p.mass;
+            let force = self.gravity + p.force;
+            let acc = force / p.mass;
             p.vel += dt * acc;
+
+            let alpha = p.torque / p.inertia;
+            p.omega += dt * alpha;
         }
+
+        // TODO: should we predict positions using the updated velocities before detecting collisions?
 
         // 2. Detect collisions
         let collisions = self.detect_collisions();
@@ -103,9 +147,13 @@ impl Engine {
         // 3. Resolve collisions by updating velocities
         self.resolve_collisions(&collisions);
 
-        // 4. Update positions
+        // 4. Update positions & reset forces
         for p in &mut self.particles {
             p.pos += dt * p.vel;
+            p.force = DVec2::ZERO;
+
+            p.angle += dt * p.omega;
+            p.torque = 0.0;
         }
     }
 }
