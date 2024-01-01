@@ -6,9 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-comfy = "0.3"
 egui = "0.24"
-env_logger = "0.10"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 # comfy 0.3 uses glam 0.24
-glam = "0.24"
+glam = { workspace = true }
 physics = { path = "../physics" }
+game_engine = { path = "../game_engine" }
+pollster = { workspace = true }
+rand = "0.8"
