@@ -41,7 +41,6 @@ fn setup() -> GameState {
     game_state
 }
 
-
 fn update(state: &mut GameState, renderer: &mut Renderer) {
     let dt = renderer.last_frame_delta;
 
@@ -49,7 +48,7 @@ fn update(state: &mut GameState, renderer: &mut Renderer) {
 
     for p in &state.engine.particles {
         if let Shape::Circle(radius) = p.shape {
-            renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(),radius as f32, RED));
+            renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
         }
         renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), 10., RED));
     }
