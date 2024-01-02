@@ -19,7 +19,7 @@ use winit::event::WindowEvent::{
 use winit::keyboard::NamedKey;
 use winit::{dpi::PhysicalSize, event::Event, event_loop::EventLoop};
 
-pub struct Renderer {
+pub struct GameEngine {
     windowed_device: WindowedDevice,
     #[allow(unused)]
     projection_bind_group: wgpu::BindGroup,
@@ -27,23 +27,23 @@ pub struct Renderer {
     #[allow(unused)]
     projection_bind_group_layout: wgpu::BindGroupLayout,
 
-    full_circle_renderer: FilledCircleRenderer,
-    full_rectangle_renderer: FilledRectangleRenderer,
+    filled_circle_renderer: FilledCircleRenderer,
+    filled_rectangle_renderer: FilledRectangleRenderer,
     pub last_frame_delta: f32,
 
     timer: Instant,
 }
 
-impl Renderer {
+impl GameEngine {
     pub async fn new() -> (Self, EventLoop<()>) {
         let mut event_loop = EventLoop::new().expect("can't create the event loop");
         let mut windowed_device = WindowedDevice::new(&mut event_loop).await;
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
             Self::create_projection(&mut windowed_device);
 
-        let full_circle_renderer =
+        let filled_circle_renderer =
             FilledCircleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
-        let full_rectangle_renderer =
+        let filled_rectangle_renderer =
             FilledRectangleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
 
         (
@@ -52,9 +52,9 @@ impl Renderer {
                 projection_bind_group,
                 projection_buffer,
                 projection_bind_group_layout,
-                full_circle_renderer,
+                filled_circle_renderer,
                 last_frame_delta: 0.,
-                full_rectangle_renderer,
+                filled_rectangle_renderer,
                 timer: Instant::now(),
             },
             event_loop,
@@ -143,7 +143,7 @@ impl Renderer {
         update: &FUpdate,
     ) where
         FSetup: FnOnce() -> State,
-        FUpdate: Fn(&mut State, &mut Renderer),
+        FUpdate: Fn(&mut State, &mut GameEngine),
     {
         let mut state = setup();
         // Restart timer just in case.
@@ -196,7 +196,7 @@ impl Renderer {
 
     fn redraw_requested<State, FUpdate>(&mut self, state: &mut State, update: FUpdate)
     where
-        FUpdate: Fn(&mut State, &mut Renderer),
+        FUpdate: Fn(&mut State, &mut GameEngine),
     {
         info!("rendering as per the RedrawRequested was received");
         // TODO: It is possible this may cause some time shuttering in the
@@ -210,14 +210,14 @@ impl Renderer {
             .prepare_encoder()
             .expect("retreiving GPU command encoder");
 
-        self.full_circle_renderer.render(
+        self.filled_circle_renderer.render(
             &mut self.windowed_device,
             &self.projection_bind_group,
             &view,
             &mut encoder,
         );
 
-        self.full_rectangle_renderer.render(
+        self.filled_rectangle_renderer.render(
             &mut self.windowed_device,
             &self.projection_bind_group,
             &view,
@@ -233,9 +233,9 @@ impl Renderer {
     }
 
     pub fn draw_full_circle(&mut self, full_circle: FilledCircle) {
-        self.full_circle_renderer.add_circle(full_circle);
+        self.filled_circle_renderer.add_circle(full_circle);
     }
     pub fn draw_full_rectangle(&mut self, full_rectangle: FilledRectangle) {
-        self.full_rectangle_renderer.add_rectangle(full_rectangle);
+        self.filled_rectangle_renderer.add_rectangle(full_rectangle);
     }
 }

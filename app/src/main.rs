@@ -1,6 +1,6 @@
 use std::iter::repeat_with;
 
-use game_engine::{colors::RED, filled_circle::FilledCircle, Renderer};
+use game_engine::{colors::RED, filled_circle::FilledCircle, GameEngine};
 use glam::{dvec2, DVec2};
 use physics::{Engine, Particle, Shape};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -41,16 +41,16 @@ fn setup() -> GameState {
     game_state
 }
 
-fn update(state: &mut GameState, renderer: &mut Renderer) {
-    let dt = renderer.last_frame_delta;
+fn update(state: &mut GameState, game_engine: &mut GameEngine) {
+    let dt = game_engine.last_frame_delta;
 
     state.engine.step(dt as f64);
 
     for p in &state.engine.particles {
         if let Shape::Circle(radius) = p.shape {
-            renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
+            game_engine.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
         }
-        renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), 10., RED));
+        game_engine.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), 10., RED));
     }
 }
 
@@ -59,6 +59,6 @@ fn main() {
         .with(fmt::layer())
         .with(EnvFilter::from_default_env())
         .init();
-    let (mut renderer, event_loop) = pollster::block_on(Renderer::new());
-    renderer.run(event_loop, setup, &update);
+    let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new());
+    game_engine.run(event_loop, setup, &update);
 }
