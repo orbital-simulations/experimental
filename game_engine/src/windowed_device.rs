@@ -21,7 +21,7 @@ pub struct WindowedDevice {
 }
 
 impl WindowedDevice {
-    pub async fn new(event_loop: &mut EventLoop<()>) -> Self {
+    pub async fn new(event_loop: &mut EventLoop<()>) -> eyre::Result<Self> {
         let window = Window::new(event_loop).expect("Can't create the window");
         let size = window.inner_size();
 
@@ -38,8 +38,8 @@ impl WindowedDevice {
         //
         // The surface needs to live as long as the window that created it.
         // State owns the window so this should be safe.
-        let surface = unsafe { instance.create_surface(&window).unwrap() };
-
+        let surface = unsafe { instance.create_surface(&window) }?;
+        use eyre::OptionExt;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 // Default is LowPower what is why I change it.
@@ -49,7 +49,7 @@ impl WindowedDevice {
                 force_fallback_adapter: false,
             })
             .await
-            .unwrap();
+            .ok_or_eyre("Could not request adapter")?;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -61,8 +61,7 @@ impl WindowedDevice {
                 },
                 None, // Trace path
             )
-            .await
-            .unwrap();
+            .await?;
 
         let swap_chain_capablities = surface.get_capabilities(&adapter);
         info!("surface formats: {:?}", swap_chain_capablities.formats);
@@ -84,7 +83,7 @@ impl WindowedDevice {
         };
         surface.configure(&device, &config);
 
-        Self {
+        Ok(Self {
             instance,
             surface,
             device,
@@ -92,7 +91,7 @@ impl WindowedDevice {
             config,
             window,
             adapter,
-        }
+        })
     }
 
     pub fn prepare_encoder(

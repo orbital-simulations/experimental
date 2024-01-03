@@ -54,11 +54,13 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     }
 }
 
-fn main() {
+fn main() -> color_eyre::eyre::Result<()> {
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(EnvFilter::from_default_env())
         .init();
-    let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new());
-    game_engine.run(event_loop, setup, &update);
+    color_eyre::install()?;
+    let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new())?;
+    game_engine.run(event_loop, setup, &update)?;
+    Ok(())
 }
