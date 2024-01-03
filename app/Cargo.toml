@@ -14,4 +14,6 @@ glam = { workspace = true }
 physics = { path = "../physics" }
 game_engine = { path = "../game_engine" }
 pollster = { workspace = true }
+eyre = { workspace = true }
+color-eyre = { workspace = true }
 rand = "0.8"

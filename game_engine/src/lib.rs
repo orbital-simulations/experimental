@@ -35,9 +35,9 @@ pub struct GameEngine {
 }
 
 impl GameEngine {
-    pub async fn new() -> (Self, EventLoop<()>) {
+    pub async fn new() -> eyre::Result<(Self, EventLoop<()>)> {
         let mut event_loop = EventLoop::new().expect("can't create the event loop");
-        let mut windowed_device = WindowedDevice::new(&mut event_loop).await;
+        let mut windowed_device = WindowedDevice::new(&mut event_loop).await?;
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
             Self::create_projection(&mut windowed_device);
 
@@ -46,7 +46,7 @@ impl GameEngine {
         let filled_rectangle_renderer =
             FilledRectangleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
 
-        (
+        Ok((
             Self {
                 windowed_device,
                 projection_bind_group,
@@ -58,7 +58,7 @@ impl GameEngine {
                 timer: Instant::now(),
             },
             event_loop,
-        )
+        ))
     }
 
     /// Return a orthographics projection matrix which will place the (0,0) into the left top
@@ -141,57 +141,55 @@ impl GameEngine {
         event_loop: EventLoop<()>,
         setup: FSetup,
         update: &FUpdate,
-    ) where
+    ) -> eyre::Result<()>
+    where
         FSetup: FnOnce() -> State,
         FUpdate: Fn(&mut State, &mut GameEngine),
     {
         let mut state = setup();
         // Restart timer just in case.
         self.timer = Instant::now();
-        event_loop
-            .run(move |event, elwt| {
-                if let Event::WindowEvent { event, .. } = event {
-                    match event {
-                        Resized(new_size) => {
-                            info!("updating the projection matric after resize");
-                            self.windowed_device.config.width = new_size.width;
-                            self.windowed_device.config.height = new_size.height;
-                            self.windowed_device.surface.configure(
-                                &self.windowed_device.device,
-                                &self.windowed_device.config,
-                            );
-                            self.update_projection(new_size);
-                            self.windowed_device.window.request_redraw();
-                        }
-                        CloseRequested => elwt.exit(),
-                        KeyboardInput {
-                            device_id: _,
-                            event,
-                            is_synthetic: _,
-                        } => {
-                            info!("Escape was pressed; terminating the event loop");
-                            if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key
-                            {
-                                elwt.exit()
-                            }
-                        }
-                        MouseInput {
-                            device_id: _,
-                            state: _,
-                            button: _,
-                        } => (),
-                        RedrawRequested => {
-                            self.redraw_requested(&mut state, update);
-                        }
-                        _ => {
-                            debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
+        event_loop.run(move |event, elwt| {
+            if let Event::WindowEvent { event, .. } = event {
+                match event {
+                    Resized(new_size) => {
+                        info!("updating the projection matric after resize");
+                        self.windowed_device.config.width = new_size.width;
+                        self.windowed_device.config.height = new_size.height;
+                        self.windowed_device
+                            .surface
+                            .configure(&self.windowed_device.device, &self.windowed_device.config);
+                        self.update_projection(new_size);
+                        self.windowed_device.window.request_redraw();
+                    }
+                    CloseRequested => elwt.exit(),
+                    KeyboardInput {
+                        device_id: _,
+                        event,
+                        is_synthetic: _,
+                    } => {
+                        info!("Escape was pressed; terminating the event loop");
+                        if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key {
+                            elwt.exit()
                         }
                     }
-                } else {
-                    debug!("UNKNOWN EVENT RECEIVED: {:?}", event);
+                    MouseInput {
+                        device_id: _,
+                        state: _,
+                        button: _,
+                    } => (),
+                    RedrawRequested => {
+                        self.redraw_requested(&mut state, update);
+                    }
+                    _ => {
+                        debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
+                    }
                 }
-            })
-            .unwrap();
+            } else {
+                debug!("UNKNOWN EVENT RECEIVED: {:?}", event);
+            }
+        })?;
+        Ok(())
     }
 
     fn redraw_requested<State, FUpdate>(&mut self, state: &mut State, update: FUpdate)
