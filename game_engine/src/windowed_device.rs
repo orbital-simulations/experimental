@@ -1,6 +1,6 @@
 use tracing::info;
 use wgpu::Adapter;
-use winit::{event_loop::EventLoop, window::Window};
+use winit::{dpi::PhysicalSize, event_loop::EventLoop, window::Window};
 
 // TODO: Try to think of a better name.
 pub struct WindowedDevice {
@@ -18,6 +18,7 @@ pub struct WindowedDevice {
     // Represents the system window.
     pub window: Window,
     pub adapter: Adapter,
+    pub size: PhysicalSize<u32>,
 }
 
 impl WindowedDevice {
@@ -82,6 +83,7 @@ impl WindowedDevice {
             view_formats: vec![],
         };
         surface.configure(&device, &config);
+        let size = window.inner_size();
 
         Ok(Self {
             instance,
@@ -91,6 +93,7 @@ impl WindowedDevice {
             config,
             window,
             adapter,
+            size,
         })
     }
 
