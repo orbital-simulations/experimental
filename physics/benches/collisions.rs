@@ -3,11 +3,11 @@ use std::iter::repeat_with;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use glam::dvec2;
 use physics::{Engine, Particle, Shape};
-use rand::Rng;
+use rand::{Rng, SeedableRng};
 
 fn init_circle_engine(num_particles: usize) -> Engine {
     let mut engine = Engine::default();
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rngs::StdRng::seed_from_u64(0);
     let pos_limit = 500.0;
     let vel_limit = 50.0;
     engine.particles.extend(
