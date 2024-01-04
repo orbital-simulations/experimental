@@ -30,7 +30,7 @@ fn init_circle_engine(num_particles: usize) -> Engine {
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("from_elem");
+    let mut group = c.benchmark_group("engine");
     for num_particles in [32, 64, 128, 256, 512] {
         let initial_engine = init_circle_engine(num_particles);
         group.bench_with_input(
