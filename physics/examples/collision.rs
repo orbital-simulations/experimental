@@ -1,5 +1,4 @@
-use glam::{dvec2, vec2};
-use macroquad::window::{screen_height, screen_width};
+use glam::dvec2;
 use physics::Engine;
 
 mod shared;
@@ -40,15 +39,14 @@ impl GameState {
 
     fn render(&self) {
         use shared::draw::Draw;
-        let size = vec2(screen_width(), screen_height());
-        self.engine.draw(size);
+        self.engine.draw();
     }
 }
 
 #[macroquad::main("experimental")]
 async fn main() {
     use macroquad::window::next_frame;
-
+    shared::setup();
     let mut state = GameState::default();
     state.setup();
 

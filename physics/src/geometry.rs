@@ -1,6 +1,6 @@
 //! This module provides basic shapes and methods for testing overlaps between them.
 use glam::DVec2;
-use tracing::{trace, warn};
+use tracing::{instrument, trace, warn};
 
 #[derive(Clone, Debug)]
 pub struct Contact {
@@ -23,6 +23,7 @@ pub enum Shape {
 }
 
 impl Shape {
+    #[instrument(level = "trace")]
     pub fn test_overlap(&self, other: &Shape) -> Vec<Contact> {
         /*
         Implementation choices:
@@ -84,7 +85,7 @@ impl Circle {
         let normal = diff.try_normalize()?;
         let distance = diff.length();
         let separation = distance - self.radius - other.radius;
-        trace!("Test overlap {self:?} with {other:?} -> normal {normal}, separation {separation}");
+        trace!("Overlap result: normal {normal}, separation {separation}");
         self.try_make_contact(normal, separation)
     }
 
@@ -92,7 +93,7 @@ impl Circle {
         let diff = other.pos - self.pos;
         let normal = -DVec2::from_angle(other.normal_angle);
         let separation = diff.dot(normal) - self.radius;
-        trace!("Test overlap {self:?} with {other:?} -> normal {normal}, separation {separation}");
+        trace!("Overlap result: normal {normal}, separation {separation}");
         self.try_make_contact(normal, separation)
     }
 }

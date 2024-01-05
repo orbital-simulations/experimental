@@ -1,20 +1,36 @@
 use geometry::{Circle, Contact, HalfPlane};
 use glam::DVec2;
+use tracing::{instrument, trace, trace_span};
 
 pub mod geometry;
 
 /// A representation of a rigid body possessing geometry (`pos`, `angle`, `shape`),
-/// kinematics (`vel`, `omega`) and dynamics (`mass`, `force`, `inertia`, `torque`).
+/// kinematics (`vel`, `omega`) and dynamics (`inv_mass`, `force`, `inv_inertia`, `torque`).
 #[derive(Clone, Debug)]
 pub struct Particle {
+    /// A non-negative number that represents `mass = 1.0 / inv_mass` if it is positive
+    /// and an infinite mass (i.e. immovable object) when it is zero.
     pub inv_mass: f64,
+    /// Position
     pub pos: DVec2,
+    /// Velocity
     pub vel: DVec2,
+    /// Force to be applied specifically to this particle during the next simulation step.
+    /// Note that global forces such as gravity can be specified with `Engine::gravity`.
     pub force: DVec2,
+    /// A non-negative number representing inverse of object's moment of inertia.
+    /// Zero corresponds to infinite inertia (i.e. immovable object).
+    /// Moment inertia depends on object's geometry and mass density distribution.
+    /// TODO: provide helper functions to calculate inertia for common shapes with uniform density.
     pub inv_inertia: f64,
+    /// Orientation
     pub angle: f64,
+    /// Angular velocity
     pub omega: f64,
+    /// Force moment to be applied specifically to this particle during the next simulation step.
+    /// Represents an angular action that causes change in angular velocity.
     pub torque: f64,
+    /// Geometry of the rigid body.
     pub shape: Shape,
 }
 
@@ -84,7 +100,7 @@ impl Default for Engine {
     }
 }
 
-#[allow(dead_code)]
+#[derive(Clone, Debug)]
 pub struct Collision {
     pub id_a: usize,
     pub id_b: usize,
@@ -102,6 +118,7 @@ impl Collision {
 }
 
 impl Engine {
+    #[instrument(level = "trace", skip_all)]
     pub fn detect_collisions(&self) -> Vec<Collision> {
         let mut collisions = vec![];
         for (i, a) in self.particles.iter().enumerate() {
@@ -138,10 +155,13 @@ impl Engine {
     // 1. Inverting big matrices is slow, so an approximate iterative solution might still be preferred.
     // 2. Many constraints are non-linear; this applies in particular to penetration constraints:
     //    if one treats them as linear, they become "sticky", whereas we only want them to be repulsive.
+    #[instrument(level = "trace", skip_all)]
     fn resolve_collisions(&mut self, collisions: &[Collision]) {
         use glam::{dvec3, DMat3};
 
-        for _ in 0..self.solver_iterations {
+        for iter in 0..self.solver_iterations {
+            let span = trace_span!("Iteration", iter);
+            let _enter = span.enter();
             for col in collisions {
                 // The geometry of the contact is described by a 6D row-vector called 'Jacobian':
                 // J = (-n.x, -n.y, -n \cross r_1, n.x, n.y, n \cross r_2)
@@ -178,13 +198,14 @@ impl Engine {
                 let v1 = dvec3(p1.vel.x, p1.vel.y, p1.omega);
                 let v2 = dvec3(p2.vel.x, p2.vel.y, p2.omega);
                 let v_rel = j1.dot(v1) + j2.dot(v2);
+                trace!("Velocity 1: {v1}, velocity 2: {v2}, relative velocity: {v_rel}");
+                // TODO: this is not correct, we need to check general constraint satisfaction
                 // Objects are already separating, nothing to do here.
                 if v_rel >= 0.0 {
                     // TODO: accumulate impulses over solver iterations to prevent
                     // applying more impulse than necessary to achieve target v_rel
                     continue;
                 }
-                // TODO: consider storing inverse masses in `Particle`
                 let m1_inv = DMat3::from_diagonal(dvec3(p1.inv_mass, p1.inv_mass, p1.inv_inertia));
                 let m2_inv = DMat3::from_diagonal(dvec3(p2.inv_mass, p2.inv_mass, p2.inv_inertia));
                 // Supporting only dynamic contacts with ellastic collision for now
@@ -199,6 +220,7 @@ impl Engine {
                 p1.omega += delta_1.z;
 
                 let delta_2 = m2_inv * j2 * lambda;
+                trace!("Lambda {lambda}, delta 1: {delta_1}, delta 2: {delta_2}");
                 let p2 = &mut self.particles[col.id_b];
                 p2.vel.x += delta_2.x;
                 p2.vel.y += delta_2.y;
@@ -207,6 +229,8 @@ impl Engine {
         }
     }
 
+    /// Simulates movement of particles for a duration `dt`.
+    /// Besides free movement we also apply forces, satisfy constraints and resolve collisions.
     pub fn step(&mut self, dt: f64) {
         // 1. Update velocities from forces
         for p in &mut self.particles {
