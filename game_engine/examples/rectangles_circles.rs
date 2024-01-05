@@ -5,14 +5,12 @@ use game_engine::{
     GameEngine,
 };
 use glam::Vec2;
-use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
+mod shared;
 
 fn main() -> color_eyre::eyre::Result<()> {
-    tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(EnvFilter::from_default_env())
-        .init();
-    color_eyre::install()?;
+    shared::setup()?;
+
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new())?;
     game_engine.run(event_loop, || (), &|_state, game_engine| {
         game_engine.draw_full_rectangle(FilledRectangle {

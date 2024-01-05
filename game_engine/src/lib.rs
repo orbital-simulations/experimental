@@ -2,6 +2,7 @@ pub mod buffers;
 pub mod colors;
 pub mod filled_circle;
 pub mod filled_rectangle;
+pub mod line_segment;
 pub mod raw;
 pub mod windowed_device;
 
@@ -9,6 +10,7 @@ use std::time::Instant;
 
 use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
+use line_segment::{LineSegment, LineSegmentRenderer};
 use raw::Raw;
 use tracing::{debug, info};
 use wgpu::util::DeviceExt;
@@ -29,6 +31,7 @@ pub struct GameEngine {
 
     filled_circle_renderer: FilledCircleRenderer,
     filled_rectangle_renderer: FilledRectangleRenderer,
+    line_segment_renderer: LineSegmentRenderer,
     pub last_frame_delta: f32,
 
     timer: Instant,
@@ -45,6 +48,8 @@ impl GameEngine {
             FilledCircleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
         let filled_rectangle_renderer =
             FilledRectangleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
+        let line_segment_renderer =
+            LineSegmentRenderer::new(&mut windowed_device, &projection_bind_group_layout);
 
         Ok((
             Self {
@@ -55,6 +60,7 @@ impl GameEngine {
                 filled_circle_renderer,
                 last_frame_delta: 0.,
                 filled_rectangle_renderer,
+                line_segment_renderer,
                 timer: Instant::now(),
             },
             event_loop,
@@ -235,5 +241,8 @@ impl GameEngine {
     }
     pub fn draw_full_rectangle(&mut self, full_rectangle: FilledRectangle) {
         self.filled_rectangle_renderer.add_rectangle(full_rectangle);
+    }
+    pub fn draw_line_segment(&mut self, line_segment: LineSegment) {
+        self.line_segment_renderer.add_line_segment(line_segment);
     }
 }

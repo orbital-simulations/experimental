@@ -12,87 +12,92 @@ use crate::{
     windowed_device::WindowedDevice,
 };
 
+pub struct LineSegment {
+    pub from: Vec2,
+    pub to: Vec2,
+    pub color: Vec3,
+}
+
 #[derive(Debug)]
 #[repr(C, packed)]
-pub struct FilledCircle {
-    pub pos: Vec2,
-    pub radius: f32,
-    pub color: Vec3,
+struct Color {
+    color: Vec3,
 }
 
 // SAFETY: This is fine because we make sure the corresponding Attribute
 // definitions are defined correctly.
-unsafe impl Gpu for FilledCircle {}
+unsafe impl Gpu for Color {}
 
-impl FilledCircle {
-    pub fn new(pos: Vec2, radius: f32, color: Vec3) -> Self {
-        Self { pos, radius, color }
-    }
-}
-
-const CIRCLE_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 3] =
-    vertex_attr_array![1 => Float32x2, 2 => Float32, 3 => Float32x3];
-
-const CIRCLE_VERTICES: [Vec2; 4] = [
-    Vec2 { x: -1.0, y: -1.0 },
-    Vec2 { x: 1.0, y: -1.0 },
-    Vec2 { x: -1.0, y: 1.0 },
-    Vec2 { x: 1.0, y: 1.0 },
-];
-
-const CIRCLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
-
-impl FilledCircle {
+impl Color {
     fn buffer_description<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
-            array_stride: std::mem::size_of::<FilledCircle>() as BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &CIRCLE_VERTEX_ATTRIBUTES,
+            array_stride: std::mem::size_of::<Color>() as BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &LINE_SEGMENT_VERTEX_ATTRIBUTES,
         }
     }
 }
 
 #[derive(Debug)]
-pub struct FilledCircleRenderer {
-    circles: Vec<FilledCircle>,
-    circle_vertex_buffer: Buffer,
-    circle_index_buffer: Buffer,
-    circle_instance_buffer: Buffer,
-    circle_pipeline: RenderPipeline,
+#[repr(C, packed)]
+struct Endpoints {
+    from: Vec2,
+    to: Vec2,
 }
 
-impl FilledCircleRenderer {
+// SAFETY: This is fine because we make sure the corresponding Attribute
+// definitions are defined correctly.
+unsafe impl Gpu for Endpoints {}
+
+impl LineSegment {
+    pub fn new(from: Vec2, to: Vec2, color: Vec3) -> Self {
+        Self { from, to, color }
+    }
+}
+
+const LINE_SEGMENT_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 1] =
+    vertex_attr_array![1 => Float32x3];
+
+#[derive(Debug)]
+pub struct LineSegmentRenderer {
+    endpoints: Vec<Endpoints>,
+    colors: Vec<Color>,
+    line_segment_vertex_buffer: Buffer,
+    line_segment_instance_buffer: Buffer,
+    line_segment_pipeline: RenderPipeline,
+    // Number of items that the vertex or index buffer can hold (they have the same capacity)
+    buffer_capacity: usize,
+}
+
+impl LineSegmentRenderer {
     pub fn new(
         windowed_device: &mut WindowedDevice,
         projection_bind_group_layout: &BindGroupLayout,
     ) -> Self {
-        let circle_shader = windowed_device
+        let rectangle_shader = windowed_device
             .device
-            .create_shader_module(include_wgsl!("../shaders/filled_circle.wgsl"));
+            .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl"));
         let render_pipeline_layout =
             windowed_device
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Full Circle Render Pipeline Layout"),
+                    label: Some("Line Segment Render Pipeline Layout"),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
-        let circle_pipeline =
+        let line_segment_pipeline =
             windowed_device
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Full Circle Render Pipeline"),
+                    label: Some("Line Segment Render Pipeline"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
-                        module: &circle_shader,
+                        module: &rectangle_shader,
                         entry_point: "vs_main",
-                        buffers: &[
-                            vec2_buffer_description(),
-                            FilledCircle::buffer_description(),
-                        ],
+                        buffers: &[vec2_buffer_description(), Color::buffer_description()],
                     },
                     fragment: Some(wgpu::FragmentState {
-                        module: &circle_shader,
+                        module: &rectangle_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: windowed_device.config.format,
@@ -104,7 +109,7 @@ impl FilledCircleRenderer {
                         })],
                     }),
                     primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        topology: wgpu::PrimitiveTopology::LineList,
                         strip_index_format: None,
                         front_face: wgpu::FrontFace::Ccw,
                         cull_mode: Some(wgpu::Face::Back),
@@ -127,43 +132,39 @@ impl FilledCircleRenderer {
                     multiview: None,
                 });
 
-        let circle_vertex_buffer =
-            windowed_device
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Circle Vertex Buffer"),
-                    contents: CIRCLE_VERTICES.get_raw(),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
-        let circle_index_buffer =
-            windowed_device
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Circle Index Buffer"),
-                    contents: CIRCLE_INDICES.get_raw(),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
-
-        // This will probably fial....
-        let circle_instance_buffer = windowed_device.device.create_buffer(&BufferDescriptor {
-            label: Some("Circle Index Buffer"),
+        let line_segment_vertex_buffer = windowed_device.device.create_buffer(&BufferDescriptor {
+            label: Some("Line segment vertex buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 0,
             mapped_at_creation: false,
         });
 
+        let line_segment_instance_buffer =
+            windowed_device.device.create_buffer(&BufferDescriptor {
+                label: Some("Line segment instance buffer"),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                size: 0,
+                mapped_at_creation: false,
+            });
+
         Self {
-            circles: vec![],
-            circle_vertex_buffer,
-            circle_index_buffer,
-            circle_instance_buffer,
-            circle_pipeline,
+            endpoints: vec![],
+            colors: vec![],
+            line_segment_vertex_buffer,
+            line_segment_instance_buffer,
+            line_segment_pipeline,
+            buffer_capacity: 0,
         }
     }
 
-    pub fn add_circle(&mut self, circle: FilledCircle) {
-        self.circles.push(circle);
+    pub fn add_line_segment(&mut self, line_segment: LineSegment) {
+        self.endpoints.push(Endpoints {
+            from: line_segment.from,
+            to: line_segment.to,
+        });
+        self.colors.push(Color {
+            color: line_segment.color,
+        });
     }
 
     pub fn render(
@@ -173,36 +174,45 @@ impl FilledCircleRenderer {
         view: &TextureView,
         encoder: &mut CommandEncoder,
     ) {
-        if (self.circle_instance_buffer.size() as usize) < self.circles.len() {
-            self.circle_instance_buffer =
+        if self.buffer_capacity < self.endpoints.len() {
+            self.line_segment_vertex_buffer =
                 windowed_device
                     .device
                     .create_buffer_init(&BufferInitDescriptor {
-                        label: Some("Circle Index Buffer"),
+                        label: Some("Line segment vertex buffer"),
                         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        contents: self.circles.get_raw(),
+                        contents: self.endpoints.get_raw(),
                     });
+            self.line_segment_instance_buffer =
+                windowed_device
+                    .device
+                    .create_buffer_init(&BufferInitDescriptor {
+                        label: Some("Line segment instance buffer"),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        contents: self.colors.get_raw(),
+                    });
+            self.buffer_capacity = self.endpoints.len()
         } else {
             windowed_device.queue.write_buffer(
-                &self.circle_instance_buffer,
+                &self.line_segment_vertex_buffer,
                 0,
-                self.circles.get_raw(),
+                self.endpoints.get_raw(),
+            );
+            windowed_device.queue.write_buffer(
+                &self.line_segment_instance_buffer,
+                0,
+                self.colors.get_raw(),
             );
         }
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Circle Render Pass"),
+                label: Some("Line segment render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Load,
                         store: StoreOp::Store,
                     },
                 })],
@@ -211,23 +221,15 @@ impl FilledCircleRenderer {
                 occlusion_query_set: None,
             });
 
-            render_pass.set_pipeline(&self.circle_pipeline);
+            render_pass.set_pipeline(&self.line_segment_pipeline);
             render_pass.set_bind_group(0, projection_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.circle_vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.circle_instance_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.circle_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            render_pass.draw_indexed(
-                0..(CIRCLE_INDICES.len() as u32),
-                0,
-                0..(self.circles.len() as u32),
-            );
+            render_pass.set_vertex_buffer(0, self.line_segment_vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.line_segment_instance_buffer.slice(..));
+            let count = self.endpoints.len() as u32;
+            render_pass.draw(0..(2 * count), 0..1);
         }
 
-        // TODO: Think about some memory releasing strategy. Spike in number of
-        // circles will lead to space leak.
-        self.circles.clear();
+        self.endpoints = vec![];
+        self.colors = vec![];
     }
 }

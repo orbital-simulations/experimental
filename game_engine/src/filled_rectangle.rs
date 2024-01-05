@@ -81,7 +81,7 @@ impl FilledRectangleRenderer {
             windowed_device
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Full circle Render Pipeline"),
+                    label: Some("Filled Rectangle Render Pipeline"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &rectangle_shader,
@@ -131,7 +131,7 @@ impl FilledRectangleRenderer {
             windowed_device
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Circle Vertex Buffer"),
+                    label: Some("Rectangle Vertex Buffer"),
                     contents: RECTANGLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
@@ -140,14 +140,14 @@ impl FilledRectangleRenderer {
             windowed_device
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Circle Index Buffer"),
+                    label: Some("Rectangle Index Buffer"),
                     contents: RECTANGLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
         // This will probably fial....
         let rectangle_instance_buffer = windowed_device.device.create_buffer(&BufferDescriptor {
-            label: Some("Circle Index Buffer"),
+            label: Some("Rectangle Index Buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 0,
             mapped_at_creation: false,
@@ -162,8 +162,8 @@ impl FilledRectangleRenderer {
         }
     }
 
-    pub fn add_rectangle(&mut self, circle: FilledRectangle) {
-        self.rectangles.push(circle);
+    pub fn add_rectangle(&mut self, rectangle: FilledRectangle) {
+        self.rectangles.push(rectangle);
     }
 
     pub fn render(
@@ -178,7 +178,7 @@ impl FilledRectangleRenderer {
                 windowed_device
                     .device
                     .create_buffer_init(&BufferInitDescriptor {
-                        label: Some("Circle Index Buffer"),
+                        label: Some("Rectangle Index Buffer"),
                         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                         contents: self.rectangles.get_raw(),
                     });
@@ -222,7 +222,7 @@ impl FilledRectangleRenderer {
         }
 
         // TODO: Think about some memory releasing strategy. Spike in number of
-        // circles will lead to space leak.
+        // rectangles will lead to space leak.
         self.rectangles.clear();
     }
 }
