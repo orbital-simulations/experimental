@@ -5,6 +5,7 @@ pub mod geometry;
 
 /// A representation of a rigid body possessing geometry (`pos`, `angle`, `shape`),
 /// kinematics (`vel`, `omega`) and dynamics (`mass`, `force`, `inertia`, `torque`).
+#[derive(Clone, Debug)]
 pub struct Particle {
     pub mass: f64,
     pub pos: DVec2,
@@ -39,12 +40,13 @@ impl Default for Particle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Shape {
     Circle(f64),
 }
 
+#[derive(Clone, Debug)]
 pub struct Engine {
     pub particles: Vec<Particle>,
     pub gravity: DVec2,

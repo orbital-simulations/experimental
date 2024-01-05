@@ -10,3 +10,9 @@ glam = { workspace = true }
 
 [dev-dependencies]
 macroquad = "0.4"
+criterion = { workspace = true }
+rand = { workspace = true }
+
+[[bench]]
+name = "collisions"
+harness = false
