@@ -36,14 +36,20 @@ impl Particle {
 
 impl Default for Particle {
     fn default() -> Self {
-        Self::new(1.0, 1.0, Shape::Circle(1.0))
+        Self::new(1.0, 1.0, Shape::Circle { radius: 1.0 })
     }
 }
 
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Shape {
-    Circle(f64),
+    Circle {
+        radius: f64,
+    },
+    HalfPlane {
+        /// normal's angle with the x-axis in counter-clock-wise direction, in radians
+        normal_angle: f64,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -82,7 +88,7 @@ impl Collision {
 
 fn get_contacts(a: &Particle, b: &Particle) -> Vec<Contact> {
     match (&a.shape, &b.shape) {
-        (Shape::Circle(r1), Shape::Circle(r2)) => {
+        (Shape::Circle { radius: r1 }, Shape::Circle { radius: r2 }) => {
             let c1 = geometry::Circle {
                 pos: a.pos,
                 radius: *r1,
@@ -91,7 +97,34 @@ fn get_contacts(a: &Particle, b: &Particle) -> Vec<Contact> {
                 pos: b.pos,
                 radius: *r2,
             };
-            c1.test_contact_with_circle(&c2).into_iter().collect()
+            c1.test_overlap_with_circle(&c2).into_iter().collect()
+        }
+        (
+            Shape::Circle { radius },
+            Shape::HalfPlane {
+                normal_angle: _normal_angle,
+            },
+        ) => {
+            let _c1 = geometry::Circle {
+                pos: a.pos,
+                radius: *radius,
+            };
+            unimplemented!("Circle vs HalfPlane overlap testing")
+        }
+        (
+            Shape::HalfPlane {
+                normal_angle: _normal_angle,
+            },
+            Shape::Circle { radius },
+        ) => {
+            let _c2 = geometry::Circle {
+                pos: a.pos,
+                radius: *radius,
+            };
+            unimplemented!("HalfPlane vs Circle overlap testing")
+        }
+        (Shape::HalfPlane { .. }, Shape::HalfPlane { .. }) => {
+            unimplemented!("HalfPlane vs HalfPlane overlap testing")
         }
     }
 }

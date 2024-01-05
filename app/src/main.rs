@@ -41,7 +41,7 @@ fn setup() -> GameState {
                 rng.gen_range(-vel_limit..vel_limit),
                 rng.gen_range(-vel_limit..vel_limit),
             ),
-            shape: Shape::Circle(10.),
+            shape: Shape::Circle { radius: 10. },
             ..Default::default()
         })
         .take(CIRCLE_NUMBER),
@@ -56,10 +56,21 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     state.engine.step(dt as f64);
 
     for p in &state.engine.particles {
-        if let Shape::Circle(radius) = p.shape {
-            game_engine.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
+        match p.shape {
+            Shape::Circle { radius } => {
+                game_engine.draw_full_circle(FilledCircle::new(
+                    p.pos.as_vec2(),
+                    radius as f32,
+                    RED,
+                ));
+            }
+            Shape::HalfPlane { .. } => {
+                unimplemented!("Render a half-plane")
+            }
+            _ => {
+                unimplemented!("Render unknown shape {:?}", p.shape)
+            }
         }
-        game_engine.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), 10., RED));
     }
 }
 

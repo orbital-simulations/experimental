@@ -14,11 +14,18 @@ const GRAVITY: DVec2 = DVec2::new(0.0, 9.81);
 impl GameState {
     fn setup(&mut self) {
         self.engine.gravity = GRAVITY;
-        self.engine.particles = vec![Particle {
-            pos: dvec2(400.0, 200.0),
-            shape: Shape::Circle(50.0),
-            ..Default::default()
-        }]
+        self.engine.particles = vec![
+            Particle {
+                pos: dvec2(400.0, 200.0),
+                shape: Shape::Circle { radius: 50.0 },
+                ..Default::default()
+            },
+            Particle {
+                pos: dvec2(400.0, 200.0),
+                shape: Shape::HalfPlane { normal_angle: 1.0 },
+                ..Default::default()
+            },
+        ]
     }
 
     fn update(&mut self) {

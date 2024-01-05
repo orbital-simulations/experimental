@@ -21,7 +21,7 @@ impl Draw for Particle {
         use macroquad::shapes::draw_circle_lines;
         use Shape::*;
         match self.shape {
-            Circle(r) => {
+            Circle { radius: r } => {
                 let pos = self.pos.as_vec2();
                 draw_circle_lines(pos.x, pos.y, r as f32, 1.0, WHITE);
                 let x = r * DMat2::from_angle(self.angle) * DVec2::X;

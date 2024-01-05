@@ -13,7 +13,7 @@ pub struct Circle {
 }
 
 impl Circle {
-    pub fn test_contact_with_circle(&self, other: &Circle) -> Option<Contact> {
+    pub fn test_overlap_with_circle(&self, other: &Circle) -> Option<Contact> {
         /*
         Implementation choices:
             0. Contact position is in the same coordinates as inputs.

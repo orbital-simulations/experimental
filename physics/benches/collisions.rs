@@ -21,7 +21,7 @@ fn init_circle_engine(num_particles: usize) -> Engine {
                 rng.gen_range(-vel_limit..vel_limit),
                 rng.gen_range(-vel_limit..vel_limit),
             ),
-            shape: Shape::Circle(10.),
+            shape: Shape::Circle { radius: 10. },
             ..Default::default()
         })
         .take(num_particles),

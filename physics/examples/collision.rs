@@ -17,14 +17,14 @@ impl GameState {
             Particle {
                 pos: dvec2(400.0 - half_width, 300.0),
                 vel: dvec2(100.0, 0.0),
-                shape: Shape::Circle(40.0),
+                shape: Shape::Circle { radius: 40.0 },
                 ..Default::default()
             },
             Particle {
                 mass: 10.0,
                 pos: dvec2(400.0 + half_width, 330.0),
                 vel: dvec2(-50.0, 0.0),
-                shape: Shape::Circle(60.0),
+                shape: Shape::Circle { radius: 60.0 },
                 ..Default::default()
             },
         ]
