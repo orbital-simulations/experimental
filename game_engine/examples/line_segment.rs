@@ -12,7 +12,7 @@ fn main() -> color_eyre::eyre::Result<()> {
             from: Vec2::new(0., 0.),
             to: Vec2::new(200., 100.),
             color: Vec3::new(0., 1., 0.),
-        })
+        });
     })?;
     Ok(())
 }

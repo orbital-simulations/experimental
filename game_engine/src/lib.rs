@@ -228,6 +228,13 @@ impl GameEngine {
             &mut encoder,
         );
 
+        self.line_segment_renderer.render(
+            &mut self.windowed_device,
+            &self.projection_bind_group,
+            &view,
+            &mut encoder,
+        );
+
         self.windowed_device
             .queue
             .submit(std::iter::once(encoder.finish()));
