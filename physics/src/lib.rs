@@ -1,4 +1,4 @@
-use geometry::Contact;
+use geometry::{Circle, Contact, HalfPlane};
 use glam::DVec2;
 
 pub mod geometry;
@@ -7,11 +7,11 @@ pub mod geometry;
 /// kinematics (`vel`, `omega`) and dynamics (`mass`, `force`, `inertia`, `torque`).
 #[derive(Clone, Debug)]
 pub struct Particle {
-    pub mass: f64,
+    pub inv_mass: f64,
     pub pos: DVec2,
     pub vel: DVec2,
     pub force: DVec2,
-    pub inertia: f64,
+    pub inv_inertia: f64,
     pub angle: f64,
     pub omega: f64,
     pub torque: f64,
@@ -19,17 +19,32 @@ pub struct Particle {
 }
 
 impl Particle {
-    pub fn new(mass: f64, inertia: f64, shape: Shape) -> Particle {
+    pub fn new(inv_mass: f64, inv_inertia: f64, shape: Shape) -> Particle {
         Particle {
-            mass,
+            inv_mass,
             pos: DVec2::ZERO,
             vel: DVec2::ZERO,
             force: DVec2::ZERO,
-            inertia,
+            inv_inertia,
             angle: 0.0,
             omega: 0.0,
             torque: 0.0,
             shape,
+        }
+    }
+}
+
+impl Particle {
+    fn to_geometry_shape(&self) -> geometry::Shape {
+        match self.shape {
+            Shape::Circle { radius } => geometry::Shape::Circle(Circle {
+                pos: self.pos,
+                radius,
+            }),
+            Shape::HalfPlane { normal_angle } => geometry::Shape::HalfPlane(HalfPlane {
+                pos: self.pos,
+                normal_angle,
+            }),
         }
     }
 }
@@ -86,49 +101,6 @@ impl Collision {
     }
 }
 
-fn get_contacts(a: &Particle, b: &Particle) -> Vec<Contact> {
-    match (&a.shape, &b.shape) {
-        (Shape::Circle { radius: r1 }, Shape::Circle { radius: r2 }) => {
-            let c1 = geometry::Circle {
-                pos: a.pos,
-                radius: *r1,
-            };
-            let c2 = geometry::Circle {
-                pos: b.pos,
-                radius: *r2,
-            };
-            c1.test_overlap_with_circle(&c2).into_iter().collect()
-        }
-        (
-            Shape::Circle { radius },
-            Shape::HalfPlane {
-                normal_angle: _normal_angle,
-            },
-        ) => {
-            let _c1 = geometry::Circle {
-                pos: a.pos,
-                radius: *radius,
-            };
-            unimplemented!("Circle vs HalfPlane overlap testing")
-        }
-        (
-            Shape::HalfPlane {
-                normal_angle: _normal_angle,
-            },
-            Shape::Circle { radius },
-        ) => {
-            let _c2 = geometry::Circle {
-                pos: a.pos,
-                radius: *radius,
-            };
-            unimplemented!("HalfPlane vs Circle overlap testing")
-        }
-        (Shape::HalfPlane { .. }, Shape::HalfPlane { .. }) => {
-            unimplemented!("HalfPlane vs HalfPlane overlap testing")
-        }
-    }
-}
-
 impl Engine {
     pub fn detect_collisions(&self) -> Vec<Collision> {
         let mut collisions = vec![];
@@ -138,10 +110,12 @@ impl Engine {
                     continue;
                 }
 
-                let new_collisions = get_contacts(a, b)
+                let contacts = a
+                    .to_geometry_shape()
+                    .test_overlap(&b.to_geometry_shape())
                     .into_iter()
                     .map(|contact| Collision::new(i, j, contact));
-                collisions.extend(new_collisions)
+                collisions.extend(contacts)
             }
         }
         collisions
@@ -211,10 +185,8 @@ impl Engine {
                     continue;
                 }
                 // TODO: consider storing inverse masses in `Particle`
-                let m1_inv =
-                    DMat3::from_diagonal(dvec3(1.0 / p1.mass, 1.0 / p1.mass, 1.0 / p1.inertia));
-                let m2_inv =
-                    DMat3::from_diagonal(dvec3(1.0 / p2.mass, 1.0 / p2.mass, 1.0 / p2.inertia));
+                let m1_inv = DMat3::from_diagonal(dvec3(p1.inv_mass, p1.inv_mass, p1.inv_inertia));
+                let m2_inv = DMat3::from_diagonal(dvec3(p2.inv_mass, p2.inv_mass, p2.inv_inertia));
                 // Supporting only dynamic contacts with ellastic collision for now
                 let restitution = 1.0;
                 let lambda =
@@ -239,10 +211,10 @@ impl Engine {
         // 1. Update velocities from forces
         for p in &mut self.particles {
             let force = self.gravity + p.force;
-            let acc = force / p.mass;
+            let acc = force * p.inv_mass;
             p.vel += dt * acc;
 
-            let alpha = p.torque / p.inertia;
+            let alpha = p.torque * p.inv_inertia;
             p.omega += dt * alpha;
         }
 

@@ -32,7 +32,7 @@ fn setup() -> GameState {
     let vel_limit = 50.0;
     game_state.engine.particles.extend(
         repeat_with(|| Particle {
-            mass: rng.gen_range(1.0..3.0),
+            inv_mass: rng.gen_range(1.0..3.0),
             pos: dvec2(
                 rng.gen_range(-pos_limit..pos_limit),
                 rng.gen_range(-pos_limit..pos_limit),

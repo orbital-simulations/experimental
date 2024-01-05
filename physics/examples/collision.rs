@@ -1,4 +1,5 @@
-use glam::dvec2;
+use glam::{dvec2, vec2};
+use macroquad::window::{screen_height, screen_width};
 use physics::Engine;
 
 mod shared;
@@ -15,14 +16,14 @@ impl GameState {
         let half_width = 100.0;
         self.engine.particles = vec![
             Particle {
-                pos: dvec2(400.0 - half_width, 300.0),
+                pos: dvec2(0.0 - half_width, 0.0),
                 vel: dvec2(100.0, 0.0),
                 shape: Shape::Circle { radius: 40.0 },
                 ..Default::default()
             },
             Particle {
-                mass: 10.0,
-                pos: dvec2(400.0 + half_width, 330.0),
+                inv_mass: 0.1,
+                pos: dvec2(0.0 + half_width, -30.0),
                 vel: dvec2(-50.0, 0.0),
                 shape: Shape::Circle { radius: 60.0 },
                 ..Default::default()
@@ -39,14 +40,8 @@ impl GameState {
 
     fn render(&self) {
         use shared::draw::Draw;
-
-        for p in &self.engine.particles {
-            p.draw();
-        }
-
-        for col in self.engine.detect_collisions() {
-            col.draw();
-        }
+        let size = vec2(screen_width(), screen_height());
+        self.engine.draw(size);
     }
 }
 
