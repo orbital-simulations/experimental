@@ -281,7 +281,7 @@ impl GameEngine {
     }
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
-        info!("on resize event received new_size: {}", scale_factor);
+        info!("on scale factor change scale_factor: {}", scale_factor);
         self.scale_factor = scale_factor;
     }
 }
