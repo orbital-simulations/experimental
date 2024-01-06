@@ -1,4 +1,4 @@
-use glam::dvec2;
+use glam::{dvec2, DVec2};
 use physics::Engine;
 
 mod shared;
@@ -12,25 +12,31 @@ impl GameState {
     fn setup(&mut self) {
         use physics::{Particle, Shape};
 
-        let half_width = 100.0;
         self.engine.particles = vec![
             Particle {
-                pos: dvec2(0.0 - half_width, 0.0),
-                vel: dvec2(100.0, 0.0),
-                shape: Shape::Circle { radius: 40.0 },
+                pos: dvec2(-100.0, 50.0),
+                shape: Shape::Circle { radius: 50.0 },
                 ..Default::default()
             },
             Particle {
                 inv_mass: 0.1,
-                pos: dvec2(0.0 + half_width, -30.0),
-                vel: dvec2(-50.0, 0.0),
-                shape: Shape::Circle { radius: 60.0 },
+                pos: dvec2(100.0, 0.0),
+                angle: 1.0,
+                shape: Shape::Circle { radius: 50.0 },
                 ..Default::default()
             },
         ]
     }
 
     fn update(&mut self) {
+        let p1 = &mut self.engine.particles[0];
+        let k_linear = 50.0;
+        p1.force = -k_linear * p1.pos.y * DVec2::Y;
+
+        let p2 = &mut self.engine.particles[1];
+        let k_angular = 20.0;
+        p2.torque = -k_angular * p2.angle;
+
         let dt = macroquad::time::get_frame_time();
         self.engine.step(dt as f64);
     }
