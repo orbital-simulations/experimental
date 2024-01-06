@@ -1,5 +1,5 @@
 [workspace]
-members = ["app", "physics", "game_engine"]
+members = ["app", "physics", "game_engine", "renderer"]
 resolver = "2"
 
 [workspace.dependencies]
