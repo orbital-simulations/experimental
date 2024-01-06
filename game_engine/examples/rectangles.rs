@@ -4,9 +4,8 @@ use glam::Vec2;
 mod shared;
 
 fn main() -> color_eyre::eyre::Result<()> {
-    shared::setup()?;
-
-    let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new())?;
+    let (event_loop, window) = shared::setup()?;
+    let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(event_loop, &window))?;
     game_engine.run(event_loop, || (), &|_state, game_engine| {
         game_engine.draw_full_rectangle(FilledRectangle {
             pos: Vec2::new(0., 0.),
