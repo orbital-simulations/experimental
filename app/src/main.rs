@@ -5,6 +5,7 @@ use glam::{dvec2, DVec2};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use winit::{event_loop::EventLoop, window::Window};
 
 const CIRCLE_NUMBER: usize = 1000;
 
@@ -82,7 +83,9 @@ fn main() -> color_eyre::eyre::Result<()> {
         .with(filter_layer)
         .init();
     color_eyre::install()?;
-    let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new())?;
+    let event_loop = EventLoop::new().expect("Can't create the event loop");
+    let window = Window::new(&event_loop).expect("Can't create the window");
+    let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(event_loop, &window))?;
     game_engine.run(event_loop, setup, &update)?;
     Ok(())
 }

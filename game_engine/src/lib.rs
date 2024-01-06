@@ -22,10 +22,11 @@ use winit::event::WindowEvent::{
 };
 use winit::keyboard::NamedKey;
 
+use winit::window::Window;
 use winit::{dpi::PhysicalSize, event::Event, event_loop::EventLoop};
 
-pub struct GameEngine {
-    windowed_device: WindowedDevice,
+pub struct GameEngine<'a> {
+    windowed_device: WindowedDevice<'a>,
     #[allow(unused)]
     projection_bind_group: wgpu::BindGroup,
     projection_buffer: wgpu::Buffer,
@@ -41,11 +42,10 @@ pub struct GameEngine {
     scale_factor: f64,
 }
 
-impl GameEngine {
-    pub async fn new() -> eyre::Result<(Self, EventLoop<()>)> {
-        let mut event_loop = EventLoop::new().expect("can't create the event loop");
-        let mut windowed_device = WindowedDevice::new(&mut event_loop).await?;
-        let scale_factor = windowed_device.window.scale_factor();
+impl <'a> GameEngine<'a> {
+    pub async fn new(event_loop: EventLoop<()>, window: &'a Window) -> eyre::Result<(Self, EventLoop<()>)> {
+        let scale_factor = window.scale_factor();
+        let mut windowed_device = WindowedDevice::new(window).await?;
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
             Self::create_projection(&mut windowed_device, scale_factor);
 

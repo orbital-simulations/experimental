@@ -1,9 +1,9 @@
 use tracing::info;
 use wgpu::Adapter;
-use winit::{dpi::PhysicalSize, event_loop::EventLoop, window::Window};
+use winit::{dpi::PhysicalSize, window::Window};
 
 // TODO: Try to think of a better name.
-pub struct WindowedDevice {
+pub struct WindowedDevice<'a> {
     pub instance: wgpu::Instance,
     // Configuration of the droweable surface. It is here so we can reconfigure
     // resolution on resize event.
@@ -13,19 +13,15 @@ pub struct WindowedDevice {
     pub device: wgpu::Device,
     // Sends data and encoded commands to GPU
     pub queue: wgpu::Queue,
+    pub window: &'a Window,
     // Drawable surface in the window.
-    pub surface: wgpu::Surface,
-    // Represents the system window.
-    pub window: Window,
+    pub surface: wgpu::Surface<'a>,
     pub adapter: Adapter,
     pub size: PhysicalSize<u32>,
 }
 
-impl WindowedDevice {
-    pub async fn new(event_loop: &mut EventLoop<()>) -> eyre::Result<Self> {
-        let window = Window::new(event_loop).expect("Can't create the window");
-        let size = window.inner_size();
-
+impl <'a>WindowedDevice<'a> {
+    pub async fn new(window: &'a Window) -> eyre::Result<Self> {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -35,11 +31,13 @@ impl WindowedDevice {
             gles_minor_version: wgpu::Gles3MinorVersion::default(),
         });
 
+        let size = window.inner_size();
+
         // SAFETY:
         //
         // The surface needs to live as long as the window that created it.
         // State owns the window so this should be safe.
-        let surface = unsafe { instance.create_surface(&window) }?;
+        let surface = instance.create_surface(window)?;
         use eyre::OptionExt;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -55,10 +53,8 @@ impl WindowedDevice {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("GPU device"),
-                    features: wgpu::Features::empty(),
-                    // WebGL doesn't support all of wgpu's features, so if
-                    // we're building for the web we'll have to disable some.
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
                 },
                 None, // Trace path
             )
@@ -83,7 +79,6 @@ impl WindowedDevice {
             view_formats: vec![],
         };
         surface.configure(&device, &config);
-        let size = window.inner_size();
 
         Ok(Self {
             instance,
@@ -91,9 +86,9 @@ impl WindowedDevice {
             device,
             queue,
             config,
-            window,
             adapter,
             size,
+            window,
         })
     }
 

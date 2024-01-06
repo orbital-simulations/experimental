@@ -15,5 +15,6 @@ physics = { path = "../physics" }
 game_engine = { path = "../game_engine" }
 pollster = { workspace = true }
 eyre = { workspace = true }
+winit = { workspace = true }
 color-eyre = { workspace = true }
 rand = { workspace = true }
