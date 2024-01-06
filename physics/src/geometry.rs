@@ -9,13 +9,6 @@ pub struct Contact {
     pub separation: f64,
 }
 
-impl Contact {
-    fn swap(mut self) -> Contact {
-        self.normal = -self.normal;
-        self
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum Shape {
     Circle(Circle),
@@ -100,6 +93,10 @@ impl Circle {
 
 impl HalfPlane {
     pub fn test_overlap_with_circle(&self, other: &Circle) -> Option<Contact> {
-        other.test_overlap_with_half_plane(self).map(|c| c.swap())
+        other.test_overlap_with_half_plane(self).map(|mut c| {
+            // c.normal points from `other` to `self`, so we need to flip it.
+            c.normal = -c.normal;
+            c
+        })
     }
 }
