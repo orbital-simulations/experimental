@@ -42,8 +42,11 @@ pub struct GameEngine<'a> {
     scale_factor: f64,
 }
 
-impl <'a> GameEngine<'a> {
-    pub async fn new(event_loop: EventLoop<()>, window: &'a Window) -> eyre::Result<(Self, EventLoop<()>)> {
+impl<'a> GameEngine<'a> {
+    pub async fn new(
+        event_loop: EventLoop<()>,
+        window: &'a Window,
+    ) -> eyre::Result<(Self, EventLoop<()>)> {
         let scale_factor = window.scale_factor();
         let mut windowed_device = WindowedDevice::new(window).await?;
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =

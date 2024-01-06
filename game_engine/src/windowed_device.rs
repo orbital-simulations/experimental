@@ -20,7 +20,7 @@ pub struct WindowedDevice<'a> {
     pub size: PhysicalSize<u32>,
 }
 
-impl <'a>WindowedDevice<'a> {
+impl<'a> WindowedDevice<'a> {
     pub async fn new(window: &'a Window) -> eyre::Result<Self> {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
