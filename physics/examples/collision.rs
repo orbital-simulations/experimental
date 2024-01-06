@@ -15,16 +15,16 @@ impl GameState {
         let half_width = 100.0;
         self.engine.particles = vec![
             Particle {
-                pos: dvec2(400.0 - half_width, 300.0),
+                pos: dvec2(0.0 - half_width, 0.0),
                 vel: dvec2(100.0, 0.0),
-                shape: Shape::Circle(40.0),
+                shape: Shape::Circle { radius: 40.0 },
                 ..Default::default()
             },
             Particle {
-                mass: 10.0,
-                pos: dvec2(400.0 + half_width, 330.0),
+                inv_mass: 0.1,
+                pos: dvec2(0.0 + half_width, -30.0),
                 vel: dvec2(-50.0, 0.0),
-                shape: Shape::Circle(60.0),
+                shape: Shape::Circle { radius: 60.0 },
                 ..Default::default()
             },
         ]
@@ -39,21 +39,14 @@ impl GameState {
 
     fn render(&self) {
         use shared::draw::Draw;
-
-        for p in &self.engine.particles {
-            p.draw();
-        }
-
-        for col in self.engine.detect_collisions() {
-            col.draw();
-        }
+        self.engine.draw();
     }
 }
 
 #[macroquad::main("experimental")]
 async fn main() {
     use macroquad::window::next_frame;
-
+    shared::setup();
     let mut state = GameState::default();
     state.setup();
 

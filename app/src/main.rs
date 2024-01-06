@@ -32,7 +32,7 @@ fn setup() -> GameState {
     let vel_limit = 50.0;
     game_state.engine.particles.extend(
         repeat_with(|| Particle {
-            mass: rng.gen_range(1.0..3.0),
+            inv_mass: rng.gen_range(1.0..3.0),
             pos: dvec2(
                 rng.gen_range(-pos_limit..pos_limit),
                 rng.gen_range(-pos_limit..pos_limit),
@@ -41,7 +41,7 @@ fn setup() -> GameState {
                 rng.gen_range(-vel_limit..vel_limit),
                 rng.gen_range(-vel_limit..vel_limit),
             ),
-            shape: Shape::Circle(10.),
+            shape: Shape::Circle { radius: 10. },
             ..Default::default()
         })
         .take(CIRCLE_NUMBER),
@@ -56,17 +56,30 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     state.engine.step(dt as f64);
 
     for p in &state.engine.particles {
-        if let Shape::Circle(radius) = p.shape {
-            game_engine.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
+        match p.shape {
+            Shape::Circle { radius } => {
+                game_engine.draw_full_circle(FilledCircle::new(
+                    p.pos.as_vec2(),
+                    radius as f32,
+                    RED,
+                ));
+            }
+            Shape::HalfPlane { .. } => {
+                unimplemented!("Render a half-plane")
+            }
+            _ => {
+                unimplemented!("Render unknown shape {:?}", p.shape)
+            }
         }
-        game_engine.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), 10., RED));
     }
 }
 
 fn main() -> color_eyre::eyre::Result<()> {
+    let fmt_layer = fmt::layer().pretty();
+    let filter_layer = EnvFilter::from_default_env();
     tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(EnvFilter::from_default_env())
+        .with(fmt_layer)
+        .with(filter_layer)
         .init();
     color_eyre::install()?;
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new())?;

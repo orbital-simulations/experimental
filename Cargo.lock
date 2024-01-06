@@ -1500,6 +1500,8 @@ dependencies = [
  "glam 0.25.0",
  "macroquad",
  "rand",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

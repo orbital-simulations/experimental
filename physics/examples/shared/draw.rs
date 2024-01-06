@@ -1,7 +1,7 @@
 use glam::DVec2;
 use macroquad::color::Color;
 
-use physics::{Collision, Particle, Shape};
+use physics::{Collision, Engine, Particle, Shape};
 
 pub fn draw_vec_line(from: DVec2, to: DVec2, thickness: f32, color: Color) {
     use macroquad::shapes::draw_line;
@@ -21,7 +21,7 @@ impl Draw for Particle {
         use macroquad::shapes::draw_circle_lines;
         use Shape::*;
         match self.shape {
-            Circle(r) => {
+            Circle { radius: r } => {
                 let pos = self.pos.as_vec2();
                 draw_circle_lines(pos.x, pos.y, r as f32, 1.0, WHITE);
                 let x = r * DMat2::from_angle(self.angle) * DVec2::X;
@@ -30,8 +30,15 @@ impl Draw for Particle {
                 draw_vec_line(pos + x, pos - x, 1.0, WHITE);
                 draw_vec_line(pos + y, pos - y, 1.0, WHITE);
             }
+            HalfPlane { normal_angle } => {
+                let extent = 1000.0;
+                let tangent = DVec2::from_angle(normal_angle).perp();
+                let from = self.pos + extent * tangent;
+                let to = self.pos - extent * tangent;
+                draw_vec_line(from, to, 1.0, WHITE);
+            }
             _ => {
-                unimplemented!("Uknown shape {:?}", self.shape)
+                unimplemented!("Unknown shape {:?}", self.shape)
             }
         }
     }
@@ -43,5 +50,17 @@ impl Draw for Collision {
         let contact = &self.contact;
         let pos_inside = contact.pos + contact.separation * contact.normal;
         draw_vec_line(contact.pos, pos_inside, 2.0, RED);
+    }
+}
+
+impl Draw for Engine {
+    fn draw(&self) {
+        for p in &self.particles {
+            p.draw();
+        }
+
+        for col in self.detect_collisions() {
+            col.draw();
+        }
     }
 }
