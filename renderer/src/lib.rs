@@ -1,32 +1,24 @@
 pub mod buffers;
 pub mod colors;
+pub mod context;
 pub mod filled_circle;
 pub mod filled_rectangle;
 pub mod line_segment;
 pub mod raw;
-pub mod context;
 
-use std::time::Instant;
-
+use context::Context;
 use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
+use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
 use raw::Raw;
 
-use tracing::{debug, info};
+use tracing::info;
 use wgpu::util::DeviceExt;
-use windowed_device::WindowedDevice;
+use wgpu::{StoreOp, Texture};
 
-use winit::event::WindowEvent::{
-    CloseRequested, KeyboardInput, MouseInput, RedrawRequested, Resized, ScaleFactorChanged,
-};
-use winit::keyboard::NamedKey;
-
-use winit::window::Window;
-use winit::{dpi::PhysicalSize, event::Event, event_loop::EventLoop};
-
-pub struct GameEngine<'a> {
-    windowed_device: WindowedDevice<'a>,
+pub struct Renderer<'a> {
+    context: &'a Context<'a>,
     #[allow(unused)]
     projection_bind_group: wgpu::BindGroup,
     projection_buffer: wgpu::Buffer,
@@ -36,57 +28,51 @@ pub struct GameEngine<'a> {
     filled_circle_renderer: FilledCircleRenderer,
     filled_rectangle_renderer: FilledRectangleRenderer,
     line_segment_renderer: LineSegmentRenderer,
-    pub last_frame_delta: f32,
 
-    timer: Instant,
     scale_factor: f64,
+    size: Vec2,
 }
 
-impl<'a> GameEngine<'a> {
+impl<'a> Renderer<'a> {
     pub async fn new(
-        event_loop: EventLoop<()>,
-        window: &'a Window,
-    ) -> eyre::Result<(Self, EventLoop<()>)> {
-        let scale_factor = window.scale_factor();
-        let mut windowed_device = WindowedDevice::new(window).await?;
+        context: &'a Context<'a>,
+        scale_factor: f64,
+        size: Vec2,
+    ) -> eyre::Result<Self> {
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
-            Self::create_projection(&mut windowed_device, scale_factor);
+            Self::create_projection(context, scale_factor, size);
 
         let filled_circle_renderer =
-            FilledCircleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
+            FilledCircleRenderer::new(context, &projection_bind_group_layout);
         let filled_rectangle_renderer =
-            FilledRectangleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
+            FilledRectangleRenderer::new(context, &projection_bind_group_layout);
         let line_segment_renderer =
-            LineSegmentRenderer::new(&mut windowed_device, &projection_bind_group_layout);
+            LineSegmentRenderer::new(context, &projection_bind_group_layout);
 
-        Ok((
-            Self {
-                windowed_device,
-                projection_bind_group,
-                projection_buffer,
-                projection_bind_group_layout,
-                filled_circle_renderer,
-                last_frame_delta: 0.,
-                filled_rectangle_renderer,
-                line_segment_renderer,
-                timer: Instant::now(),
-                scale_factor,
-            },
-            event_loop,
-        ))
+        Ok(Self {
+            context,
+            projection_bind_group,
+            projection_buffer,
+            projection_bind_group_layout,
+            filled_circle_renderer,
+            filled_rectangle_renderer,
+            line_segment_renderer,
+            scale_factor,
+            size,
+        })
     }
 
     /// Return a orthographics projection matrix which will place the (0,0) into the left top
     /// corner.
     fn create_projection(
-        windowed_device: &mut WindowedDevice,
+        context: &Context,
         scale_factor: f64,
+        size: Vec2,
     ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        let size = windowed_device.window.inner_size();
         let projection_matrix = Self::generate_projection_matrix(size, scale_factor);
 
         let projection_buffer =
-            windowed_device
+            context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Projection Buffer"),
@@ -96,7 +82,7 @@ impl<'a> GameEngine<'a> {
                 });
 
         let projection_bind_group_layout =
-            windowed_device
+            context
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label: Some("Projection Bind Group Descriptor"),
@@ -112,17 +98,16 @@ impl<'a> GameEngine<'a> {
                     }],
                 });
 
-        let projection_bind_group =
-            windowed_device
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    layout: &projection_bind_group_layout,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: projection_buffer.as_entire_binding(),
-                    }],
-                    label: Some("Projection Bind Group"),
-                });
+        let projection_bind_group = context
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &projection_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: projection_buffer.as_entire_binding(),
+                }],
+                label: Some("Projection Bind Group"),
+            });
 
         (
             projection_buffer,
@@ -131,9 +116,9 @@ impl<'a> GameEngine<'a> {
         )
     }
 
-    fn generate_projection_matrix(size: PhysicalSize<u32>, scale_factor: f64) -> glam::Mat4 {
-        let half_width = size.width as f32 / (2. * scale_factor as f32);
-        let half_height = size.height as f32 / (2. * scale_factor as f32);
+    fn generate_projection_matrix(size: Vec2, scale_factor: f64) -> glam::Mat4 {
+        let half_width = size.x / (2. * scale_factor as f32);
+        let half_height = size.y / (2. * scale_factor as f32);
         glam::Mat4::orthographic_lh(
             -half_width,
             half_width,
@@ -142,64 +127,6 @@ impl<'a> GameEngine<'a> {
             0.0,
             -1.0,
         )
-    }
-
-    fn update_projection(&mut self) {
-        self.windowed_device.queue.write_buffer(
-            &self.projection_buffer,
-            0,
-            Self::generate_projection_matrix(self.windowed_device.size, self.scale_factor)
-                .get_raw(),
-        );
-    }
-
-    fn redraw_requested<State, FUpdate>(&mut self, state: &mut State, update: FUpdate)
-    where
-        FUpdate: Fn(&mut State, &mut GameEngine),
-    {
-        info!("rendering as per the RedrawRequested was received");
-        // TODO: It is possible this may cause some time shuttering in the
-        // first frame. Maybe the first delta should be 0??
-        self.last_frame_delta = self.timer.elapsed().as_secs_f32();
-        self.timer = Instant::now();
-        update(state, self);
-
-        match self.windowed_device.prepare_encoder() {
-            Ok((mut encoder, view, output)) => {
-                self.filled_circle_renderer.render(
-                    &mut self.windowed_device,
-                    &self.projection_bind_group,
-                    &view,
-                    &mut encoder,
-                );
-
-                self.filled_rectangle_renderer.render(
-                    &mut self.windowed_device,
-                    &self.projection_bind_group,
-                    &view,
-                    &mut encoder,
-                );
-
-                self.line_segment_renderer.render(
-                    &mut self.windowed_device,
-                    &self.projection_bind_group,
-                    &view,
-                    &mut encoder,
-                );
-
-                self.windowed_device
-                    .queue
-                    .submit(std::iter::once(encoder.finish()));
-                output.present();
-                self.windowed_device.window.request_redraw();
-            }
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                self.on_resize(self.windowed_device.size);
-            }
-            Err(_) => {
-                panic!("panicing in the panic");
-            }
-        }
     }
 
     pub fn draw_full_circle(&mut self, full_circle: FilledCircle) {
@@ -213,19 +140,59 @@ impl<'a> GameEngine<'a> {
         self.line_segment_renderer.add_line_segment(line_segment);
     }
 
-    pub fn on_resize(&mut self, new_size: PhysicalSize<u32>) {
+    pub fn on_resize(&mut self, new_size: Vec2) {
         info!("on resize event received new_size: {:?}", new_size);
-        self.windowed_device.size = new_size;
-        self.windowed_device.config.width = new_size.width;
-        self.windowed_device.config.height = new_size.height;
-        self.windowed_device
-            .surface
-            .configure(&self.windowed_device.device, &self.windowed_device.config);
-        self.update_projection();
+        self.size = new_size;
+        self.context.queue.write_buffer(
+            &self.projection_buffer,
+            0,
+            Self::generate_projection_matrix(self.size, self.scale_factor).get_raw(),
+        );
     }
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
         self.scale_factor = scale_factor;
+    }
+
+    pub fn render(&mut self, texture: &Texture) -> eyre::Result<(), wgpu::SurfaceError> {
+        let (mut encoder, texture_view) = self.context.prepare_encoder(texture)?;
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Shapes Renderer Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &texture_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    store: StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        self.filled_circle_renderer.render(
+            self.context,
+            &self.projection_bind_group,
+            &mut render_pass,
+        );
+        self.filled_rectangle_renderer.render(
+            self.context,
+            &self.projection_bind_group,
+            &mut render_pass,
+        );
+        self.line_segment_renderer.render(
+            self.context,
+            &self.projection_bind_group,
+            &mut render_pass,
+        );
+
+        Ok(())
     }
 }
