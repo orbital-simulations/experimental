@@ -145,7 +145,8 @@ impl GameEngine {
         self.windowed_device.queue.write_buffer(
             &self.projection_buffer,
             0,
-            Self::generate_projection_matrix(self.windowed_device.size, self.scale_factor).get_raw(),
+            Self::generate_projection_matrix(self.windowed_device.size, self.scale_factor)
+                .get_raw(),
         );
     }
 
@@ -235,12 +236,12 @@ impl GameEngine {
                     &mut encoder,
                 );
 
-            self.line_segment_renderer.render(
-                &mut self.windowed_device,
-                &self.projection_bind_group,
-                &view,
-                &mut encoder,
-            );
+                self.line_segment_renderer.render(
+                    &mut self.windowed_device,
+                    &self.projection_bind_group,
+                    &view,
+                    &mut encoder,
+                );
 
                 self.windowed_device
                     .queue
