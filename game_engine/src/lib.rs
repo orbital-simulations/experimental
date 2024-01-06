@@ -12,13 +12,16 @@ use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
 use line_segment::{LineSegment, LineSegmentRenderer};
 use raw::Raw;
+
 use tracing::{debug, info};
 use wgpu::util::DeviceExt;
 use windowed_device::WindowedDevice;
+
 use winit::event::WindowEvent::{
-    CloseRequested, KeyboardInput, MouseInput, RedrawRequested, Resized,
+    CloseRequested, KeyboardInput, MouseInput, RedrawRequested, Resized, ScaleFactorChanged,
 };
 use winit::keyboard::NamedKey;
+
 use winit::{dpi::PhysicalSize, event::Event, event_loop::EventLoop};
 
 pub struct GameEngine {
@@ -35,14 +38,16 @@ pub struct GameEngine {
     pub last_frame_delta: f32,
 
     timer: Instant,
+    scale_factor: f64,
 }
 
 impl GameEngine {
     pub async fn new() -> eyre::Result<(Self, EventLoop<()>)> {
         let mut event_loop = EventLoop::new().expect("can't create the event loop");
         let mut windowed_device = WindowedDevice::new(&mut event_loop).await?;
+        let scale_factor = windowed_device.window.scale_factor();
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
-            Self::create_projection(&mut windowed_device);
+            Self::create_projection(&mut windowed_device, scale_factor);
 
         let filled_circle_renderer =
             FilledCircleRenderer::new(&mut windowed_device, &projection_bind_group_layout);
@@ -62,6 +67,7 @@ impl GameEngine {
                 filled_rectangle_renderer,
                 line_segment_renderer,
                 timer: Instant::now(),
+                scale_factor,
             },
             event_loop,
         ))
@@ -71,16 +77,17 @@ impl GameEngine {
     /// corner.
     fn create_projection(
         windowed_device: &mut WindowedDevice,
+        scale_factor: f64,
     ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
         let size = windowed_device.window.inner_size();
-        let perspective_matrix = Self::generate_projection_matrix(size);
+        let projection_matrix = Self::generate_projection_matrix(size, scale_factor);
 
         let projection_buffer =
             windowed_device
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Projection Buffer"),
-                    contents: perspective_matrix.get_raw(),
+                    contents: projection_matrix.get_raw(),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                     // TODO: Check if the COPY_DST is needed.
                 });
@@ -121,9 +128,9 @@ impl GameEngine {
         )
     }
 
-    fn generate_projection_matrix(size: PhysicalSize<u32>) -> glam::Mat4 {
-        let half_width = (size.width / 2) as f32;
-        let half_height = (size.height / 2) as f32;
+    fn generate_projection_matrix(size: PhysicalSize<u32>, scale_factor: f64) -> glam::Mat4 {
+        let half_width = size.width as f32 / (2. * scale_factor as f32);
+        let half_height = size.height as f32 / (2. * scale_factor as f32);
         glam::Mat4::orthographic_lh(
             -half_width,
             half_width,
@@ -134,11 +141,12 @@ impl GameEngine {
         )
     }
 
-    fn update_projection(&mut self, new_size: PhysicalSize<u32>) {
+    fn update_projection(&mut self) {
         self.windowed_device.queue.write_buffer(
             &self.projection_buffer,
             0,
-            Self::generate_projection_matrix(new_size).get_raw(),
+            Self::generate_projection_matrix(self.windowed_device.size, self.scale_factor)
+                .get_raw(),
         );
     }
 
@@ -156,18 +164,15 @@ impl GameEngine {
         // Restart timer just in case.
         self.timer = Instant::now();
         event_loop.run(move |event, elwt| {
-            if let Event::WindowEvent { event, .. } = event {
-                match event {
-                    Resized(new_size) => {
-                        info!("updating the projection matric after resize");
-                        self.windowed_device.config.width = new_size.width;
-                        self.windowed_device.config.height = new_size.height;
-                        self.windowed_device
-                            .surface
-                            .configure(&self.windowed_device.device, &self.windowed_device.config);
-                        self.update_projection(new_size);
-                        self.windowed_device.window.request_redraw();
+            match event {
+                Event::WindowEvent { event, .. } => match event {
+                    ScaleFactorChanged {
+                        scale_factor,
+                        inner_size_writer: _,
+                    } => {
+                        self.on_scale_factor_change(scale_factor);
                     }
+                    Resized(physical_size) => self.on_resize(physical_size),
                     CloseRequested => elwt.exit(),
                     KeyboardInput {
                         device_id: _,
@@ -190,9 +195,15 @@ impl GameEngine {
                     _ => {
                         debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
                     }
+                },
+                Event::AboutToWait => {
+                    // RedrawRequested will only trigger once, unless we manually
+                    // request it.
+                    //self.windowed_device.window.request_redraw();
                 }
-            } else {
-                debug!("UNKNOWN EVENT RECEIVED: {:?}", event);
+                _ => {
+                    debug!("UNKNOWN EVENT RECEIVED: {:?}", event);
+                }
             }
         })?;
         Ok(())
@@ -209,38 +220,42 @@ impl GameEngine {
         self.timer = Instant::now();
         update(state, self);
 
-        let (mut encoder, view, output) = self
-            .windowed_device
-            .prepare_encoder()
-            .expect("retreiving GPU command encoder");
+        match self.windowed_device.prepare_encoder() {
+            Ok((mut encoder, view, output)) => {
+                self.filled_circle_renderer.render(
+                    &mut self.windowed_device,
+                    &self.projection_bind_group,
+                    &view,
+                    &mut encoder,
+                );
 
-        self.filled_circle_renderer.render(
-            &mut self.windowed_device,
-            &self.projection_bind_group,
-            &view,
-            &mut encoder,
-        );
+                self.filled_rectangle_renderer.render(
+                    &mut self.windowed_device,
+                    &self.projection_bind_group,
+                    &view,
+                    &mut encoder,
+                );
 
-        self.filled_rectangle_renderer.render(
-            &mut self.windowed_device,
-            &self.projection_bind_group,
-            &view,
-            &mut encoder,
-        );
+                self.line_segment_renderer.render(
+                    &mut self.windowed_device,
+                    &self.projection_bind_group,
+                    &view,
+                    &mut encoder,
+                );
 
-        self.line_segment_renderer.render(
-            &mut self.windowed_device,
-            &self.projection_bind_group,
-            &view,
-            &mut encoder,
-        );
-
-        self.windowed_device
-            .queue
-            .submit(std::iter::once(encoder.finish()));
-        output.present();
-
-        self.windowed_device.window.request_redraw();
+                self.windowed_device
+                    .queue
+                    .submit(std::iter::once(encoder.finish()));
+                output.present();
+                self.windowed_device.window.request_redraw();
+            }
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                self.on_resize(self.windowed_device.size);
+            }
+            Err(_) => {
+                panic!("panicing in the panic");
+            }
+        }
     }
 
     pub fn draw_full_circle(&mut self, full_circle: FilledCircle) {
@@ -249,7 +264,24 @@ impl GameEngine {
     pub fn draw_full_rectangle(&mut self, full_rectangle: FilledRectangle) {
         self.filled_rectangle_renderer.add_rectangle(full_rectangle);
     }
+
     pub fn draw_line_segment(&mut self, line_segment: LineSegment) {
         self.line_segment_renderer.add_line_segment(line_segment);
+    }
+
+    pub fn on_resize(&mut self, new_size: PhysicalSize<u32>) {
+        info!("on resize event received new_size: {:?}", new_size);
+        self.windowed_device.size = new_size;
+        self.windowed_device.config.width = new_size.width;
+        self.windowed_device.config.height = new_size.height;
+        self.windowed_device
+            .surface
+            .configure(&self.windowed_device.device, &self.windowed_device.config);
+        self.update_projection();
+    }
+
+    pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
+        info!("on scale factor change scale_factor: {}", scale_factor);
+        self.scale_factor = scale_factor;
     }
 }
