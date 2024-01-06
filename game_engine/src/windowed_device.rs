@@ -33,10 +33,6 @@ impl<'a> WindowedDevice<'a> {
 
         let size = window.inner_size();
 
-        // SAFETY:
-        //
-        // The surface needs to live as long as the window that created it.
-        // State owns the window so this should be safe.
         let surface = instance.create_surface(window)?;
         use eyre::OptionExt;
         let adapter = instance
