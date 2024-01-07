@@ -1,8 +1,15 @@
-use geometry::{Circle, Contact, HalfPlane};
+#![feature(get_many_mut)]
+use constraint::{CollisionConstraint, ConstraintEnum};
+use geometry::{Circle, HalfPlane};
 use glam::DVec2;
+use solver::{SequentialImpulseSolver, Solver};
 use tracing::{instrument, trace, trace_span};
 
+pub mod constraint;
+
 pub mod geometry;
+
+pub mod solver;
 
 /// A representation of a rigid body possessing geometry (`pos`, `angle`, `shape`),
 /// kinematics (`vel`, `omega`) and dynamics (`inv_mass`, `force`, `inv_inertia`, `torque`).
@@ -86,6 +93,7 @@ pub enum Shape {
 #[derive(Clone, Debug)]
 pub struct Engine {
     pub particles: Vec<Particle>,
+    pub constraints: Vec<ConstraintEnum>,
     pub gravity: DVec2,
     pub solver_iterations: usize,
 }
@@ -94,32 +102,16 @@ impl Default for Engine {
     fn default() -> Self {
         Self {
             particles: Default::default(),
+            constraints: Default::default(),
             gravity: Default::default(),
             solver_iterations: 10,
         }
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Collision {
-    pub id_a: usize,
-    pub id_b: usize,
-    pub contact: Contact,
-}
-
-impl Collision {
-    fn new(a: usize, b: usize, contact: Contact) -> Collision {
-        Collision {
-            id_a: a,
-            id_b: b,
-            contact,
-        }
-    }
-}
-
 impl Engine {
     #[instrument(level = "trace", skip_all)]
-    pub fn detect_collisions(&self) -> Vec<Collision> {
+    pub fn detect_collisions(&self) -> Vec<CollisionConstraint> {
         let mut collisions = vec![];
         for (i, a) in self.particles.iter().enumerate() {
             for (j, b) in self.particles.iter().enumerate() {
@@ -131,12 +123,15 @@ impl Engine {
                     .to_geometry_shape()
                     .test_overlap(&b.to_geometry_shape())
                     .into_iter()
-                    .map(|contact| Collision::new(i, j, contact));
+                    .map(|contact| CollisionConstraint::new(i, j, contact));
                 collisions.extend(contacts)
             }
         }
         collisions
     }
+
+    // TODO: resolve_collisions is now obsolete but maybe it could be useful
+    // for some comparison tests and some documentation might be salvagable.
 
     // The goal of collision resolution is to solve all the constraints between particles.
     // These constraints can be explicitly set by the user (TBI) but they can also arise
@@ -156,7 +151,7 @@ impl Engine {
     // 2. Many constraints are non-linear; this applies in particular to penetration constraints:
     //    if one treats them as linear, they become "sticky", whereas we only want them to be repulsive.
     #[instrument(level = "trace", skip_all)]
-    fn resolve_collisions(&mut self, collisions: &[Collision]) {
+    fn resolve_collisions(&mut self, collisions: &[CollisionConstraint]) {
         use glam::{dvec3, DMat3};
 
         for iter in 0..self.solver_iterations {
@@ -245,10 +240,25 @@ impl Engine {
         // TODO: should we predict positions using the updated velocities before detecting collisions?
 
         // 2. Detect collisions
-        let collisions = self.detect_collisions();
+        let collision_constraints = self
+            .detect_collisions()
+            .into_iter()
+            .map(ConstraintEnum::Collision);
+
+        // TODO: avoid cloning, e.g. by passing an iterator to the solver
+        let constraints: Vec<_> = self
+            .constraints
+            .clone()
+            .into_iter()
+            .chain(collision_constraints)
+            .collect();
 
         // 3. Resolve collisions by updating velocities
-        self.resolve_collisions(&collisions);
+        let solver = SequentialImpulseSolver {
+            dt,
+            iterations: self.solver_iterations,
+        };
+        solver.solve(&mut self.particles, &constraints);
 
         // 4. Update positions & reset forces
         for p in &mut self.particles {

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 glam = { workspace = true }
 tracing = { workspace = true }
+dyn-clone = { workspace = true }
 
 [dev-dependencies]
 macroquad = "0.4"
