@@ -13,6 +13,7 @@ tracing-subscriber = { workspace = true }
 glam = { workspace = true }
 physics = { path = "../physics" }
 game_engine = { path = "../game_engine" }
+renderer = { path = "../renderer" }
 pollster = { workspace = true }
 eyre = { workspace = true }
 winit = { workspace = true }

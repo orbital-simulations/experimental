@@ -4,8 +4,8 @@ use renderer::{colors::GREEN, line_segment::LineSegment};
 mod shared;
 
 fn main() -> color_eyre::eyre::Result<()> {
-    let (mut render_loop, event_loop, context) = pollster::block_on(shared::Loop::setup())?;
-    render_loop.run(event_loop, context, |renderer| {
+    let (mut render_loop, event_loop) = pollster::block_on(shared::Loop::setup())?;
+    render_loop.run(event_loop, |renderer| {
         renderer.draw_line_segment(LineSegment {
             from: Vec2::new(0., 0.),
             to: Vec2::new(200., 100.),

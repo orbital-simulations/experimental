@@ -18,12 +18,11 @@ fn physical_size_to_vec(physical_size: &PhysicalSize<u32>) -> Vec2 {
 pub struct Loop<'a> {
     surface: Surface<'a>,
     surface_configuration: SurfaceConfiguration,
-    scale_factor: f64,
-    size: Vec2,
+    renderer: Renderer,
 }
 
 impl<'a> Loop<'a> {
-    pub async fn setup() -> color_eyre::eyre::Result<(Self, EventLoop<()>, Context)> {
+    pub async fn setup() -> color_eyre::eyre::Result<(Self, EventLoop<()>)> {
         let fmt_layer = fmt::layer().pretty();
         let filter_layer = EnvFilter::from_default_env();
         tracing_subscriber::registry()
@@ -84,28 +83,21 @@ impl<'a> Loop<'a> {
         };
         surface.configure(&device, &config);
         let context = Context::new(device, queue, swapchain_format)?;
+        let renderer = renderer::Renderer::new(context, scale_factor, physical_size_to_vec(&size))?;
         Ok((
             Self {
                 surface,
                 surface_configuration: config,
-                scale_factor,
-                size: physical_size_to_vec(&size),
+                renderer,
             },
             event_loop,
-            context,
         ))
     }
 
-    pub fn run<FRender>(
-        &mut self,
-        event_loop: EventLoop<()>,
-        context: Context,
-        render: FRender,
-    ) -> eyre::Result<()>
+    pub fn run<FRender>(&mut self, event_loop: EventLoop<()>, render: FRender) -> eyre::Result<()>
     where
         FRender: Fn(&mut Renderer),
     {
-        let mut renderer = renderer::Renderer::new(&context, self.scale_factor, self.size)?;
         use winit::event::WindowEvent::*;
         event_loop.run(move |event, elwt| {
             if let Event::WindowEvent { event, .. } = event {
@@ -114,15 +106,15 @@ impl<'a> Loop<'a> {
                         scale_factor,
                         inner_size_writer: _,
                     } => {
-                        renderer.on_scale_factor_change(scale_factor);
+                        self.renderer.on_scale_factor_change(scale_factor);
                     }
                     Resized(new_size) => {
                         info!("on resize event received new_size: {:?}", new_size);
                         self.surface_configuration.width = new_size.width;
                         self.surface_configuration.height = new_size.height;
                         self.surface
-                            .configure(&renderer.context.device, &self.surface_configuration);
-                        renderer.on_resize(physical_size_to_vec(&new_size))
+                            .configure(&self.renderer.context.device, &self.surface_configuration);
+                        self.renderer.on_resize(physical_size_to_vec(&new_size))
                     }
                     CloseRequested => elwt.exit(),
                     KeyboardInput {
@@ -141,12 +133,12 @@ impl<'a> Loop<'a> {
                         button: _,
                     } => (),
                     RedrawRequested => {
-                        render(&mut renderer);
+                        render(&mut self.renderer);
                         let texture = self
                             .surface
                             .get_current_texture()
                             .expect("can't get current swapchain texture");
-                        renderer
+                        self.renderer
                             .render(&texture.texture)
                             .expect("The renderer failed to draw a frame");
                         texture.present();

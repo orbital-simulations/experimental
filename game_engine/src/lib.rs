@@ -1,10 +1,13 @@
 use std::time::Instant;
 
-use glam::{Vec2, vec2};
+use glam::{vec2, Vec2};
 use renderer::Renderer;
 use tracing::{debug, info};
-use wgpu::{Instance, InstanceDescriptor, Backends, InstanceFlags, Gles3MinorVersion, RequestAdapterOptions, PowerPreference, DeviceDescriptor, Features, Limits, SurfaceConfiguration, TextureUsages, PresentMode, Surface};
-use wgpu::util::DeviceExt;
+use wgpu::{
+    Backends, DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor,
+    InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface,
+    SurfaceConfiguration, TextureUsages,
+};
 
 use winit::event::WindowEvent::{
     CloseRequested, KeyboardInput, MouseInput, RedrawRequested, Resized, ScaleFactorChanged,
@@ -17,10 +20,10 @@ use winit::{dpi::PhysicalSize, event::Event, event_loop::EventLoop};
 use renderer::context::Context;
 
 pub struct GameEngine<'a> {
-    window: Window,
+    window: &'a Window,
     pub last_frame_delta: f32,
     timer: Instant,
-    renderer: Renderer<'a>,
+    renderer: Renderer,
     surface_configuration: SurfaceConfiguration,
     surface: Surface<'a>,
     size: PhysicalSize<u32>,
@@ -30,10 +33,11 @@ fn size_to_vec2(size: &PhysicalSize<u32>) -> Vec2 {
     vec2(size.width as f32, size.height as f32)
 }
 
-impl <'a> GameEngine<'a> {
-    pub async fn new() -> eyre::Result<(Self, EventLoop<()>)> {
-        let event_loop = EventLoop::new().expect("Can't create the event loop");
-        let window = Window::new(&event_loop).expect("Can't create the window");
+impl<'a> GameEngine<'a> {
+    pub async fn new(
+        event_loop: EventLoop<()>,
+        window: &'a Window,
+    ) -> eyre::Result<(Self, EventLoop<()>)> {
         let instance = Instance::new(InstanceDescriptor {
             backends: Backends::all(),
             dx12_shader_compiler: Default::default(),
@@ -43,7 +47,7 @@ impl <'a> GameEngine<'a> {
 
         let size = window.inner_size();
         let scale_factor = window.scale_factor();
-        let surface = instance.create_surface(&window)?;
+        let surface = instance.create_surface(window)?;
         use eyre::OptionExt;
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -84,7 +88,7 @@ impl <'a> GameEngine<'a> {
         };
         surface.configure(&device, &surface_configuration);
         let context = Context::new(device, queue, swapchain_format)?;
-        let renderer = Renderer::new(&context, scale_factor, size_to_vec2(&size))?;
+        let renderer = Renderer::new(context, scale_factor, size_to_vec2(&size))?;
 
         Ok((
             Self {
@@ -94,93 +98,93 @@ impl <'a> GameEngine<'a> {
                 renderer,
                 surface_configuration,
                 surface,
+                size,
             },
             event_loop,
         ))
     }
 
-    pub fn run<State, FSetup, FUpdate>(
+    pub fn run<State, FSetup, FUpdate, FRender>(
         &mut self,
         event_loop: EventLoop<()>,
         setup: FSetup,
         update: &FUpdate,
+        render: &FRender,
     ) -> eyre::Result<()>
     where
         FSetup: FnOnce() -> State,
         FUpdate: Fn(&mut State, &mut GameEngine),
+        FRender: Fn(&State, &mut Renderer),
     {
         let mut state = setup();
-        // Restart timer just in case.
+        // Restart timer just in case the setup takes forever.
         self.timer = Instant::now();
-        event_loop.run(move |event, elwt| {
-            match event {
-                Event::WindowEvent { event, .. } => match event {
-                    ScaleFactorChanged {
-                        scale_factor,
-                        inner_size_writer: _,
-                    } => {
-                        self.on_scale_factor_change(scale_factor);
+        info!("rendering firs frame with initial state");
+        render(&mut state, &mut self.renderer);
+        event_loop.run(move |event, elwt| match event {
+            Event::WindowEvent { event, .. } => match event {
+                ScaleFactorChanged {
+                    scale_factor,
+                    inner_size_writer: _,
+                } => {
+                    self.on_scale_factor_change(scale_factor);
+                }
+                Resized(physical_size) => self.on_resize(physical_size),
+                CloseRequested => elwt.exit(),
+                KeyboardInput {
+                    device_id: _,
+                    event,
+                    is_synthetic: _,
+                } => {
+                    info!("Escape was pressed; terminating the event loop");
+                    if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key {
+                        elwt.exit()
                     }
-                    Resized(physical_size) => self.on_resize(physical_size),
-                    CloseRequested => elwt.exit(),
-                    KeyboardInput {
-                        device_id: _,
-                        event,
-                        is_synthetic: _,
-                    } => {
-                        info!("Escape was pressed; terminating the event loop");
-                        if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key {
-                            elwt.exit()
-                        }
-                    }
-                    MouseInput {
-                        device_id: _,
-                        state: _,
-                        button: _,
-                    } => (),
-                    RedrawRequested => {
-                        self.redraw_requested(&mut state, update);
-                    }
-                    _ => {
-                        debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
-                    }
-                },
-                Event::AboutToWait => {
-                    // RedrawRequested will only trigger once, unless we manually
-                    // request it.
-                    //self.windowed_device.window.request_redraw();
+                }
+                MouseInput {
+                    device_id: _,
+                    state: _,
+                    button: _,
+                } => (),
+                RedrawRequested => {
+                    self.redraw_requested(&mut state, update, render);
                 }
                 _ => {
-                    debug!("UNKNOWN EVENT RECEIVED: {:?}", event);
+                    debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
                 }
+            },
+            Event::AboutToWait => {}
+            _ => {
+                debug!("UNKNOWN EVENT RECEIVED: {:?}", event);
             }
         })?;
         Ok(())
     }
 
-    fn redraw_requested<State, FUpdate>(&mut self, state: &mut State, update: FUpdate)
-    where
+    fn redraw_requested<State, FUpdate, FRender>(
+        &mut self,
+        state: &mut State,
+        update: FUpdate,
+        render: FRender,
+    ) where
         FUpdate: Fn(&mut State, &mut GameEngine),
+        FRender: Fn(&State, &mut Renderer),
     {
         info!("rendering as per the RedrawRequested was received");
-        // TODO: It is possible this may cause some time shuttering in the
-        // first frame. Maybe the first delta should be 0??
+
         self.last_frame_delta = self.timer.elapsed().as_secs_f32();
         self.timer = Instant::now();
         update(state, self);
+        render(state, &mut self.renderer);
 
-        match self.windowed_device.prepare_encoder() {
-            Ok((mut encoder, view, output)) => {
-                self.renderer.render(texture)
+        let output = self
+            .surface
+            .get_current_texture()
+            .expect("can't get current swapchain texture");
 
-                // This whould be moved into the renderer. Maybe for redering
-                // we could create some guad object which would present the
-                // render on drop???
-                self.renderer.context
-                    .queue
-                    .submit(std::iter::once(encoder.finish()));
+        match self.renderer.render(&output.texture) {
+            Ok(()) => {
                 output.present();
-                self.window.request_redraw();
             }
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 self.on_resize(self.size);
@@ -189,6 +193,7 @@ impl <'a> GameEngine<'a> {
                 panic!("panicing in the panic");
             }
         }
+        self.window.request_redraw();
     }
 
     pub fn on_resize(&mut self, new_size: PhysicalSize<u32>) {

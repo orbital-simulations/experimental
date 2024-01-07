@@ -17,8 +17,8 @@ use tracing::info;
 use wgpu::util::DeviceExt;
 use wgpu::{StoreOp, Texture};
 
-pub struct Renderer<'a> {
-    pub context: &'a Context,
+pub struct Renderer {
+    pub context: Context,
     projection_bind_group: wgpu::BindGroup,
     projection_buffer: wgpu::Buffer,
 
@@ -30,17 +30,17 @@ pub struct Renderer<'a> {
     size: Vec2,
 }
 
-impl<'a> Renderer<'a> {
-    pub fn new(context: &'a Context, scale_factor: f64, size: Vec2) -> eyre::Result<Self> {
+impl Renderer {
+    pub fn new(context: Context, scale_factor: f64, size: Vec2) -> eyre::Result<Self> {
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
-            Self::create_projection(context, scale_factor, size);
+            Self::create_projection(&context, scale_factor, size);
 
         let filled_circle_renderer =
-            FilledCircleRenderer::new(context, &projection_bind_group_layout);
+            FilledCircleRenderer::new(&context, &projection_bind_group_layout);
         let filled_rectangle_renderer =
-            FilledRectangleRenderer::new(context, &projection_bind_group_layout);
+            FilledRectangleRenderer::new(&context, &projection_bind_group_layout);
         let line_segment_renderer =
-            LineSegmentRenderer::new(context, &projection_bind_group_layout);
+            LineSegmentRenderer::new(&context, &projection_bind_group_layout);
 
         Ok(Self {
             context,
@@ -171,17 +171,17 @@ impl<'a> Renderer<'a> {
             });
 
             self.filled_circle_renderer.render(
-                self.context,
+                &self.context,
                 &self.projection_bind_group,
                 &mut render_pass,
             );
             self.filled_rectangle_renderer.render(
-                self.context,
+                &self.context,
                 &self.projection_bind_group,
                 &mut render_pass,
             );
             self.line_segment_renderer.render(
-                self.context,
+                &self.context,
                 &self.projection_bind_group,
                 &mut render_pass,
             );

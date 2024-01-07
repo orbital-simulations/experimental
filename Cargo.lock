@@ -668,6 +668,7 @@ dependencies = [
  "physics",
  "pollster",
  "rand",
+ "renderer",
  "tracing",
  "tracing-subscriber",
  "winit",
