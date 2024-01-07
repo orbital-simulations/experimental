@@ -747,6 +747,7 @@ dependencies = [
  "eyre",
  "glam 0.25.0",
  "pollster",
+ "renderer",
  "tracing",
  "tracing-subscriber",
  "wgpu",

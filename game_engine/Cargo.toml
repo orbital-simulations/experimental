@@ -11,6 +11,7 @@ glam = { workspace = true }
 tracing = { workspace = true }
 wgpu = { git = "https://github.com/gfx-rs/wgpu", package = "wgpu" }
 winit = { workspace = true }
+renderer = { path = "../renderer" }
 
 [dev-dependencies]
 color-eyre = { workspace = true }

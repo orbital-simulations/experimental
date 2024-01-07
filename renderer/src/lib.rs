@@ -18,12 +18,9 @@ use wgpu::util::DeviceExt;
 use wgpu::{StoreOp, Texture};
 
 pub struct Renderer<'a> {
-    context: &'a Context<'a>,
-    #[allow(unused)]
+    pub context: &'a Context,
     projection_bind_group: wgpu::BindGroup,
     projection_buffer: wgpu::Buffer,
-    #[allow(unused)]
-    projection_bind_group_layout: wgpu::BindGroupLayout,
 
     filled_circle_renderer: FilledCircleRenderer,
     filled_rectangle_renderer: FilledRectangleRenderer,
@@ -34,11 +31,7 @@ pub struct Renderer<'a> {
 }
 
 impl<'a> Renderer<'a> {
-    pub async fn new(
-        context: &'a Context<'a>,
-        scale_factor: f64,
-        size: Vec2,
-    ) -> eyre::Result<Self> {
+    pub fn new(context: &'a Context, scale_factor: f64, size: Vec2) -> eyre::Result<Self> {
         let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
             Self::create_projection(context, scale_factor, size);
 
@@ -53,7 +46,6 @@ impl<'a> Renderer<'a> {
             context,
             projection_bind_group,
             projection_buffer,
-            projection_bind_group_layout,
             filled_circle_renderer,
             filled_rectangle_renderer,
             line_segment_renderer,
@@ -157,41 +149,45 @@ impl<'a> Renderer<'a> {
 
     pub fn render(&mut self, texture: &Texture) -> eyre::Result<(), wgpu::SurfaceError> {
         let (mut encoder, texture_view) = self.context.prepare_encoder(texture)?;
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Shapes Renderer Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &texture_view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    }),
-                    store: StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Shapes Renderer Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 1.0,
+                        }),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
 
-        self.filled_circle_renderer.render(
-            self.context,
-            &self.projection_bind_group,
-            &mut render_pass,
-        );
-        self.filled_rectangle_renderer.render(
-            self.context,
-            &self.projection_bind_group,
-            &mut render_pass,
-        );
-        self.line_segment_renderer.render(
-            self.context,
-            &self.projection_bind_group,
-            &mut render_pass,
-        );
+            self.filled_circle_renderer.render(
+                self.context,
+                &self.projection_bind_group,
+                &mut render_pass,
+            );
+            self.filled_rectangle_renderer.render(
+                self.context,
+                &self.projection_bind_group,
+                &mut render_pass,
+            );
+            self.line_segment_renderer.render(
+                self.context,
+                &self.projection_bind_group,
+                &mut render_pass,
+            );
+        }
+
+        self.context.queue.submit(std::iter::once(encoder.finish()));
 
         Ok(())
     }
