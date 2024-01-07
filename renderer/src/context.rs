@@ -9,7 +9,7 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub async fn new(
+    pub fn new(
         device: &'a Device,
         queue: &'a Queue,
         texture_format: TextureFormat,
