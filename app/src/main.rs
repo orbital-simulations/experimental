@@ -1,9 +1,10 @@
 use std::iter::repeat_with;
 
-use game_engine::{colors::RED, filled_circle::FilledCircle, GameEngine};
+use game_engine::GameEngine;
 use glam::{dvec2, DVec2};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
+use renderer::{colors::RED, filled_circle::FilledCircle, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
 
@@ -55,15 +56,13 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     let dt = game_engine.last_frame_delta;
 
     state.engine.step(dt as f64);
+}
 
+fn render(state: &GameState, renderer: &mut Renderer) {
     for p in &state.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                game_engine.draw_full_circle(FilledCircle::new(
-                    p.pos.as_vec2(),
-                    radius as f32,
-                    RED,
-                ));
+                renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
             }
             Shape::HalfPlane { .. } => {
                 unimplemented!("Render a half-plane")
@@ -86,6 +85,6 @@ fn main() -> color_eyre::eyre::Result<()> {
     let event_loop = EventLoop::new().expect("Can't create the event loop");
     let window = Window::new(&event_loop).expect("Can't create the window");
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(event_loop, &window))?;
-    game_engine.run(event_loop, setup, &update)?;
+    game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())
 }

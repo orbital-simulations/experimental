@@ -3,13 +3,13 @@ use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
     vertex_attr_array, BindGroup, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor,
-    CommandEncoder, RenderPipeline, StoreOp, TextureView, VertexBufferLayout,
+    RenderPass, RenderPipeline, VertexBufferLayout,
 };
 
 use crate::{
     buffers::vec2_buffer_description,
+    context::Context,
     raw::{Gpu, Raw},
-    windowed_device::WindowedDevice,
 };
 
 #[derive(Debug)]
@@ -59,18 +59,16 @@ pub struct FilledRectangleRenderer {
     rectangle_index_buffer: Buffer,
     rectangle_instance_buffer: Buffer,
     rectangle_pipeline: RenderPipeline,
+    rectangle_instance_buffer_size: usize,
 }
 
 impl FilledRectangleRenderer {
-    pub fn new(
-        windowed_device: &mut WindowedDevice,
-        projection_bind_group_layout: &BindGroupLayout,
-    ) -> Self {
-        let rectangle_shader = windowed_device
+    pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
+        let rectangle_shader = context
             .device
             .create_shader_module(include_wgsl!("../shaders/filled_rectangle.wgsl"));
         let render_pipeline_layout =
-            windowed_device
+            context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
@@ -78,7 +76,7 @@ impl FilledRectangleRenderer {
                     push_constant_ranges: &[],
                 });
         let rectangle_pipeline =
-            windowed_device
+            context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("Filled Rectangle Render Pipeline"),
@@ -95,7 +93,7 @@ impl FilledRectangleRenderer {
                         module: &rectangle_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: windowed_device.config.format,
+                            format: context.texture_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -128,7 +126,7 @@ impl FilledRectangleRenderer {
                 });
 
         let rectangle_vertex_buffer =
-            windowed_device
+            context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Rectangle Vertex Buffer"),
@@ -137,7 +135,7 @@ impl FilledRectangleRenderer {
                 });
 
         let rectangle_index_buffer =
-            windowed_device
+            context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Rectangle Index Buffer"),
@@ -146,7 +144,7 @@ impl FilledRectangleRenderer {
                 });
 
         // This will probably fial....
-        let rectangle_instance_buffer = windowed_device.device.create_buffer(&BufferDescriptor {
+        let rectangle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Rectangle Index Buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 0,
@@ -159,6 +157,7 @@ impl FilledRectangleRenderer {
             rectangle_index_buffer,
             rectangle_instance_buffer,
             rectangle_pipeline,
+            rectangle_instance_buffer_size: 0,
         }
     }
 
@@ -166,60 +165,41 @@ impl FilledRectangleRenderer {
         self.rectangles.push(rectangle);
     }
 
-    pub fn render(
-        &mut self,
-        windowed_device: &mut WindowedDevice,
-        projection_bind_group: &BindGroup,
-        view: &TextureView,
-        encoder: &mut CommandEncoder,
+    pub fn render<'a>(
+        &'a mut self,
+        context: &Context,
+        projection_bind_group: &'a BindGroup,
+        render_pass: &mut RenderPass<'a>,
     ) {
-        if (self.rectangle_instance_buffer.size() as usize) < self.rectangles.len() {
+        if self.rectangle_instance_buffer_size < self.rectangles.len() {
+            self.rectangle_instance_buffer_size = self.rectangles.len();
             self.rectangle_instance_buffer =
-                windowed_device
-                    .device
-                    .create_buffer_init(&BufferInitDescriptor {
-                        label: Some("Rectangle Index Buffer"),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        contents: self.rectangles.get_raw(),
-                    });
+                context.device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("Rectangle Index Buffer"),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    contents: self.rectangles.get_raw(),
+                });
         } else {
-            windowed_device.queue.write_buffer(
+            context.queue.write_buffer(
                 &self.rectangle_instance_buffer,
                 0,
                 self.rectangles.get_raw(),
             );
         }
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Rectangle Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-            render_pass.set_pipeline(&self.rectangle_pipeline);
-            render_pass.set_bind_group(0, projection_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.rectangle_vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.rectangle_instance_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.rectangle_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            render_pass.draw_indexed(
-                0..(RECTANGLE_INDICES.len() as u32),
-                0,
-                0..(self.rectangles.len() as u32),
-            );
-        }
+        render_pass.set_pipeline(&self.rectangle_pipeline);
+        render_pass.set_bind_group(0, projection_bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.rectangle_vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, self.rectangle_instance_buffer.slice(..));
+        render_pass.set_index_buffer(
+            self.rectangle_index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        render_pass.draw_indexed(
+            0..(RECTANGLE_INDICES.len() as u32),
+            0,
+            0..(self.rectangles.len() as u32),
+        );
 
         // TODO: Think about some memory releasing strategy. Spike in number of
         // rectangles will lead to space leak.

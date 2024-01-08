@@ -3,12 +3,12 @@ use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
     vertex_attr_array, BindGroup, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor,
-    CommandEncoder, RenderPipeline, StoreOp, TextureView, VertexBufferLayout,
+    RenderPass, RenderPipeline, VertexBufferLayout,
 };
 
 use crate::{
+    context::Context,
     raw::{Gpu, Raw},
-    windowed_device::WindowedDevice,
 };
 
 pub struct LineSegment {
@@ -72,15 +72,12 @@ pub struct LineSegmentRenderer {
 }
 
 impl LineSegmentRenderer {
-    pub fn new(
-        windowed_device: &mut WindowedDevice,
-        projection_bind_group_layout: &BindGroupLayout,
-    ) -> Self {
-        let rectangle_shader = windowed_device
+    pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
+        let rectangle_shader = context
             .device
             .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl"));
         let render_pipeline_layout =
-            windowed_device
+            context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Line Segment Render Pipeline Layout"),
@@ -88,7 +85,7 @@ impl LineSegmentRenderer {
                     push_constant_ranges: &[],
                 });
         let line_segment_pipeline =
-            windowed_device
+            context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("Line Segment Render Pipeline"),
@@ -102,7 +99,7 @@ impl LineSegmentRenderer {
                         module: &rectangle_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: windowed_device.config.format,
+                            format: context.texture_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -134,7 +131,7 @@ impl LineSegmentRenderer {
                     multiview: None,
                 });
 
-        let line_segment_vertex_buffer = windowed_device.device.create_buffer(&BufferDescriptor {
+        let line_segment_vertex_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Line segment vertex buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 0,
@@ -156,54 +153,34 @@ impl LineSegmentRenderer {
         });
     }
 
-    pub fn render(
-        &mut self,
-        windowed_device: &mut WindowedDevice,
-        projection_bind_group: &BindGroup,
-        view: &TextureView,
-        encoder: &mut CommandEncoder,
+    pub fn render<'a>(
+        &'a mut self,
+        context: &Context,
+        projection_bind_group: &'a BindGroup,
+        render_pass: &mut RenderPass<'a>,
     ) {
         if self.buffer_capacity < self.endpoints.len() {
             self.line_segment_vertex_buffer =
-                windowed_device
-                    .device
-                    .create_buffer_init(&BufferInitDescriptor {
-                        label: Some("Line segment vertex buffer"),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        contents: self.endpoints.get_raw(),
-                    });
+                context.device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("Line segment vertex buffer"),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    contents: self.endpoints.get_raw(),
+                });
             self.buffer_capacity = self.endpoints.len()
         } else {
-            windowed_device.queue.write_buffer(
+            context.queue.write_buffer(
                 &self.line_segment_vertex_buffer,
                 0,
                 self.endpoints.get_raw(),
             );
         }
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Line segment render pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+        render_pass.set_pipeline(&self.line_segment_pipeline);
+        render_pass.set_bind_group(0, projection_bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.line_segment_vertex_buffer.slice(..));
+        let count = self.endpoints.len() as u32;
+        render_pass.draw(0..(2 * count), 0..1);
 
-            render_pass.set_pipeline(&self.line_segment_pipeline);
-            render_pass.set_bind_group(0, projection_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.line_segment_vertex_buffer.slice(..));
-            let count = self.endpoints.len() as u32;
-            render_pass.draw(0..(2 * count), 0..1);
-        }
-
-        self.endpoints = vec![];
+        self.endpoints.clear();
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "game_engine"
+name = "renderer"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,10 +10,10 @@ eyre = { workspace = true }
 glam = { workspace = true }
 tracing = { workspace = true }
 wgpu = { git = "https://github.com/gfx-rs/wgpu", package = "wgpu" }
-winit = { workspace = true }
-renderer = { path = "../renderer" }
 
 [dev-dependencies]
 color-eyre = { workspace = true }
 pollster = { workspace = true }
 tracing-subscriber = { workspace = true }
+winit = { workspace = true }
+image = "0.24"

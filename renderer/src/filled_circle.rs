@@ -3,13 +3,13 @@ use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
     vertex_attr_array, BindGroup, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor,
-    CommandEncoder, RenderPipeline, StoreOp, TextureView, VertexBufferLayout,
+    RenderPass, RenderPipeline, VertexBufferLayout,
 };
 
 use crate::{
     buffers::vec2_buffer_description,
+    context::Context,
     raw::{Gpu, Raw},
-    windowed_device::WindowedDevice,
 };
 
 #[derive(Debug)]
@@ -59,18 +59,18 @@ pub struct FilledCircleRenderer {
     circle_index_buffer: Buffer,
     circle_instance_buffer: Buffer,
     circle_pipeline: RenderPipeline,
+    // This is a size in element. We keep it because actual WGPU buffer returns
+    // buffer size in bytes.
+    circle_instance_buffer_size: usize,
 }
 
 impl FilledCircleRenderer {
-    pub fn new(
-        windowed_device: &mut WindowedDevice,
-        projection_bind_group_layout: &BindGroupLayout,
-    ) -> Self {
-        let circle_shader = windowed_device
+    pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
+        let circle_shader = context
             .device
             .create_shader_module(include_wgsl!("../shaders/filled_circle.wgsl"));
         let render_pipeline_layout =
-            windowed_device
+            context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Full Circle Render Pipeline Layout"),
@@ -78,7 +78,7 @@ impl FilledCircleRenderer {
                     push_constant_ranges: &[],
                 });
         let circle_pipeline =
-            windowed_device
+            context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("Full Circle Render Pipeline"),
@@ -95,7 +95,7 @@ impl FilledCircleRenderer {
                         module: &circle_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: windowed_device.config.format,
+                            format: context.texture_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -128,7 +128,7 @@ impl FilledCircleRenderer {
                 });
 
         let circle_vertex_buffer =
-            windowed_device
+            context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Circle Vertex Buffer"),
@@ -137,7 +137,7 @@ impl FilledCircleRenderer {
                 });
 
         let circle_index_buffer =
-            windowed_device
+            context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Circle Index Buffer"),
@@ -146,7 +146,7 @@ impl FilledCircleRenderer {
                 });
 
         // This will probably fial....
-        let circle_instance_buffer = windowed_device.device.create_buffer(&BufferDescriptor {
+        let circle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some("Circle Index Buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 0,
@@ -159,6 +159,7 @@ impl FilledCircleRenderer {
             circle_index_buffer,
             circle_instance_buffer,
             circle_pipeline,
+            circle_instance_buffer_size: 0,
         }
     }
 
@@ -166,65 +167,39 @@ impl FilledCircleRenderer {
         self.circles.push(circle);
     }
 
-    pub fn render(
-        &mut self,
-        windowed_device: &mut WindowedDevice,
-        projection_bind_group: &BindGroup,
-        view: &TextureView,
-        encoder: &mut CommandEncoder,
+    pub fn render<'a>(
+        &'a mut self,
+        context: &Context,
+        projection_bind_group: &'a BindGroup,
+        render_pass: &mut RenderPass<'a>,
     ) {
-        if (self.circle_instance_buffer.size() as usize) < self.circles.len() {
+        if self.circle_instance_buffer_size < self.circles.len() {
+            self.circle_instance_buffer_size = self.circles.len();
             self.circle_instance_buffer =
-                windowed_device
-                    .device
-                    .create_buffer_init(&BufferInitDescriptor {
-                        label: Some("Circle Index Buffer"),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        contents: self.circles.get_raw(),
-                    });
+                context.device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("Circle Index Buffer"),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    contents: self.circles.get_raw(),
+                });
         } else {
-            windowed_device.queue.write_buffer(
-                &self.circle_instance_buffer,
-                0,
-                self.circles.get_raw(),
-            );
+            context
+                .queue
+                .write_buffer(&self.circle_instance_buffer, 0, self.circles.get_raw());
         }
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Circle Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-            render_pass.set_pipeline(&self.circle_pipeline);
-            render_pass.set_bind_group(0, projection_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.circle_vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.circle_instance_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.circle_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            render_pass.draw_indexed(
-                0..(CIRCLE_INDICES.len() as u32),
-                0,
-                0..(self.circles.len() as u32),
-            );
-        }
+        render_pass.set_pipeline(&self.circle_pipeline);
+        render_pass.set_bind_group(0, projection_bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.circle_vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, self.circle_instance_buffer.slice(..));
+        render_pass.set_index_buffer(
+            self.circle_index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        render_pass.draw_indexed(
+            0..(CIRCLE_INDICES.len() as u32),
+            0,
+            0..(self.circles.len() as u32),
+        );
 
         // TODO: Think about some memory releasing strategy. Spike in number of
         // circles will lead to space leak.
