@@ -8,11 +8,11 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(device: Device, queue: Queue, texture_format: TextureFormat) -> eyre::Result<Self> {
-        Ok(Self {
+    pub fn new(device: Device, queue: Queue, texture_format: TextureFormat) -> Self {
+        Self {
             device,
             queue,
             texture_format,
-        })
+        }
     }
 }

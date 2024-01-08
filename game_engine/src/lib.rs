@@ -87,7 +87,7 @@ impl<'a> GameEngine<'a> {
             view_formats: vec![],
         };
         surface.configure(&device, &surface_configuration);
-        let context = Context::new(device, queue, swapchain_format)?;
+        let context = Context::new(device, queue, swapchain_format);
         let renderer = Renderer::new(context, scale_factor, size_to_vec2(&size))?;
 
         Ok((
