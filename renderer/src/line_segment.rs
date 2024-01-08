@@ -153,15 +153,12 @@ impl LineSegmentRenderer {
         });
     }
 
-    pub fn render<'a, 'b, 'c>(
+    pub fn render<'a>(
         &'a mut self,
         context: &Context,
-        projection_bind_group: &'b BindGroup,
-        render_pass: &mut RenderPass<'c>,
-    ) where
-        'a: 'b,
-        'b: 'c,
-    {
+        projection_bind_group: &'a BindGroup,
+        render_pass: &mut RenderPass<'a>,
+    ) {
         if self.buffer_capacity < self.endpoints.len() {
             self.line_segment_vertex_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {

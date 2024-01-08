@@ -1,5 +1,4 @@
-use tracing::info;
-use wgpu::{Device, Queue, Texture, TextureFormat};
+use wgpu::{Device, Queue, TextureFormat};
 
 pub struct Context {
     pub device: wgpu::Device,
@@ -15,21 +14,5 @@ impl Context {
             queue,
             texture_format,
         })
-    }
-
-    pub fn prepare_encoder(
-        &self,
-        texture: &Texture,
-    ) -> Result<(wgpu::CommandEncoder, wgpu::TextureView), wgpu::SurfaceError> {
-        info!("creating view from the texture");
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        info!("getting command encoder");
-        let encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("GPU Encoder"),
-            });
-        Ok((encoder, view))
     }
 }

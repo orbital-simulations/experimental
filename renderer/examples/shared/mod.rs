@@ -138,9 +138,7 @@ impl<'a> Loop<'a> {
                             .surface
                             .get_current_texture()
                             .expect("can't get current swapchain texture");
-                        self.renderer
-                            .render(&texture.texture)
-                            .expect("The renderer failed to draw a frame");
+                        self.renderer.render(&texture.texture);
                         texture.present();
                     }
                     _ => {}

@@ -177,22 +177,22 @@ impl<'a> GameEngine<'a> {
         update(state, self);
         render(state, &mut self.renderer);
 
-        let output = self
-            .surface
-            .get_current_texture()
-            .expect("can't get current swapchain texture");
-
-        match self.renderer.render(&output.texture) {
-            Ok(()) => {
+        match self.surface.get_current_texture() {
+            Ok(output) => {
+                self.renderer.render(&output.texture);
                 output.present();
             }
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 self.on_resize(self.size);
             }
-            Err(_) => {
-                panic!("panicing in the panic");
+            Err(err) => {
+                panic!(
+                    "Can't get current swapchain texture due to an error: {}",
+                    err
+                );
             }
         }
+
         self.window.request_redraw();
     }
 

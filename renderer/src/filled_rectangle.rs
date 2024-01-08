@@ -165,15 +165,12 @@ impl FilledRectangleRenderer {
         self.rectangles.push(rectangle);
     }
 
-    pub fn render<'a, 'b, 'c>(
+    pub fn render<'a>(
         &'a mut self,
         context: &Context,
-        projection_bind_group: &'b BindGroup,
-        render_pass: &mut RenderPass<'c>,
-    ) where
-        'a: 'b,
-        'b: 'c,
-    {
+        projection_bind_group: &'a BindGroup,
+        render_pass: &mut RenderPass<'a>,
+    ) {
         if self.rectangle_instance_buffer_size < self.rectangles.len() {
             self.rectangle_instance_buffer_size = self.rectangles.len();
             self.rectangle_instance_buffer =

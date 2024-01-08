@@ -147,8 +147,17 @@ impl Renderer {
         self.scale_factor = scale_factor;
     }
 
-    pub fn render(&mut self, texture: &Texture) -> eyre::Result<(), wgpu::SurfaceError> {
-        let (mut encoder, texture_view) = self.context.prepare_encoder(texture)?;
+    pub fn render(&mut self, texture: &Texture) {
+        info!("creating view from the texture");
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        info!("getting command encoder");
+        let mut encoder =
+            self.context
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("GPU Encoder"),
+                });
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Shapes Renderer Pass"),
@@ -188,7 +197,5 @@ impl Renderer {
         }
 
         self.context.queue.submit(std::iter::once(encoder.finish()));
-
-        Ok(())
     }
 }
