@@ -9,7 +9,7 @@ const OUTPUT_WIDTH: u32 = 600;
 
 pub async fn run<FRender>(render: FRender) -> color_eyre::eyre::Result<()>
 where
-    FRender: Fn(&mut Renderer)
+    FRender: Fn(&mut Renderer),
 {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
@@ -112,12 +112,12 @@ where
     renderer.context.device.poll(wgpu::Maintain::Wait);
 
     let padded_data = buffer_slice.get_mapped_range();
-            let data = padded_data
-                .chunks(padded_bytes_per_row as _)
-                .flat_map(|chunk| &chunk[..unpadded_bytes_per_row as _]).copied()
-                .collect::<Vec<_>>();
-    let buffer =
-        ImageBuffer::<Rgba<u8>, _>::from_raw(OUTPUT_WIDTH, OUTPUT_WIDTH, data).unwrap();
+    let data = padded_data
+        .chunks(padded_bytes_per_row as _)
+        .flat_map(|chunk| &chunk[..unpadded_bytes_per_row as _])
+        .copied()
+        .collect::<Vec<_>>();
+    let buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(OUTPUT_WIDTH, OUTPUT_WIDTH, data).unwrap();
     buffer.save("image.png").unwrap();
     Ok(())
 }
