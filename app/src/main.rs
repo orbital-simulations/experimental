@@ -82,8 +82,8 @@ fn main() -> color_eyre::eyre::Result<()> {
         .with(filter_layer)
         .init();
     color_eyre::install()?;
-    let event_loop = EventLoop::new().expect("Can't create the event loop");
-    let window = Window::new(&event_loop).expect("Can't create the window");
+    let event_loop = EventLoop::new()?;
+    let window = Window::new(&event_loop)?;
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(event_loop, &window))?;
     game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())

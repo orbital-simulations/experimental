@@ -1,5 +1,6 @@
 use std::iter;
 
+use eyre::OptionExt;
 use glam::vec2;
 use image::{ImageBuffer, Rgba};
 use renderer::{context::Context, Renderer};
@@ -18,7 +19,7 @@ where
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions::default())
         .await
-        .unwrap();
+        .ok_or_eyre("Could not get adapter")?;
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
@@ -28,8 +29,7 @@ where
             },
             None,
         )
-        .await
-        .unwrap();
+        .await?;
 
     let texture_format = wgpu::TextureFormat::Rgba8UnormSrgb;
 
@@ -72,8 +72,7 @@ where
 
     let context = Context::new(device, queue, texture_format);
 
-    let mut renderer =
-        Renderer::new(context, 1., vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32)).unwrap();
+    let mut renderer = Renderer::new(context, 1., vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32))?;
 
     render(&mut renderer);
 
@@ -117,7 +116,8 @@ where
         .flat_map(|chunk| &chunk[..unpadded_bytes_per_row as _])
         .copied()
         .collect::<Vec<_>>();
-    let buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(OUTPUT_WIDTH, OUTPUT_WIDTH, data).unwrap();
-    buffer.save("image.png").unwrap();
+    let buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(OUTPUT_WIDTH, OUTPUT_WIDTH, data)
+        .ok_or_eyre("Could not create an image buffer")?;
+    buffer.save("image.png")?;
     Ok(())
 }
