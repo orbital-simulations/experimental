@@ -2,7 +2,7 @@
 use constraint::{CollisionConstraint, ConstraintEnum};
 use geometry::{Circle, HalfPlane};
 use glam::DVec2;
-use solver::{SequentialImpulseSolver, Solver};
+use solver::{ConstraintData, SequentialImpulseSolver, Solver};
 use tracing::{instrument, trace, trace_span};
 
 pub mod constraint;
@@ -29,6 +29,7 @@ pub struct Particle {
     /// Zero corresponds to infinite inertia (i.e. immovable object).
     /// Moment inertia depends on object's geometry and mass density distribution.
     /// TODO: provide helper functions to calculate inertia for common shapes with uniform density.
+    /// see https://github.com/orbital-simulations/experimental/issues/56
     pub inv_inertia: f64,
     /// Orientation
     pub angle: f64,
@@ -132,6 +133,7 @@ impl Engine {
 
     // TODO: resolve_collisions is now obsolete but maybe it could be useful
     // for some comparison tests and some documentation might be salvagable.
+    // see https://github.com/orbital-simulations/experimental/issues/50
 
     // The goal of collision resolution is to solve all the constraints between particles.
     // These constraints can be explicitly set by the user (TBI) but they can also arise
@@ -238,27 +240,29 @@ impl Engine {
         }
 
         // TODO: should we predict positions using the updated velocities before detecting collisions?
+        // see https://github.com/orbital-simulations/experimental/issues/55
 
         // 2. Detect collisions
-        let collision_constraints = self
+        let collision_constraints: Vec<_> = self
             .detect_collisions()
             .into_iter()
-            .map(ConstraintEnum::Collision);
-
-        // TODO: avoid cloning, e.g. by passing an iterator to the solver
-        let constraints: Vec<_> = self
-            .constraints
-            .clone()
-            .into_iter()
-            .chain(collision_constraints)
+            .map(ConstraintEnum::Collision)
             .collect();
 
-        // 3. Resolve collisions by updating velocities
+        // Prepare both collision and user constraints for the solver
+        let constraint_data: Vec<_> = self
+            .constraints
+            .iter()
+            .chain(collision_constraints.iter())
+            .map(|c| ConstraintData::from_constraint(c, &self.particles, dt))
+            .collect();
+
+        // 3. Solve all constraints
         let solver = SequentialImpulseSolver {
             dt,
             iterations: self.solver_iterations,
         };
-        solver.solve(&mut self.particles, &constraints);
+        solver.solve(&mut self.particles, &constraint_data);
 
         // 4. Update positions & reset forces
         for p in &mut self.particles {

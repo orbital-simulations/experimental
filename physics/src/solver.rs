@@ -7,20 +7,20 @@ use crate::{
 };
 
 pub trait Solver {
-    fn solve(&self, particles: &mut [Particle], constraints: &[ConstraintEnum]);
+    fn solve(&self, particles: &mut [Particle], constraints: &[ConstraintData]);
 }
 
 // Some variables do not change during solving,
 // so we precompute them at the beginning and store them.
 #[derive(Clone, Debug)]
-struct ConstraintData<'a> {
+pub struct ConstraintData<'a> {
     jacobian: (DVec3, DVec3),
     target_velocity: f64,
     constraint: &'a ConstraintEnum,
 }
 
 impl<'a> ConstraintData<'a> {
-    fn from_constraint(
+    pub fn from_constraint(
         c: &'a ConstraintEnum,
         particles: &[Particle],
         dt: f64,
@@ -51,9 +51,12 @@ pub struct SequentialImpulseSolver {
     pub iterations: usize,
 }
 
+// TODO: document solver
+// see https://github.com/orbital-simulations/experimental/issues/50
 impl SequentialImpulseSolver {
     fn find_impulse(&self, a: &Particle, b: &Particle, c: &ConstraintData<'_>) -> f64 {
         // TODO: matrices should be precomputed
+        // see https://github.com/orbital-simulations/experimental/issues/52
         let m1_inv = DMat3::from_diagonal(dvec3(a.inv_mass, a.inv_mass, a.inv_inertia));
         let m2_inv = DMat3::from_diagonal(dvec3(b.inv_mass, b.inv_mass, b.inv_inertia));
         let v_rel = c.relative_velocity(a, b);
@@ -66,6 +69,7 @@ impl SequentialImpulseSolver {
 
     fn apply(&self, a: &mut Particle, b: &mut Particle, c: &ConstraintData<'_>, impulse: f64) {
         // TODO: matrices should be precomputed
+        // see https://github.com/orbital-simulations/experimental/issues/52
         let m1_inv = DMat3::from_diagonal(dvec3(a.inv_mass, a.inv_mass, a.inv_inertia));
         let m2_inv = DMat3::from_diagonal(dvec3(b.inv_mass, b.inv_mass, b.inv_inertia));
         let (j1, j2) = c.jacobian;
@@ -85,15 +89,11 @@ impl SequentialImpulseSolver {
 
 impl Solver for SequentialImpulseSolver {
     #[instrument(level = "trace", skip_all)]
-    fn solve(&self, particles: &mut [Particle], constraints: &[ConstraintEnum]) {
-        let constraints: Vec<_> = constraints
-            .iter()
-            .map(|c| ConstraintData::from_constraint(c, particles, self.dt))
-            .collect();
+    fn solve(&self, particles: &mut [Particle], constraints: &[ConstraintData]) {
         for iter in 0..(self.iterations) {
             let span = trace_span!("Iteration", iter);
             let _enter = span.enter();
-            for c in &constraints {
+            for c in constraints {
                 let (id_a, id_b) = c.constraint.get_ids();
                 if id_a == id_b {
                     warn!("Constraint uses identical indices: {:?}", c);
@@ -102,11 +102,13 @@ impl Solver for SequentialImpulseSolver {
                 let a = &particles[id_a];
                 let b = &particles[id_b];
                 // TODO this is probably won't work with accumulated impulses, revisit
+                // see https://github.com/orbital-simulations/experimental/issues/49
                 if c.constraint.is_satisfied(a, b, self.dt) {
                     continue;
                 }
                 // TODO: accumulate impulses over solver iterations to prevent
-                // applying more impulse than necessary to achieve target v_rel
+                // applying more impulse than necessary to achieve target velocity
+                // see https://github.com/orbital-simulations/experimental/issues/51
                 let impulse = self.find_impulse(a, b, c);
                 let [a, b] = particles
                     .get_many_mut([id_a, id_b])

@@ -65,6 +65,8 @@ pub trait Constraint: fmt::Debug + DynClone {
 
     fn relative_velocity(&self, a: &Particle, b: &Particle) -> f64 {
         // TODO: jacobian should be precomputed
+        // This is only needed by `is_satisfied`, so might get fixed with
+        // https://github.com/orbital-simulations/experimental/issues/49
         let (j1, j2) = self.jacobian(a, b);
         let v1 = dvec3(a.vel.x, a.vel.y, a.omega);
         let v2 = dvec3(b.vel.x, b.vel.y, b.omega);
@@ -93,15 +95,18 @@ impl DistanceConstraint {
     }
 }
 
+const CONSTRAINT_TOLERANCE: f64 = 1e-6;
+
 impl Constraint for DistanceConstraint {
     fn get_ids(&self) -> (usize, usize) {
         (self.id_a, self.id_b)
     }
 
+    // TODO: move this to solver, see https://github.com/orbital-simulations/experimental/issues/49
     fn is_satisfied(&self, a: &Particle, b: &Particle, dt: f64) -> bool {
         let velocity_diff = self.target_velocity(a, b, dt) - self.relative_velocity(a, b);
-        // TODO: precision
-        self.value(a, b).abs() < 1e-6 && velocity_diff.abs() < 1e-6
+        // TODO: precision, see https://github.com/orbital-simulations/experimental/issues/49
+        self.value(a, b).abs() < CONSTRAINT_TOLERANCE && velocity_diff.abs() < CONSTRAINT_TOLERANCE
     }
 
     fn value(&self, a: &Particle, b: &Particle) -> f64 {
@@ -118,7 +123,8 @@ impl Constraint for DistanceConstraint {
         let diff = b.pos - a.pos;
         let distance = diff.length();
         // TODO: decide how to handle coinciding particles
-        if distance < 1e-6 {
+        // see https://github.com/orbital-simulations/experimental/issues/54
+        if distance < CONSTRAINT_TOLERANCE {
             unimplemented!("Constraints between coinciding particles")
         }
         let j1 = -diff / distance;
@@ -151,18 +157,19 @@ impl Constraint for CollisionConstraint {
 
     fn is_satisfied(&self, a: &Particle, b: &Particle, dt: f64) -> bool {
         let velocity_diff = self.target_velocity(a, b, dt) - self.relative_velocity(a, b);
-        // TODO: precision
-        self.value(a, b) > -1e-6 && velocity_diff.abs() < 1e-6
+        // TODO: precision, see https://github.com/orbital-simulations/experimental/issues/49
+        self.value(a, b) > -CONSTRAINT_TOLERANCE && velocity_diff.abs() < CONSTRAINT_TOLERANCE
     }
 
     fn value(&self, _a: &Particle, _b: &Particle) -> f64 {
-        // TODO: write out the full constraint function and
-        // check that it equals to separation
+        // TODO: write out the full constraint function and check that it equals to separation
+        // see https://github.com/orbital-simulations/experimental/issues/50
         self.contact.separation
     }
 
     fn target_velocity(&self, a: &Particle, b: &Particle, _dt: f64) -> f64 {
         // TODO: compute restitution from some particle properties
+        // see https://github.com/orbital-simulations/experimental/issues/53
         let restitution = 1.0;
         let v_rel = self.relative_velocity(a, b);
         -restitution * v_rel
