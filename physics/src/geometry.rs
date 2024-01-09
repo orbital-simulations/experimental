@@ -75,6 +75,7 @@ impl Circle {
     pub fn test_overlap_with_circle(&self, other: &Circle) -> Option<Contact> {
         let diff = other.pos - self.pos;
         // TODO: decide how to handle concentricity
+        // see https://github.com/orbital-simulations/experimental/issues/54
         let normal = diff.try_normalize()?;
         let distance = diff.length();
         let separation = distance - self.radius - other.radius;

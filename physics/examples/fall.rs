@@ -9,14 +9,14 @@ pub struct GameState {
     engine: Engine,
 }
 
-const GRAVITY: DVec2 = DVec2::new(0.0, -9.81);
+const GRAVITY: DVec2 = DVec2::new(0.0, -100.0);
 
 impl GameState {
     fn setup(&mut self) {
         self.engine.gravity = GRAVITY;
         self.engine.particles = vec![
             Particle {
-                pos: dvec2(0.0, 20.0),
+                pos: dvec2(0.0, 50.0),
                 vel: dvec2(0.0, 0.0),
                 shape: Shape::Circle { radius: 50.0 },
                 ..Default::default()

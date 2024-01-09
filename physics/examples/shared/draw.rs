@@ -1,7 +1,10 @@
 use glam::DVec2;
-use macroquad::color::Color;
+use macroquad::color::{Color, RED};
 
-use physics::{Collision, Engine, Particle, Shape};
+use physics::{
+    constraint::{CollisionConstraint, Constraint},
+    Engine, Particle, Shape,
+};
 
 pub fn draw_vec_line(from: DVec2, to: DVec2, thickness: f32, color: Color) {
     use macroquad::shapes::draw_line;
@@ -44,9 +47,8 @@ impl Draw for Particle {
     }
 }
 
-impl Draw for Collision {
+impl Draw for CollisionConstraint {
     fn draw(&self) {
-        use macroquad::color::RED;
         let contact = &self.contact;
         let pos_inside = contact.pos + contact.separation * contact.normal;
         draw_vec_line(contact.pos, pos_inside, 2.0, RED);
@@ -57,6 +59,13 @@ impl Draw for Engine {
     fn draw(&self) {
         for p in &self.particles {
             p.draw();
+        }
+
+        for c in &self.constraints {
+            let (id_a, id_b) = c.get_ids();
+            let a = &self.particles[id_a];
+            let b = &self.particles[id_b];
+            draw_vec_line(a.pos, b.pos, 1.0, RED);
         }
 
         for col in self.detect_collisions() {
