@@ -11,17 +11,17 @@ concurrency:
   cancel-in-progress: true
 name: build
 jobs:
-  stable-build:
+  nightly-build:
     runs-on: ubuntu-latest
-    name: stable build
+    name: nightly build
     steps:
       - name: Install system dependencies
         run: sudo apt-get install -y libwayland-dev libasound2-dev libxkbcommon-dev
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install nightly
+        uses: dtolnay/rust-toolchain@nightly
       - name: cargo build --release --all-targets
         run: cargo build --release --all-targets
       - uses: actions/upload-artifact@v4
