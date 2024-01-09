@@ -13,45 +13,35 @@ pub enum ConstraintEnum {
     Custom(Box<dyn Constraint>),
 }
 
+macro_rules! dispatch_constraint {
+    ($self: ident, $method: ident, $( $arg: ident),* ) => {
+        match $self {
+            ConstraintEnum::Distance(c) => c.$method($( $arg ),*),
+            ConstraintEnum::Collision(c) => c.$method($( $arg ),*),
+            ConstraintEnum::Custom(c) => c.$method($( $arg ),*)
+        }
+    };
+}
+
 impl Constraint for ConstraintEnum {
     fn get_ids(&self) -> (usize, usize) {
-        match self {
-            ConstraintEnum::Distance(c) => c.get_ids(),
-            ConstraintEnum::Collision(c) => c.get_ids(),
-            ConstraintEnum::Custom(c) => c.get_ids(),
-        }
+        dispatch_constraint!(self, get_ids,)
     }
 
     fn is_satisfied(&self, a: &Particle, b: &Particle, dt: f64) -> bool {
-        match self {
-            ConstraintEnum::Distance(c) => c.is_satisfied(a, b, dt),
-            ConstraintEnum::Collision(c) => c.is_satisfied(a, b, dt),
-            ConstraintEnum::Custom(c) => c.is_satisfied(a, b, dt),
-        }
+        dispatch_constraint!(self, is_satisfied, a, b, dt)
     }
 
     fn value(&self, a: &Particle, b: &Particle) -> f64 {
-        match self {
-            ConstraintEnum::Distance(c) => c.value(a, b),
-            ConstraintEnum::Collision(c) => c.value(a, b),
-            ConstraintEnum::Custom(c) => c.value(a, b),
-        }
+        dispatch_constraint!(self, value, a, b)
     }
 
     fn jacobian(&self, a: &Particle, b: &Particle) -> (DVec3, DVec3) {
-        match self {
-            ConstraintEnum::Distance(c) => c.jacobian(a, b),
-            ConstraintEnum::Collision(c) => c.jacobian(a, b),
-            ConstraintEnum::Custom(c) => c.jacobian(a, b),
-        }
+        dispatch_constraint!(self, jacobian, a, b)
     }
 
     fn target_velocity(&self, a: &Particle, b: &Particle, dt: f64) -> f64 {
-        match self {
-            ConstraintEnum::Distance(c) => c.target_velocity(a, b, dt),
-            ConstraintEnum::Collision(c) => c.target_velocity(a, b, dt),
-            ConstraintEnum::Custom(c) => c.target_velocity(a, b, dt),
-        }
+        dispatch_constraint!(self, target_velocity, a, b, dt)
     }
 }
 
