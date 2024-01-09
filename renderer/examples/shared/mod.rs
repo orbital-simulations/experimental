@@ -1,5 +1,6 @@
-use std::iter;
+use std::{env::args, iter, path::Path};
 
+use color_eyre::eyre::Result;
 use eyre::OptionExt;
 use glam::vec2;
 use image::{ImageBuffer, Rgba};
@@ -8,7 +9,19 @@ use renderer::{context::Context, Renderer};
 const OUTPUT_HEIGH: u32 = 600;
 const OUTPUT_WIDTH: u32 = 600;
 
-pub async fn run<FRender>(render: FRender) -> color_eyre::eyre::Result<()>
+fn get_program_stem() -> Result<String> {
+    args()
+        .flat_map(|s| {
+            let path = Path::new(&s);
+            let stem = path.file_stem()?;
+            let s = stem.to_str()?;
+            Some(s.to_owned())
+        })
+        .next()
+        .ok_or_eyre("Could not get the first argument")
+}
+
+pub async fn run<FRender>(render: FRender) -> Result<()>
 where
     FRender: Fn(&mut Renderer),
 {
@@ -118,6 +131,8 @@ where
         .collect::<Vec<_>>();
     let buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(OUTPUT_WIDTH, OUTPUT_WIDTH, data)
         .ok_or_eyre("Could not create an image buffer")?;
-    buffer.save("image.png")?;
+    let name = get_program_stem()? + ".png";
+    println!("Saving rendered image to {}", name);
+    buffer.save(name)?;
     Ok(())
 }
