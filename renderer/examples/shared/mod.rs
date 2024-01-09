@@ -10,15 +10,13 @@ const OUTPUT_HEIGH: u32 = 600;
 const OUTPUT_WIDTH: u32 = 600;
 
 fn get_program_stem() -> Result<String> {
-    args()
-        .flat_map(|s| {
-            let path = Path::new(&s);
-            let stem = path.file_stem()?;
-            let s = stem.to_str()?;
-            Some(s.to_owned())
-        })
+    let program = args()
         .next()
-        .ok_or_eyre("Could not get the first argument")
+        .ok_or_eyre("Could not get the first argument")?;
+    let path = Path::new(&program);
+    let stem = path.file_stem().ok_or_eyre("Could not get the file stem")?;
+    let string = stem.to_str().ok_or_eyre("Could not convert to string")?;
+    Ok(string.to_owned())
 }
 
 pub async fn run<FRender>(render: FRender) -> Result<()>
