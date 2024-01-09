@@ -14,91 +14,89 @@ use crate::{
 
 #[derive(Debug)]
 #[repr(C, packed)]
-pub struct StrokeCircle {
+pub struct StrokeRectangle {
     pub pos: Vec2,
-    pub radius: f32,
+    pub size: Vec2,
     pub border: f32,
     pub color: Vec3,
 }
 
 // SAFETY: This is fine because we make sure the corresponding Attribute
 // definitions are defined correctly.
-unsafe impl Gpu for StrokeCircle {}
+unsafe impl Gpu for StrokeRectangle {}
 
-impl StrokeCircle {
-    pub fn new(pos: Vec2, radius: f32, border: f32, color: Vec3) -> Self {
+impl StrokeRectangle {
+    pub fn new(pos: Vec2, size: Vec2, border: f32, color: Vec3) -> Self {
         Self {
             pos,
-            radius,
+            size,
             border,
             color,
         }
     }
 }
 
-const STROKE_CIRCLE_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 4] =
-    vertex_attr_array![1 => Float32x2, 2 => Float32, 3 => Float32, 4 => Float32x3];
+const STROKE_RECTANGLE_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 4] =
+    vertex_attr_array![1 => Float32x2, 2 => Float32x2, 3 => Float32, 4 => Float32x3];
 
-const STROKE_CIRCLE_VERTICES: [Vec2; 4] = [
+const STROKE_RECTANGLE_VERTICES: [Vec2; 4] = [
     Vec2 { x: -1.0, y: -1.0 },
     Vec2 { x: 1.0, y: -1.0 },
     Vec2 { x: -1.0, y: 1.0 },
     Vec2 { x: 1.0, y: 1.0 },
 ];
 
-const STROKE_CIRCLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
+const STROKE_RECTANGLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
-impl StrokeCircle {
+impl StrokeRectangle {
     fn buffer_description<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
-            array_stride: std::mem::size_of::<StrokeCircle>() as BufferAddress,
+            array_stride: std::mem::size_of::<StrokeRectangle>() as BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &STROKE_CIRCLE_VERTEX_ATTRIBUTES,
+            attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
         }
     }
 }
 
 #[derive(Debug)]
-pub struct StrokeCircleRenderer {
-    circles: Vec<StrokeCircle>,
-    circle_vertex_buffer: Buffer,
-    circle_index_buffer: Buffer,
-    circle_instance_buffer: Buffer,
-    circle_pipeline: RenderPipeline,
-    // This is a size in element. We keep it because actual WGPU buffer returns
-    // buffer size in bytes.
-    circle_instance_buffer_size: usize,
+pub struct StrokeRectangleRenderer {
+    rectangles: Vec<StrokeRectangle>,
+    rectangle_vertex_buffer: Buffer,
+    rectangle_index_buffer: Buffer,
+    rectangle_instance_buffer: Buffer,
+    rectangle_pipeline: RenderPipeline,
+    rectangle_instance_buffer_size: usize,
 }
 
-impl StrokeCircleRenderer {
+impl StrokeRectangleRenderer {
     pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
-        let circle_shader = context
+        let rectangle_shader = context
             .device
-            .create_shader_module(include_wgsl!("../shaders/stroke_circle.wgsl"));
+            .create_shader_module(include_wgsl!("../shaders/stroke_rectangle.wgsl"));
         let render_pipeline_layout =
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Stroke Circle Render Pipeline Layout"),
+                    label: Some("Render Pipeline Layout"),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
-        let circle_pipeline =
+        let rectangle_pipeline =
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Stroke Circle Render Pipeline"),
+                    label: Some("Filled Rectangle Render Pipeline"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
-                        module: &circle_shader,
+                        module: &rectangle_shader,
                         entry_point: "vs_main",
                         buffers: &[
                             vec2_buffer_description(),
-                            StrokeCircle::buffer_description(),
+                            StrokeRectangle::buffer_description(),
                         ],
                     },
                     fragment: Some(wgpu::FragmentState {
-                        module: &circle_shader,
+                        module: &rectangle_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: context.texture_format,
@@ -133,44 +131,44 @@ impl StrokeCircleRenderer {
                     multiview: None,
                 });
 
-        let circle_vertex_buffer =
+        let rectangle_vertex_buffer =
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Stroke Circle Vertex Buffer"),
-                    contents: STROKE_CIRCLE_VERTICES.get_raw(),
+                    label: Some("Rectangle Vertex Buffer"),
+                    contents: STROKE_RECTANGLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
 
-        let circle_index_buffer =
+        let rectangle_index_buffer =
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Circle Index Buffer"),
-                    contents: STROKE_CIRCLE_INDICES.get_raw(),
+                    label: Some("Rectangle Index Buffer"),
+                    contents: STROKE_RECTANGLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
         // This will probably fial....
-        let circle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Circle Index Buffer"),
+        let rectangle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
+            label: Some("Rectangle Index Buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 0,
             mapped_at_creation: false,
         });
 
         Self {
-            circles: vec![],
-            circle_vertex_buffer,
-            circle_index_buffer,
-            circle_instance_buffer,
-            circle_pipeline,
-            circle_instance_buffer_size: 0,
+            rectangles: vec![],
+            rectangle_vertex_buffer,
+            rectangle_index_buffer,
+            rectangle_instance_buffer,
+            rectangle_pipeline,
+            rectangle_instance_buffer_size: 0,
         }
     }
 
-    pub fn add_stroke_circle(&mut self, circle: StrokeCircle) {
-        self.circles.push(circle);
+    pub fn add_rectangle(&mut self, rectangle: StrokeRectangle) {
+        self.rectangles.push(rectangle);
     }
 
     pub fn render<'a>(
@@ -179,36 +177,38 @@ impl StrokeCircleRenderer {
         projection_bind_group: &'a BindGroup,
         render_pass: &mut RenderPass<'a>,
     ) {
-        if self.circle_instance_buffer_size < self.circles.len() {
-            self.circle_instance_buffer_size = self.circles.len();
-            self.circle_instance_buffer =
+        if self.rectangle_instance_buffer_size < self.rectangles.len() {
+            self.rectangle_instance_buffer_size = self.rectangles.len();
+            self.rectangle_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("Circle Index Buffer"),
+                    label: Some("Rectangle Index Buffer"),
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    contents: self.circles.get_raw(),
+                    contents: self.rectangles.get_raw(),
                 });
         } else {
-            context
-                .queue
-                .write_buffer(&self.circle_instance_buffer, 0, self.circles.get_raw());
+            context.queue.write_buffer(
+                &self.rectangle_instance_buffer,
+                0,
+                self.rectangles.get_raw(),
+            );
         }
 
-        render_pass.set_pipeline(&self.circle_pipeline);
+        render_pass.set_pipeline(&self.rectangle_pipeline);
         render_pass.set_bind_group(0, projection_bind_group, &[]);
-        render_pass.set_vertex_buffer(0, self.circle_vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, self.circle_instance_buffer.slice(..));
+        render_pass.set_vertex_buffer(0, self.rectangle_vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, self.rectangle_instance_buffer.slice(..));
         render_pass.set_index_buffer(
-            self.circle_index_buffer.slice(..),
+            self.rectangle_index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,
         );
         render_pass.draw_indexed(
-            0..(STROKE_CIRCLE_INDICES.len() as u32),
+            0..(STROKE_RECTANGLE_INDICES.len() as u32),
             0,
-            0..(self.circles.len() as u32),
+            0..(self.rectangles.len() as u32),
         );
 
         // TODO: Think about some memory releasing strategy. Spike in number of
-        // circles will lead to space leak.
-        self.circles.clear();
+        // rectangles will lead to space leak.
+        self.rectangles.clear();
     }
 }
