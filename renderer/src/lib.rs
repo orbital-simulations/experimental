@@ -2,6 +2,7 @@ pub mod buffers;
 pub mod colors;
 pub mod context;
 pub mod filled_circle;
+pub mod stroke_circle;
 pub mod filled_rectangle;
 pub mod line_segment;
 pub mod raw;
