@@ -7,7 +7,7 @@ struct VertexInput {
 struct InstanceInput {
     @location(1) position: vec2<f32>,
     @location(2) size: vec2<f32>,
-    @location(3) border: f32,
+    @location(3) border_size: f32,
     @location(4) color: vec3<f32>,
 }
 
@@ -15,7 +15,7 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec3<f32>,
     @location(2) half_size: vec2<f32>,
-    @location(3) half_border: f32,
+    @location(3) half_border_size: f32,
     @location(4) sdf_position: vec2<f32>,
 }
 
@@ -38,7 +38,7 @@ fn vs_main(
     out.color = instance.color;
 
     out.sdf_position = vec2<f32>((instance.size.x / 2.0) * model.position.x, (instance.size.y / 2.0) * model.position.y);
-    out.half_border = instance.border * 0.5;
+    out.half_border_size = instance.border_size * 0.5;
     out.half_size = instance.size * 0.5;
 
     return out;
@@ -49,7 +49,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let v = abs(in.sdf_position) - in.half_size;
     let inner_sd = min(max(v.x, v.y), 0.0);
 
-    if inner_sd < (-in.half_border){
+    if inner_sd < (-in.half_border_size){
         discard;
     }
 
