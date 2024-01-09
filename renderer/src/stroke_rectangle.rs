@@ -77,7 +77,7 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Render Pipeline Layout"),
+                    label: Some("Stroke Render Pipeline Layout"),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
@@ -85,7 +85,7 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Filled Rectangle Render Pipeline"),
+                    label: Some("Stroke Rectangle Render Pipeline"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &rectangle_shader,
@@ -135,7 +135,7 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Rectangle Vertex Buffer"),
+                    label: Some("Stroke Rectangle Vertex Buffer"),
                     contents: STROKE_RECTANGLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
@@ -144,14 +144,14 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Rectangle Index Buffer"),
+                    label: Some("Stroke Rectangle Index Buffer"),
                     contents: STROKE_RECTANGLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
         // This will probably fial....
         let rectangle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Rectangle Index Buffer"),
+            label: Some("Stroke Rectangle Index Buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: 0,
             mapped_at_creation: false,
@@ -181,7 +181,7 @@ impl StrokeRectangleRenderer {
             self.rectangle_instance_buffer_size = self.rectangles.len();
             self.rectangle_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("Rectangle Index Buffer"),
+                    label: Some("Stroke Rectangle Index Buffer"),
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     contents: self.rectangles.get_raw(),
                 });
