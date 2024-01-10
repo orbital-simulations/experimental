@@ -1,5 +1,5 @@
 @group(0) @binding(0)
-var<uniform> perspective: mat4x4<f32>;
+var<uniform> projection: mat4x4<f32>;
 
 struct VertexInput {
     @location(0) position: vec2<f32>,
@@ -13,10 +13,9 @@ struct InstanceInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(1) color: vec3<f32>,
-    @location(2) half_size: vec2<f32>,
-    @location(3) half_border_size: f32,
     @location(4) sdf_position: vec2<f32>,
+    @location(1) color: vec3<f32>,
+    @location(3) half_border: vec2<f32>,
 }
 
 @vertex
@@ -26,32 +25,30 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
 
+    let half_size = instance.size / 2.0;
     let model_matrix = mat4x4<f32>(
-        vec4(1.0, 0.0, 0.0, 0.0),
-        vec4(0.0, 1.0, 0.0, 0.0),
+        vec4(half_size.x, 0.0, 0.0, 0.0),
+        vec4(0.0, half_size.y, 0.0, 0.0),
         vec4(0.0, 0.0, 1.0, 0.0),
         vec4(instance.position.x, instance.position.y, 0.0, 1.0)
     );
-    let world_position = model_matrix * vec4<f32>(model.position.x * (instance.size.x/2.0), model.position.y * (instance.size.y/2.0), -0.5, 1.0);
+    let world_position = model_matrix * vec4<f32>(model.position.x, model.position.y, -0.5, 1.0);
 
-    out.clip_position = perspective * world_position;
+    out.clip_position = projection * world_position;
     out.color = instance.color;
 
-    out.sdf_position = vec2<f32>((instance.size.x / 2.0) * model.position.x, (instance.size.y / 2.0) * model.position.y);
-    out.half_border_size = instance.border_size * 0.5;
-    out.half_size = instance.size * 0.5;
+    out.sdf_position = vec2<f32>(model.position.x, model.position.y);
+    out.half_border = (instance.border_size / half_size) / 2.0;
 
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let v = abs(in.sdf_position) - in.half_size;
-    let inner_sd = min(max(v.x, v.y), 0.0);
+    let sd = abs(abs(in.sdf_position) - 1.0 + in.half_border) - in.half_border;
 
-    if inner_sd < (-in.half_border_size){
+    if sd.x > 0.0 && sd.y > 0.0 {
         discard;
     }
-
     return vec4<f32>(in.color, 1.0);
 }

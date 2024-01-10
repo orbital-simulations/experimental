@@ -8,7 +8,7 @@ fn main() -> color_eyre::eyre::Result<()> {
         renderer.draw_stroke_circle(StrokeCircle {
             pos: Vec2::new(0., 0.),
             radius: 100.,
-            border: 2.,
+            border: 50.,
             color: GREEN,
         })
     }))?;
