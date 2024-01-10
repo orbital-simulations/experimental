@@ -13,8 +13,8 @@ struct InstanceInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(4) sdf_position: vec2<f32>,
-    @location(1) color: vec3<f32>,
+    @location(1) sdf_position: vec2<f32>,
+    @location(2) color: vec3<f32>,
     @location(3) half_border: vec2<f32>,
 }
 
