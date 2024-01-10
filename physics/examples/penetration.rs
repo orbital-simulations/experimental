@@ -26,16 +26,13 @@ impl GameState {
         self.engine.gravity = GRAVITY;
         self.engine.solver_iterations = 2;
         self.engine.particles = vec![
-            make_circle(dvec2(-200.0, 0.0)),
-            make_circle(dvec2(0.0, 0.0)),
-            make_circle(dvec2(0.0, 100.0)),
+            make_circle(dvec2(-200.0, -100.0)),
+            make_circle(dvec2(0.0, -50.0)),
             make_circle(dvec2(200.0, 0.0)),
-            make_circle(dvec2(200.0, 100.0)),
-            make_circle(dvec2(200.0, 200.0)),
             Particle {
                 inv_mass: 0.0,
                 inv_inertia: 0.0,
-                pos: dvec2(0.0, -50.0),
+                pos: dvec2(0.0, 0.0),
                 shape: Shape::HalfPlane {
                     normal_angle: PI / 2.0,
                 },

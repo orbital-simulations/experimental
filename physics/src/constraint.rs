@@ -28,6 +28,10 @@ impl Constraint for ConstraintEnum {
         dispatch_constraint!(self, get_ids,)
     }
 
+    fn is_equality(&self) -> bool {
+        dispatch_constraint!(self, is_equality,)
+    }
+
     fn value(&self, a: &Particle, b: &Particle) -> f64 {
         dispatch_constraint!(self, value, a, b)
     }
@@ -48,8 +52,12 @@ impl Constraint for ConstraintEnum {
 ///
 /// Writing C(a(t), b(t)) as a function of time, one can define this gradient,
 /// also called 'Jacobian', as dC/dt = J * (da/dt, db/dt) = J * V.
+///
+/// An inequality constraint works similarly but we require C(a, b) >= 0.
 pub trait Constraint: fmt::Debug + DynClone {
     fn get_ids(&self) -> (usize, usize);
+
+    fn is_equality(&self) -> bool;
 
     fn value(&self, a: &Particle, b: &Particle) -> f64;
 
@@ -97,6 +105,10 @@ impl Constraint for DistanceConstraint {
         (self.id_a, self.id_b)
     }
 
+    fn is_equality(&self) -> bool {
+        true
+    }
+
     fn value(&self, a: &Particle, b: &Particle) -> f64 {
         (b.pos - a.pos).length() - self.distance
     }
@@ -140,9 +152,21 @@ impl CollisionConstraint {
     }
 }
 
+// TODO: should be more like 0.8 but it doesn't behave well because
+// it produces high velocities and we treat them as dynamic collisions
+// in the next frame.
+// Once we remember static contacts we can treat them as static collisions
+// and handle them properly.
+// see https://github.com/orbital-simulations/experimental/issues/58
+const PENETRATION_RELAXATION_FACTOR: f64 = 0.02;
+
 impl Constraint for CollisionConstraint {
     fn get_ids(&self) -> (usize, usize) {
         (self.id_a, self.id_b)
+    }
+
+    fn is_equality(&self) -> bool {
+        self.dynamic
     }
 
     fn value(&self, _a: &Particle, _b: &Particle) -> f64 {
@@ -152,8 +176,6 @@ impl Constraint for CollisionConstraint {
     }
 
     fn target_velocity(&self, a: &Particle, b: &Particle, dt: f64) -> f64 {
-        // We treat dynamic constraints as equality velocity constraints
-        // TODO: shouldn't they be inequality?
         if self.dynamic {
             // TODO: compute restitution from some particle properties
             // see https://github.com/orbital-simulations/experimental/issues/53
@@ -165,7 +187,7 @@ impl Constraint for CollisionConstraint {
         // To first order C(t+dt) ~ C(t) + dC/dt * dt = C(t) + J * v * dt = C(t) + v_rel * dt
         // If we want to achieve C(t+dt) = 0 we get v_rel = -C(t) / dt
         else {
-            -self.value(a, b) / dt
+            -PENETRATION_RELAXATION_FACTOR * self.value(a, b) / dt
         }
     }
 

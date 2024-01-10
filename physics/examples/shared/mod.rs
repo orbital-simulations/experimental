@@ -8,7 +8,7 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 pub mod draw;
 
 pub fn setup() {
-    let fmt_layer = fmt::layer().pretty();
+    let fmt_layer = fmt::layer().compact();
     let filter_layer = EnvFilter::from_default_env();
     tracing_subscriber::registry()
         .with(fmt_layer)

@@ -1,5 +1,5 @@
 #![feature(get_many_mut)]
-use constraint::{CollisionConstraint, ConstraintEnum};
+use constraint::{CollisionConstraint, Constraint, ConstraintEnum};
 use geometry::{Circle, HalfPlane};
 use glam::DVec2;
 use solver::{ConstraintData, SequentialImpulseSolver, Solver};
@@ -110,6 +110,8 @@ impl Default for Engine {
     }
 }
 
+const STATIC_SPEED_FACTOR: f64 = 2.0;
+
 impl Engine {
     #[instrument(level = "trace", skip_all)]
     pub fn detect_collisions(&self) -> Vec<CollisionConstraint> {
@@ -124,14 +126,7 @@ impl Engine {
                     .to_geometry_shape()
                     .test_overlap(&b.to_geometry_shape())
                     .into_iter()
-                    .map(|contact| {
-                        // TODO: decide if the constraint in dynamic based on its relative velocity
-                        // compared to velocity acquired from gravity;
-                        // another (better?) option might be to track contacts over multiple frames
-                        // and consider only new ones as dynamic
-                        let dynamic = true;
-                        CollisionConstraint::new(i, j, contact, dynamic)
-                    });
+                    .map(|contact| CollisionConstraint::new(i, j, contact, true));
                 collisions.extend(contacts)
             }
         }
@@ -253,7 +248,32 @@ impl Engine {
         let collision_constraints: Vec<_> = self
             .detect_collisions()
             .into_iter()
-            .map(ConstraintEnum::Collision)
+            .filter_map(|mut c| {
+                let a = &self.particles[c.id_a];
+                let b = &self.particles[c.id_b];
+                // NOTE: we treat collisions with low relative velocity as static, i.e. we do not
+                // conserve energy, we only prevent penetration.
+                // TODO: a better approach might be to track collisions over multiple frames
+                // and consider only new ones as dynamic,
+                // see https://github.com/orbital-simulations/experimental/issues/58
+                let static_speed_limit = STATIC_SPEED_FACTOR * self.gravity.length() * dt;
+                let v_rel = c.relative_velocity(a, b);
+                if v_rel.abs() < static_speed_limit {
+                    c.dynamic = false;
+                }
+                if v_rel < static_speed_limit {
+                    Some(ConstraintEnum::Collision(c))
+                } else {
+                    // TODO: this is probably not correct, we should use all collisions
+                    // in the solver even though the objects are separating initially,
+                    // since relative velocity might change during solving and we will fail
+                    // to take this interaction into account.
+                    // That said, right now this gives the best simulation results.
+                    // Having persistent contacts would probably fix this,
+                    // see https://github.com/orbital-simulations/experimental/issues/58
+                    None
+                }
+            })
             .collect();
 
         // Prepare both collision and user constraints for the solver

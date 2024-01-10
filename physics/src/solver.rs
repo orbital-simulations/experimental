@@ -65,10 +65,16 @@ impl SequentialImpulseSolver {
         let v_target = c.target_velocity;
         let (j1, j2) = c.jacobian;
         let new_lambda = (v_target - v_rel) / (j1.dot(m1_inv * j1) + j2.dot(m2_inv * j2));
-        // TODO should the clamping be done only for the inequality constraints?
-        let new_total = (c.total_impulse + new_lambda).max(0.0);
-        let lambda = new_total - c.total_impulse;
-        c.total_impulse += lambda;
+        let lambda = if c.constraint.is_equality() {
+            new_lambda
+        }
+        // For inequality constraints the total impulse applied should be positive.
+        else {
+            let new_total = (c.total_impulse + new_lambda).max(0.0);
+            let lambda = new_total - c.total_impulse;
+            c.total_impulse += lambda;
+            lambda
+        };
         trace!("Impulse magnitude: {lambda}");
         lambda
     }
@@ -107,9 +113,6 @@ impl Solver for SequentialImpulseSolver {
                 }
                 let a = &particles[id_a];
                 let b = &particles[id_b];
-                // TODO: accumulate impulses over solver iterations to prevent
-                // applying more impulse than necessary to achieve target velocity
-                // see https://github.com/orbital-simulations/experimental/issues/51
                 let impulse = self.find_impulse(a, b, c);
                 let [a, b] = particles
                     .get_many_mut([id_a, id_b])
