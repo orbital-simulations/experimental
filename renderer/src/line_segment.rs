@@ -83,7 +83,7 @@ impl LineSegmentRenderer {
     pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
         let line_segment_shader = context
             .device
-            .create_shader_module(include_wgsl!("../shaders/line_segment_2.wgsl"));
+            .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl"));
         let render_pipeline_layout =
             context
                 .device
@@ -101,10 +101,7 @@ impl LineSegmentRenderer {
                     vertex: wgpu::VertexState {
                         module: &line_segment_shader,
                         entry_point: "vs_main",
-                        buffers: &[
-                            vec2_buffer_description(),
-                            LineSegment::buffer_description(),
-                        ],
+                        buffers: &[vec2_buffer_description(), LineSegment::buffer_description()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &line_segment_shader,
