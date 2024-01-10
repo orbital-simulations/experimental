@@ -1,6 +1,6 @@
 #![feature(get_many_mut)]
 use constraint::{CollisionConstraint, Constraint, ConstraintEnum};
-use geometry::{Circle, HalfPlane};
+use geometry::{Capsule, Circle, HalfPlane};
 use glam::DVec2;
 use solver::{ConstraintData, SequentialImpulseSolver, Solver};
 use tracing::{instrument, trace, trace_span};
@@ -59,12 +59,15 @@ impl Particle {
 }
 
 impl Particle {
-    fn to_geometry_shape(&self) -> geometry::Shape {
+    pub fn to_geometry_shape(&self) -> geometry::Shape {
         match self.shape {
             Shape::Circle { radius } => geometry::Shape::Circle(Circle {
                 pos: self.pos,
                 radius,
             }),
+            Shape::Capsule { length, radius } => {
+                geometry::Shape::Capsule(Capsule::new(self.pos, self.angle, length, radius))
+            }
             Shape::HalfPlane { normal_angle } => geometry::Shape::HalfPlane(HalfPlane {
                 pos: self.pos,
                 normal_angle,
@@ -83,6 +86,10 @@ impl Default for Particle {
 #[non_exhaustive]
 pub enum Shape {
     Circle {
+        radius: f64,
+    },
+    Capsule {
+        length: f64,
         radius: f64,
     },
     HalfPlane {

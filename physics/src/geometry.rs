@@ -1,5 +1,5 @@
 //! This module provides basic shapes and methods for testing overlaps between them.
-use glam::DVec2;
+use glam::{DMat2, DVec2};
 use tracing::{instrument, trace, warn};
 
 #[derive(Clone, Debug)]
@@ -12,6 +12,7 @@ pub struct Contact {
 #[derive(Clone, Debug)]
 pub enum Shape {
     Circle(Circle),
+    Capsule(Capsule),
     HalfPlane(HalfPlane),
 }
 
@@ -29,15 +30,29 @@ impl Shape {
             (Shape::Circle(c1), Shape::Circle(c2)) => {
                 c1.test_overlap_with_circle(c2).into_iter().collect()
             }
+            (Shape::Circle(c1), Shape::Capsule(c2)) => {
+                c1.test_overlap_with_capsule(c2).into_iter().collect()
+            }
             (Shape::Circle(c1), Shape::HalfPlane(h2)) => {
                 c1.test_overlap_with_half_plane(h2).into_iter().collect()
             }
-            (Shape::HalfPlane(h1), Shape::Circle(c1)) => {
-                h1.test_overlap_with_circle(c1).into_iter().collect()
+            (Shape::Capsule(c1), Shape::Circle(c2)) => {
+                c1.test_overlap_with_circle(c2).into_iter().collect()
             }
-            (Shape::HalfPlane(_h1), Shape::HalfPlane(_h2)) => {
-                warn!("Half-plane vs half-plane overlap testing not supported");
-                vec![]
+            (Shape::Capsule(c1), Shape::Capsule(c2)) => {
+                c1.test_overlap_with_capsule(c2).into_iter().collect()
+            }
+            (Shape::Capsule(c1), Shape::HalfPlane(h2)) => {
+                c1.test_overlap_with_half_plane(h2).into_iter().collect()
+            }
+            (Shape::HalfPlane(h1), Shape::Circle(c2)) => {
+                h1.test_overlap_with_circle(c2).into_iter().collect()
+            }
+            (Shape::HalfPlane(h1), Shape::Capsule(c2)) => {
+                h1.test_overlap_with_capsule(c2).into_iter().collect()
+            }
+            (Shape::HalfPlane(h1), Shape::HalfPlane(h2)) => {
+                h1.test_overlap_with_half_plane(h2).into_iter().collect()
             }
         }
     }
@@ -47,6 +62,24 @@ impl Shape {
 pub struct Circle {
     pub pos: DVec2,
     pub radius: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct Capsule {
+    pub start: DVec2,
+    pub end: DVec2,
+    pub radius: f64,
+}
+
+impl Capsule {
+    pub fn new(pos: DVec2, orientation: f64, length: f64, radius: f64) -> Capsule {
+        let axis = DMat2::from_angle(orientation) * DVec2::Y;
+        Capsule {
+            start: pos + length / 2.0 * axis,
+            end: pos - length / 2.0 * axis,
+            radius,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -83,12 +116,34 @@ impl Circle {
         self.try_make_contact(normal, separation)
     }
 
+    pub fn test_overlap_with_capsule(&self, _other: &Capsule) -> Option<Contact> {
+        unimplemented!("Overlap check with capsule");
+    }
+
     pub fn test_overlap_with_half_plane(&self, other: &HalfPlane) -> Option<Contact> {
         let diff = other.pos - self.pos;
         let normal = -DVec2::from_angle(other.normal_angle);
         let separation = diff.dot(normal) - self.radius;
         trace!("Overlap result: normal {normal}, separation {separation}");
         self.try_make_contact(normal, separation)
+    }
+}
+
+impl Capsule {
+    pub fn test_overlap_with_circle(&self, other: &Circle) -> Option<Contact> {
+        other.test_overlap_with_capsule(self).map(|mut c| {
+            // c.normal points from `other` to `self`, so we need to flip it.
+            c.normal = -c.normal;
+            c
+        })
+    }
+
+    pub fn test_overlap_with_capsule(&self, _other: &Capsule) -> Option<Contact> {
+        unimplemented!("Overlap check of capsule with capsule");
+    }
+
+    pub fn test_overlap_with_half_plane(&self, _other: &HalfPlane) -> Option<Contact> {
+        unimplemented!("Overlap check of capsule with half-plane")
     }
 }
 
@@ -99,5 +154,18 @@ impl HalfPlane {
             c.normal = -c.normal;
             c
         })
+    }
+
+    pub fn test_overlap_with_capsule(&self, other: &Capsule) -> Option<Contact> {
+        other.test_overlap_with_half_plane(self).map(|mut c| {
+            // c.normal points from `other` to `self`, so we need to flip it.
+            c.normal = -c.normal;
+            c
+        })
+    }
+
+    pub fn test_overlap_with_half_plane(&self, _other: &HalfPlane) -> Option<Contact> {
+        warn!("Half-plane vs half-plane overlap testing not supported");
+        None
     }
 }
