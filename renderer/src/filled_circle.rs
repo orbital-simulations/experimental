@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
@@ -42,6 +44,16 @@ const CIRCLE_VERTICES: [Vec2; 4] = [
 
 const CIRCLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
+const INITIAL_BUFFER_CAPACITY: usize = 4;
+
+const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<FilledCircle>()) as u64;
+
+macro_rules! prefix_label {
+    () => {
+        "Filled circle "
+    };
+}
+
 impl FilledCircle {
     fn buffer_description<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
@@ -61,7 +73,7 @@ pub struct FilledCircleRenderer {
     circle_pipeline: RenderPipeline,
     // This is a size in element. We keep it because actual WGPU buffer returns
     // buffer size in bytes.
-    circle_instance_buffer_size: usize,
+    circle_instance_buffer_capacity: usize,
 }
 
 impl FilledCircleRenderer {
@@ -73,7 +85,7 @@ impl FilledCircleRenderer {
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Full Circle Render Pipeline Layout"),
+                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
@@ -81,7 +93,7 @@ impl FilledCircleRenderer {
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Full Circle Render Pipeline"),
+                    label: Some(concat!(prefix_label!(), "render pipeline")),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &circle_shader,
@@ -131,7 +143,7 @@ impl FilledCircleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Circle Vertex Buffer"),
+                    label: Some(concat!(prefix_label!(), "vertex buffer")),
                     contents: CIRCLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
@@ -140,16 +152,15 @@ impl FilledCircleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Circle Index Buffer"),
+                    label: Some(concat!(prefix_label!(), "index buffer")),
                     contents: CIRCLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
-        // This will probably fial....
         let circle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Circle Index Buffer"),
+            label: Some(concat!(prefix_label!(), "instance buffer")),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: 0,
+            size: INITIAL_BUFFER_SIZE,
             mapped_at_creation: false,
         });
 
@@ -159,7 +170,7 @@ impl FilledCircleRenderer {
             circle_index_buffer,
             circle_instance_buffer,
             circle_pipeline,
-            circle_instance_buffer_size: 0,
+            circle_instance_buffer_capacity: INITIAL_BUFFER_CAPACITY,
         }
     }
 
@@ -173,11 +184,11 @@ impl FilledCircleRenderer {
         projection_bind_group: &'a BindGroup,
         render_pass: &mut RenderPass<'a>,
     ) {
-        if self.circle_instance_buffer_size < self.circles.len() {
-            self.circle_instance_buffer_size = self.circles.len();
+        if self.circle_instance_buffer_capacity < self.circles.len() {
+            self.circle_instance_buffer_capacity = self.circles.len();
             self.circle_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("Circle Index Buffer"),
+                    label: Some(concat!(prefix_label!(), "instance buffer")),
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     contents: self.circles.get_raw(),
                 });

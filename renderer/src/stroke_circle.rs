@@ -161,7 +161,6 @@ impl StrokeCircleRenderer {
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
-        // This will probably fial....
         let circle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
             label: Some(concat!(prefix_label!(), " instance buffer")),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,

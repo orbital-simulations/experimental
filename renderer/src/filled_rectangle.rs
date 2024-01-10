@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
@@ -42,6 +44,16 @@ const RECTANGLE_VERTICES: [Vec2; 4] = [
 
 const RECTANGLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
+const INITIAL_BUFFER_CAPACITY: usize = 4;
+
+const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<FilledRectangle>()) as u64;
+
+macro_rules! prefix_label {
+    () => {
+        "Filled rectangle "
+    };
+}
+
 impl FilledRectangle {
     fn buffer_description<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
@@ -59,7 +71,7 @@ pub struct FilledRectangleRenderer {
     rectangle_index_buffer: Buffer,
     rectangle_instance_buffer: Buffer,
     rectangle_pipeline: RenderPipeline,
-    rectangle_instance_buffer_size: usize,
+    rectangle_instance_buffer_capacity: usize,
 }
 
 impl FilledRectangleRenderer {
@@ -71,7 +83,7 @@ impl FilledRectangleRenderer {
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Render Pipeline Layout"),
+                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
@@ -79,7 +91,7 @@ impl FilledRectangleRenderer {
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Filled Rectangle Render Pipeline"),
+                    label: Some(concat!(prefix_label!(), "render pipeline")),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &rectangle_shader,
@@ -129,7 +141,7 @@ impl FilledRectangleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Rectangle Vertex Buffer"),
+                    label: Some(concat!(prefix_label!(), "vertex buffer")),
                     contents: RECTANGLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
@@ -138,16 +150,15 @@ impl FilledRectangleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Rectangle Index Buffer"),
+                    label: Some(concat!(prefix_label!(), "index buffer")),
                     contents: RECTANGLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
-        // This will probably fial....
         let rectangle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Rectangle Index Buffer"),
+            label: Some(concat!(prefix_label!(), "instance buffer")),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: 0,
+            size: INITIAL_BUFFER_SIZE,
             mapped_at_creation: false,
         });
 
@@ -157,7 +168,7 @@ impl FilledRectangleRenderer {
             rectangle_index_buffer,
             rectangle_instance_buffer,
             rectangle_pipeline,
-            rectangle_instance_buffer_size: 0,
+            rectangle_instance_buffer_capacity: INITIAL_BUFFER_CAPACITY,
         }
     }
 
@@ -171,11 +182,11 @@ impl FilledRectangleRenderer {
         projection_bind_group: &'a BindGroup,
         render_pass: &mut RenderPass<'a>,
     ) {
-        if self.rectangle_instance_buffer_size < self.rectangles.len() {
-            self.rectangle_instance_buffer_size = self.rectangles.len();
+        if self.rectangle_instance_buffer_capacity < self.rectangles.len() {
+            self.rectangle_instance_buffer_capacity = self.rectangles.len();
             self.rectangle_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("Rectangle Index Buffer"),
+                    label: Some(concat!(prefix_label!(), "instance buffer")),
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     contents: self.rectangles.get_raw(),
                 });
