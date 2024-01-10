@@ -27,9 +27,9 @@ fn vs_main(
     let delta = (instance.p2 - instance.p1);
     let center = (delta / 2.0) + instance.p1;
 
-    let angle = atan2(delta.x, delta.y);
-    let cos_angle = cos(angle);
-    let sin_angle = sin(angle);
+    let normalized_delta = normalize(delta);
+    let cos_angle = normalized_delta.x;
+    let sin_angle = normalized_delta.y;
 
     let translation_matrix = mat4x4<f32>(
         vec4(cos_angle, -sin_angle, 0.0, 0.0),
