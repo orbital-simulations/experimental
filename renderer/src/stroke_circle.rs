@@ -89,7 +89,7 @@ impl StrokeCircleRenderer {
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some(concat!(prefix_label!(), " render pipeline layout")),
+                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
@@ -97,7 +97,7 @@ impl StrokeCircleRenderer {
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some(concat!(prefix_label!(), " render pipeline")),
+                    label: Some(concat!(prefix_label!(), "render pipeline")),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &circle_shader,
@@ -147,7 +147,7 @@ impl StrokeCircleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), " vertex buffer")),
+                    label: Some(concat!(prefix_label!(), "vertex buffer")),
                     contents: STROKE_CIRCLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
@@ -156,13 +156,13 @@ impl StrokeCircleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), " index buffer")),
+                    label: Some(concat!(prefix_label!(), "index buffer")),
                     contents: STROKE_CIRCLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
         let circle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some(concat!(prefix_label!(), " instance buffer")),
+            label: Some(concat!(prefix_label!(), "instance buffer")),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: INITIAL_BUFFER_SIZE,
             mapped_at_creation: false,
@@ -192,7 +192,7 @@ impl StrokeCircleRenderer {
             self.circle_instance_buffer_capacity = self.circles.len();
             self.circle_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), " instance buffer")),
+                    label: Some(concat!(prefix_label!(), "instance buffer")),
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     contents: self.circles.get_raw(),
                 });

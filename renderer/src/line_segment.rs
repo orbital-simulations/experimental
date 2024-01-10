@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
@@ -43,6 +45,16 @@ unsafe impl Gpu for Endpoint {}
 const LINE_SEGMENT_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 2] =
     vertex_attr_array![0 => Float32x2, 1 => Float32x3];
 
+const INITIAL_BUFFER_CAPACITY: usize = 4;
+
+const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<Endpoints>()) as u64;
+
+macro_rules! prefix_label {
+    () => {
+        "Line segment "
+    };
+}
+
 impl Endpoint {
     fn buffer_description<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
@@ -67,8 +79,7 @@ pub struct LineSegmentRenderer {
     endpoints: Vec<Endpoints>,
     line_segment_vertex_buffer: Buffer,
     line_segment_pipeline: RenderPipeline,
-    // Number of items that the vertex or index buffer can hold (they have the same capacity)
-    buffer_capacity: usize,
+    line_segment_buffer_capacity: usize,
 }
 
 impl LineSegmentRenderer {
@@ -80,7 +91,7 @@ impl LineSegmentRenderer {
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Line Segment Render Pipeline Layout"),
+                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
@@ -88,7 +99,7 @@ impl LineSegmentRenderer {
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Line Segment Render Pipeline"),
+                    label: Some(concat!(prefix_label!(), "render pipeline")),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &rectangle_shader,
@@ -132,9 +143,9 @@ impl LineSegmentRenderer {
                 });
 
         let line_segment_vertex_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Line segment vertex buffer"),
+            label: Some(concat!(prefix_label!(), "vertex buffer")),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: 0,
+            size: INITIAL_BUFFER_SIZE,
             mapped_at_creation: false,
         });
 
@@ -142,7 +153,7 @@ impl LineSegmentRenderer {
             endpoints: vec![],
             line_segment_vertex_buffer,
             line_segment_pipeline,
-            buffer_capacity: 0,
+            line_segment_buffer_capacity: INITIAL_BUFFER_CAPACITY,
         }
     }
 
@@ -159,14 +170,14 @@ impl LineSegmentRenderer {
         projection_bind_group: &'a BindGroup,
         render_pass: &mut RenderPass<'a>,
     ) {
-        if self.buffer_capacity < self.endpoints.len() {
+        if self.line_segment_buffer_capacity < self.endpoints.len() {
             self.line_segment_vertex_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("Line segment vertex buffer"),
+                    label: Some(concat!(prefix_label!(), "vertex buffer")),
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     contents: self.endpoints.get_raw(),
                 });
-            self.buffer_capacity = self.endpoints.len()
+            self.line_segment_buffer_capacity = self.endpoints.len()
         } else {
             context.queue.write_buffer(
                 &self.line_segment_vertex_buffer,
