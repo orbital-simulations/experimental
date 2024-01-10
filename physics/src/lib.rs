@@ -124,7 +124,14 @@ impl Engine {
                     .to_geometry_shape()
                     .test_overlap(&b.to_geometry_shape())
                     .into_iter()
-                    .map(|contact| CollisionConstraint::new(i, j, contact));
+                    .map(|contact| {
+                        // TODO: decide if the constraint in dynamic based on its relative velocity
+                        // compared to velocity acquired from gravity;
+                        // another (better?) option might be to track contacts over multiple frames
+                        // and consider only new ones as dynamic
+                        let dynamic = true;
+                        CollisionConstraint::new(i, j, contact, dynamic)
+                    });
                 collisions.extend(contacts)
             }
         }
@@ -250,7 +257,7 @@ impl Engine {
             .collect();
 
         // Prepare both collision and user constraints for the solver
-        let constraint_data: Vec<_> = self
+        let mut constraint_data: Vec<_> = self
             .constraints
             .iter()
             .chain(collision_constraints.iter())
@@ -262,7 +269,7 @@ impl Engine {
             dt,
             iterations: self.solver_iterations,
         };
-        solver.solve(&mut self.particles, &constraint_data);
+        solver.solve(&mut self.particles, &mut constraint_data);
 
         // 4. Update positions & reset forces
         for p in &mut self.particles {
