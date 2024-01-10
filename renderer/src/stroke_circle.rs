@@ -16,71 +16,75 @@ use crate::{
 
 #[derive(Debug)]
 #[repr(C, packed)]
-pub struct FilledCircle {
+pub struct StrokeCircle {
     pub pos: Vec2,
     pub radius: f32,
+    pub border: f32,
     pub color: Vec3,
 }
 
 // SAFETY: This is fine because we make sure the corresponding Attribute
 // definitions are defined correctly.
-unsafe impl Gpu for FilledCircle {}
+unsafe impl Gpu for StrokeCircle {}
 
-impl FilledCircle {
-    pub fn new(pos: Vec2, radius: f32, color: Vec3) -> Self {
-        Self { pos, radius, color }
+impl StrokeCircle {
+    pub fn new(pos: Vec2, radius: f32, border: f32, color: Vec3) -> Self {
+        Self {
+            pos,
+            radius,
+            border,
+            color,
+        }
     }
 }
 
-const CIRCLE_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 3] =
-    vertex_attr_array![1 => Float32x2, 2 => Float32, 3 => Float32x3];
+const STROKE_CIRCLE_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 4] =
+    vertex_attr_array![1 => Float32x2, 2 => Float32, 3 => Float32, 4 => Float32x3];
 
-const CIRCLE_VERTICES: [Vec2; 4] = [
+const STROKE_CIRCLE_VERTICES: [Vec2; 4] = [
     Vec2 { x: -1.0, y: -1.0 },
     Vec2 { x: 1.0, y: -1.0 },
     Vec2 { x: -1.0, y: 1.0 },
     Vec2 { x: 1.0, y: 1.0 },
 ];
 
-const CIRCLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
+const STROKE_CIRCLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
 const INITIAL_BUFFER_CAPACITY: usize = 4;
 
-const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<FilledCircle>()) as u64;
+const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<StrokeCircle>()) as u64;
 
 macro_rules! prefix_label {
     () => {
-        "Filled circle "
+        "Stroke circle "
     };
 }
 
-impl FilledCircle {
+impl StrokeCircle {
     fn buffer_description<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
-            array_stride: std::mem::size_of::<FilledCircle>() as BufferAddress,
+            array_stride: std::mem::size_of::<StrokeCircle>() as BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &CIRCLE_VERTEX_ATTRIBUTES,
+            attributes: &STROKE_CIRCLE_VERTEX_ATTRIBUTES,
         }
     }
 }
 
 #[derive(Debug)]
-pub struct FilledCircleRenderer {
-    circles: Vec<FilledCircle>,
+pub struct StrokeCircleRenderer {
+    circles: Vec<StrokeCircle>,
     circle_vertex_buffer: Buffer,
     circle_index_buffer: Buffer,
     circle_instance_buffer: Buffer,
     circle_pipeline: RenderPipeline,
-    // This is a size in element. We keep it because actual WGPU buffer returns
-    // buffer size in bytes.
     circle_instance_buffer_capacity: usize,
 }
 
-impl FilledCircleRenderer {
+impl StrokeCircleRenderer {
     pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
         let circle_shader = context
             .device
-            .create_shader_module(include_wgsl!("../shaders/filled_circle.wgsl"));
+            .create_shader_module(include_wgsl!("../shaders/stroke_circle.wgsl"));
         let render_pipeline_layout =
             context
                 .device
@@ -100,7 +104,7 @@ impl FilledCircleRenderer {
                         entry_point: "vs_main",
                         buffers: &[
                             vec2_buffer_description(),
-                            FilledCircle::buffer_description(),
+                            StrokeCircle::buffer_description(),
                         ],
                     },
                     fragment: Some(wgpu::FragmentState {
@@ -144,7 +148,7 @@ impl FilledCircleRenderer {
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(concat!(prefix_label!(), "vertex buffer")),
-                    contents: CIRCLE_VERTICES.get_raw(),
+                    contents: STROKE_CIRCLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
 
@@ -153,7 +157,7 @@ impl FilledCircleRenderer {
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(concat!(prefix_label!(), "index buffer")),
-                    contents: CIRCLE_INDICES.get_raw(),
+                    contents: STROKE_CIRCLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
@@ -174,7 +178,7 @@ impl FilledCircleRenderer {
         }
     }
 
-    pub fn add_circle(&mut self, circle: FilledCircle) {
+    pub fn add_stroke_circle(&mut self, circle: StrokeCircle) {
         self.circles.push(circle);
     }
 
@@ -207,7 +211,7 @@ impl FilledCircleRenderer {
             wgpu::IndexFormat::Uint16,
         );
         render_pass.draw_indexed(
-            0..(CIRCLE_INDICES.len() as u32),
+            0..(STROKE_CIRCLE_INDICES.len() as u32),
             0,
             0..(self.circles.len() as u32),
         );

@@ -5,6 +5,8 @@ pub mod filled_circle;
 pub mod filled_rectangle;
 pub mod line_segment;
 pub mod raw;
+pub mod stroke_circle;
+pub mod stroke_rectangle;
 
 use context::Context;
 use filled_circle::{FilledCircle, FilledCircleRenderer};
@@ -13,6 +15,8 @@ use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
 use raw::Raw;
 
+use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
+use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::info;
 use wgpu::util::DeviceExt;
 use wgpu::{StoreOp, Texture};
@@ -23,7 +27,9 @@ pub struct Renderer {
     projection_buffer: wgpu::Buffer,
 
     filled_circle_renderer: FilledCircleRenderer,
+    stroke_circle_renderer: StrokeCircleRenderer,
     filled_rectangle_renderer: FilledRectangleRenderer,
+    stroke_rectangle_renderer: StrokeRectangleRenderer,
     line_segment_renderer: LineSegmentRenderer,
 
     scale_factor: f64,
@@ -37,8 +43,12 @@ impl Renderer {
 
         let filled_circle_renderer =
             FilledCircleRenderer::new(&context, &projection_bind_group_layout);
+        let stroke_circle_renderer =
+            StrokeCircleRenderer::new(&context, &projection_bind_group_layout);
         let filled_rectangle_renderer =
             FilledRectangleRenderer::new(&context, &projection_bind_group_layout);
+        let stroke_rectangle_renderer =
+            StrokeRectangleRenderer::new(&context, &projection_bind_group_layout);
         let line_segment_renderer =
             LineSegmentRenderer::new(&context, &projection_bind_group_layout);
 
@@ -47,7 +57,9 @@ impl Renderer {
             projection_bind_group,
             projection_buffer,
             filled_circle_renderer,
+            stroke_circle_renderer,
             filled_rectangle_renderer,
+            stroke_rectangle_renderer,
             line_segment_renderer,
             scale_factor,
             size,
@@ -124,8 +136,18 @@ impl Renderer {
     pub fn draw_full_circle(&mut self, full_circle: FilledCircle) {
         self.filled_circle_renderer.add_circle(full_circle);
     }
+
+    pub fn draw_stroke_circle(&mut self, stroke_circle: StrokeCircle) {
+        self.stroke_circle_renderer.add_stroke_circle(stroke_circle);
+    }
+
     pub fn draw_full_rectangle(&mut self, full_rectangle: FilledRectangle) {
         self.filled_rectangle_renderer.add_rectangle(full_rectangle);
+    }
+
+    pub fn draw_stroke_rectangle(&mut self, stroke_rectangle: StrokeRectangle) {
+        self.stroke_rectangle_renderer
+            .add_rectangle(stroke_rectangle);
     }
 
     pub fn draw_line_segment(&mut self, line_segment: LineSegment) {
@@ -184,12 +206,22 @@ impl Renderer {
                 &self.projection_bind_group,
                 &mut render_pass,
             );
+            self.stroke_circle_renderer.render(
+                &self.context,
+                &self.projection_bind_group,
+                &mut render_pass,
+            );
             self.filled_rectangle_renderer.render(
                 &self.context,
                 &self.projection_bind_group,
                 &mut render_pass,
             );
             self.line_segment_renderer.render(
+                &self.context,
+                &self.projection_bind_group,
+                &mut render_pass,
+            );
+            self.stroke_rectangle_renderer.render(
                 &self.context,
                 &self.projection_bind_group,
                 &mut render_pass,
