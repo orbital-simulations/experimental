@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
@@ -48,6 +50,16 @@ const STROKE_RECTANGLE_VERTICES: [Vec2; 4] = [
 
 const STROKE_RECTANGLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
+const INITIAL_BUFFER_CAPACITY: usize = 4;
+
+const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<StrokeRectangle>()) as u64;
+
+macro_rules! prefix_label {
+    () => {
+        "Stroke rectangle "
+    };
+}
+
 impl StrokeRectangle {
     fn buffer_description<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
@@ -65,7 +77,7 @@ pub struct StrokeRectangleRenderer {
     rectangle_index_buffer: Buffer,
     rectangle_instance_buffer: Buffer,
     rectangle_pipeline: RenderPipeline,
-    rectangle_instance_buffer_size: usize,
+    rectangle_instance_buffer_capacity: usize,
 }
 
 impl StrokeRectangleRenderer {
@@ -77,7 +89,7 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Stroke Render Pipeline Layout"),
+                    label: Some(concat!(prefix_label!(), " render pipeline layout")),
                     bind_group_layouts: &[projection_bind_group_layout],
                     push_constant_ranges: &[],
                 });
@@ -85,7 +97,7 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Stroke Rectangle Render Pipeline"),
+                    label: Some(concat!(prefix_label!(), " render pipeline")),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &rectangle_shader,
@@ -135,7 +147,7 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Stroke Rectangle Vertex Buffer"),
+                    label: Some(concat!(prefix_label!(), " vertex buffer")),
                     contents: STROKE_RECTANGLE_VERTICES.get_raw(),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
@@ -144,16 +156,16 @@ impl StrokeRectangleRenderer {
             context
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Stroke Rectangle Index Buffer"),
+                    label: Some(concat!(prefix_label!(), " index buffer")),
                     contents: STROKE_RECTANGLE_INDICES.get_raw(),
                     usage: wgpu::BufferUsages::INDEX,
                 });
 
         // This will probably fial....
         let rectangle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some("Stroke Rectangle Index Buffer"),
+            label: Some(concat!(prefix_label!(), " instance buffer")),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: 0,
+            size: INITIAL_BUFFER_SIZE,
             mapped_at_creation: false,
         });
 
@@ -163,7 +175,7 @@ impl StrokeRectangleRenderer {
             rectangle_index_buffer,
             rectangle_instance_buffer,
             rectangle_pipeline,
-            rectangle_instance_buffer_size: 0,
+            rectangle_instance_buffer_capacity: INITIAL_BUFFER_CAPACITY,
         }
     }
 
@@ -177,8 +189,8 @@ impl StrokeRectangleRenderer {
         projection_bind_group: &'a BindGroup,
         render_pass: &mut RenderPass<'a>,
     ) {
-        if self.rectangle_instance_buffer_size < self.rectangles.len() {
-            self.rectangle_instance_buffer_size = self.rectangles.len();
+        if self.rectangle_instance_buffer_capacity < self.rectangles.len() {
+            self.rectangle_instance_buffer_capacity = self.rectangles.len();
             self.rectangle_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
                     label: Some("Stroke Rectangle Index Buffer"),
