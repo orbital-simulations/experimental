@@ -25,7 +25,7 @@ fn vs_main(
     var out: VertexOutput;
 
     let delta = (instance.p2 - instance.p1);
-    let center = (delta / 2) + instance.p1;
+    let center = (delta / 2.0) + instance.p1;
 
     let angle = atan2(delta.x, delta.y);
     let cos_angle = cos(angle);
@@ -42,7 +42,7 @@ fn vs_main(
         vec4((instance.width / 2.), 0.0, 0.0, 0.0),
         vec4(0.0, (length(delta) / 2.) , 0.0, 0.0),
         vec4(0.0, 0.0, 1.0, 0.0),
-        vec4(0, 0, 0, 1.0)
+        vec4(0.0, 0.0, 0.0, 1.0)
     );
 
     let world_position = translation_matrix * scale_matrix * vec4<f32>(model.position, -0.5, 1.0);
