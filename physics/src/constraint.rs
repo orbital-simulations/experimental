@@ -28,8 +28,8 @@ impl Constraint for ConstraintEnum {
         dispatch_constraint!(self, get_ids,)
     }
 
-    fn is_satisfied(&self, a: &Particle, b: &Particle, dt: f64) -> bool {
-        dispatch_constraint!(self, is_satisfied, a, b, dt)
+    fn is_equality(&self) -> bool {
+        dispatch_constraint!(self, is_equality,)
     }
 
     fn value(&self, a: &Particle, b: &Particle) -> f64 {
@@ -52,10 +52,12 @@ impl Constraint for ConstraintEnum {
 ///
 /// Writing C(a(t), b(t)) as a function of time, one can define this gradient,
 /// also called 'Jacobian', as dC/dt = J * (da/dt, db/dt) = J * V.
+///
+/// An inequality constraint works similarly but we require C(a, b) >= 0.
 pub trait Constraint: fmt::Debug + DynClone {
     fn get_ids(&self) -> (usize, usize);
 
-    fn is_satisfied(&self, a: &Particle, b: &Particle, dt: f64) -> bool;
+    fn is_equality(&self) -> bool;
 
     fn value(&self, a: &Particle, b: &Particle) -> f64;
 
@@ -64,9 +66,6 @@ pub trait Constraint: fmt::Debug + DynClone {
     fn jacobian(&self, a: &Particle, b: &Particle) -> (DVec3, DVec3);
 
     fn relative_velocity(&self, a: &Particle, b: &Particle) -> f64 {
-        // TODO: jacobian should be precomputed
-        // This is only needed by `is_satisfied`, so might get fixed with
-        // https://github.com/orbital-simulations/experimental/issues/49
         let (j1, j2) = self.jacobian(a, b);
         let v1 = dvec3(a.vel.x, a.vel.y, a.omega);
         let v2 = dvec3(b.vel.x, b.vel.y, b.omega);
@@ -97,16 +96,17 @@ impl DistanceConstraint {
 
 const CONSTRAINT_TOLERANCE: f64 = 1e-6;
 
+/// This constrains distance between centers of masses,
+/// not actual separation between rigid bodies.
+/// TODO: maybe it could be more useful if one could also specify
+/// which points on the bodies should be constrained.
 impl Constraint for DistanceConstraint {
     fn get_ids(&self) -> (usize, usize) {
         (self.id_a, self.id_b)
     }
 
-    // TODO: move this to solver, see https://github.com/orbital-simulations/experimental/issues/49
-    fn is_satisfied(&self, a: &Particle, b: &Particle, dt: f64) -> bool {
-        let velocity_diff = self.target_velocity(a, b, dt) - self.relative_velocity(a, b);
-        // TODO: precision, see https://github.com/orbital-simulations/experimental/issues/49
-        self.value(a, b).abs() < CONSTRAINT_TOLERANCE && velocity_diff.abs() < CONSTRAINT_TOLERANCE
+    fn is_equality(&self) -> bool {
+        true
     }
 
     fn value(&self, a: &Particle, b: &Particle) -> f64 {
@@ -138,27 +138,35 @@ pub struct CollisionConstraint {
     pub id_a: usize,
     pub id_b: usize,
     pub contact: Contact,
+    pub dynamic: bool,
 }
 
 impl CollisionConstraint {
-    pub fn new(a: usize, b: usize, contact: Contact) -> CollisionConstraint {
+    pub fn new(a: usize, b: usize, contact: Contact, dynamic: bool) -> CollisionConstraint {
         CollisionConstraint {
             id_a: a,
             id_b: b,
             contact,
+            dynamic,
         }
     }
 }
+
+// TODO: should be more like 0.8 but it doesn't behave well because
+// it produces high velocities and we treat them as dynamic collisions
+// in the next frame.
+// Once we remember static contacts we can treat them as static collisions
+// and handle them properly.
+// see https://github.com/orbital-simulations/experimental/issues/58
+const PENETRATION_RELAXATION_FACTOR: f64 = 0.02;
 
 impl Constraint for CollisionConstraint {
     fn get_ids(&self) -> (usize, usize) {
         (self.id_a, self.id_b)
     }
 
-    fn is_satisfied(&self, a: &Particle, b: &Particle, dt: f64) -> bool {
-        let velocity_diff = self.target_velocity(a, b, dt) - self.relative_velocity(a, b);
-        // TODO: precision, see https://github.com/orbital-simulations/experimental/issues/49
-        self.value(a, b) > -CONSTRAINT_TOLERANCE && velocity_diff.abs() < CONSTRAINT_TOLERANCE
+    fn is_equality(&self) -> bool {
+        self.dynamic
     }
 
     fn value(&self, _a: &Particle, _b: &Particle) -> f64 {
@@ -167,12 +175,20 @@ impl Constraint for CollisionConstraint {
         self.contact.separation
     }
 
-    fn target_velocity(&self, a: &Particle, b: &Particle, _dt: f64) -> f64 {
-        // TODO: compute restitution from some particle properties
-        // see https://github.com/orbital-simulations/experimental/issues/53
-        let restitution = 1.0;
-        let v_rel = self.relative_velocity(a, b);
-        -restitution * v_rel
+    fn target_velocity(&self, a: &Particle, b: &Particle, dt: f64) -> f64 {
+        if self.dynamic {
+            // TODO: compute restitution from some particle properties
+            // see https://github.com/orbital-simulations/experimental/issues/53
+            let restitution = 1.0;
+            let v_rel = self.relative_velocity(a, b);
+            -restitution * v_rel
+        }
+        // We treat static constraints as inequality position constraints
+        // To first order C(t+dt) ~ C(t) + dC/dt * dt = C(t) + J * v * dt = C(t) + v_rel * dt
+        // If we want to achieve C(t+dt) = 0 we get v_rel = -C(t) / dt
+        else {
+            -PENETRATION_RELAXATION_FACTOR * self.value(a, b) / dt
+        }
     }
 
     fn jacobian(&self, a: &Particle, b: &Particle) -> (DVec3, DVec3) {
