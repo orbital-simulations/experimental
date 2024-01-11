@@ -1,10 +1,16 @@
-use std::iter::repeat_with;
+use std::{f64::consts::PI, iter::repeat_with};
 
 use game_engine::GameEngine;
 use glam::{dvec2, DVec2};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
-use renderer::{colors::RED, filled_circle::FilledCircle, Renderer};
+use renderer::{
+    colors::{RED, YELLOW},
+    filled_circle::FilledCircle,
+    line_segment::LineSegment,
+    Renderer,
+};
+use tracing::debug;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
 
@@ -48,6 +54,38 @@ fn setup() -> GameState {
         })
         .take(CIRCLE_NUMBER),
     );
+    game_state.engine.particles.push(Particle {
+        inv_mass: 0.0,
+        inv_inertia: 0.0,
+        pos: dvec2(0.0, 500.0),
+        shape: Shape::HalfPlane {
+            normal_angle: -PI / 2.,
+        },
+        ..Default::default()
+    });
+    game_state.engine.particles.push(Particle {
+        inv_mass: 0.0,
+        inv_inertia: 0.0,
+        pos: dvec2(0.0, -500.0),
+        shape: Shape::HalfPlane {
+            normal_angle: PI / 2.,
+        },
+        ..Default::default()
+    });
+    game_state.engine.particles.push(Particle {
+        inv_mass: 0.0,
+        inv_inertia: 0.0,
+        pos: dvec2(500.0, 0.0),
+        shape: Shape::HalfPlane { normal_angle: -PI },
+        ..Default::default()
+    });
+    game_state.engine.particles.push(Particle {
+        inv_mass: 0.0,
+        inv_inertia: 0.0,
+        pos: dvec2(-500.0, 0.0),
+        shape: Shape::HalfPlane { normal_angle: 0. },
+        ..Default::default()
+    });
 
     game_state
 }
@@ -59,13 +97,23 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
 }
 
 fn render(state: &GameState, renderer: &mut Renderer) {
+    debug!("main render");
     for p in &state.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
                 renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
             }
-            Shape::HalfPlane { .. } => {
-                unimplemented!("Render a half-plane")
+            Shape::HalfPlane { normal_angle } => {
+                let extent = 10000.0;
+                let tangent = DVec2::from_angle(normal_angle).perp();
+                let from: DVec2 = p.pos + extent * tangent;
+                let to: DVec2 = p.pos - extent * tangent;
+                renderer.draw_line_segment(LineSegment {
+                    from: from.as_vec2(),
+                    to: to.as_vec2(),
+                    color: YELLOW,
+                    width: 3.,
+                });
             }
             _ => {
                 unimplemented!("Render unknown shape {:?}", p.shape)

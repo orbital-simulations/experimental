@@ -32,15 +32,15 @@ fn vs_main(
     let sin_angle = normalized_delta.y;
 
     let translation_matrix = mat4x4<f32>(
-        vec4(cos_angle, -sin_angle, 0.0, 0.0),
-        vec4(sin_angle, cos_angle, 0.0, 0.0),
+        vec4(cos_angle, sin_angle, 0.0, 0.0),
+        vec4(-sin_angle, cos_angle, 0.0, 0.0),
         vec4(0.0, 0.0, 1.0, 0.0),
         vec4(center.x, center.y, 0.0, 1.0)
     );
 
     let scale_matrix = mat4x4<f32>(
-        vec4((instance.width / 2.), 0.0, 0.0, 0.0),
-        vec4(0.0, (length(delta) / 2.) , 0.0, 0.0),
+        vec4((length(delta) / 2.), 0.0, 0.0, 0.0),
+        vec4(0.0, (instance.width / 2.) , 0.0, 0.0),
         vec4(0.0, 0.0, 1.0, 0.0),
         vec4(0.0, 0.0, 0.0, 1.0)
     );

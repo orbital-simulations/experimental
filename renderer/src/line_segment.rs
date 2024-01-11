@@ -185,7 +185,7 @@ impl LineSegmentRenderer {
         render_pass: &mut RenderPass<'a>,
     ) {
         if self.line_segment_buffer_capacity < self.line_segments.len() {
-            self.line_segment_vertex_buffer =
+            self.line_segment_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
                     label: Some(concat!(prefix_label!(), "instance buffer")),
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
