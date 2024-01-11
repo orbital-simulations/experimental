@@ -195,8 +195,9 @@ impl Constraint for CollisionConstraint {
         let r1 = self.contact.pos - a.pos;
         let r2 = self.contact.pos - b.pos;
         let n = self.contact.normal;
-        let j1 = dvec3(-n.x, -n.y, -n.perp_dot(r1));
-        let j2 = dvec3(n.x, n.y, n.perp_dot(r2));
+        // TODO: figure out why we have to use the minus sign in the perp_dot
+        let j1 = dvec3(-n.x, -n.y, n.perp_dot(r1));
+        let j2 = dvec3(n.x, n.y, -n.perp_dot(r2));
         (j1, j2)
     }
 }

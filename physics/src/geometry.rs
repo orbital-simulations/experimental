@@ -145,9 +145,15 @@ impl Capsule {
     // TODO: we should probably have a ContactManifold that can be supported on multiple points
     // and return Option<ContactManifold>.
     pub fn test_overlap_with_half_plane(&self, other: &HalfPlane) -> Vec<Contact> {
-        let start_circle = Circle{pos: self.start, radius: self.radius};
+        let start_circle = Circle {
+            pos: self.start,
+            radius: self.radius,
+        };
         let start_contact = start_circle.test_overlap_with_half_plane(other);
-        let end_circle = Circle{pos: self.end, radius: self.radius};
+        let end_circle = Circle {
+            pos: self.end,
+            radius: self.radius,
+        };
         let end_contact = end_circle.test_overlap_with_half_plane(other);
         match (start_contact, end_contact) {
             (Some(c1), Some(c2)) => {
@@ -155,9 +161,9 @@ impl Capsule {
             }
             // TODO: maybe create multiple contacts in this case also if the line segment
             // overlaps the half-plane
-            (Some(c), None) => vec!(c),
-            (None, Some(c)) => vec!(c),
-            (None, None) => vec![]
+            (Some(c), None) => vec![c],
+            (None, Some(c)) => vec![c],
+            (None, None) => vec![],
         }
     }
 }
@@ -172,11 +178,15 @@ impl HalfPlane {
     }
 
     pub fn test_overlap_with_capsule(&self, other: &Capsule) -> Vec<Contact> {
-        other.test_overlap_with_half_plane(self).into_iter().map(|mut c| {
-            // c.normal points from `other` to `self`, so we need to flip it.
-            c.normal = -c.normal;
-            c
-        }).collect()
+        other
+            .test_overlap_with_half_plane(self)
+            .into_iter()
+            .map(|mut c| {
+                // c.normal points from `other` to `self`, so we need to flip it.
+                c.normal = -c.normal;
+                c
+            })
+            .collect()
     }
 
     pub fn test_overlap_with_half_plane(&self, _other: &HalfPlane) -> Option<Contact> {
