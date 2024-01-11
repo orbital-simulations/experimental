@@ -16,20 +16,26 @@ const GRAVITY: DVec2 = DVec2::new(0.0, -100.0);
 impl GameState {
     fn setup(&mut self) {
         self.engine.gravity = GRAVITY;
+        self.engine.solver_iterations = 2;
+        let radius = 50.0;
+        let length = 100.0;
+        let pos_y = radius + length / (2.0 * 2.0f64.sqrt());
         self.engine.particles = vec![
             Particle {
-                pos: dvec2(0.0, 50.0),
+                pos: dvec2(0.0, pos_y),
                 vel: dvec2(0.0, 0.0),
+                inv_inertia: 1.0 / 1000.0,
+                angle: PI / 4.0,
                 shape: Shape::Capsule {
-                    length: 100.0,
-                    radius: 20.0,
+                    length,
+                    radius,
                 },
                 ..Default::default()
             },
             Particle {
                 inv_mass: 0.0,
                 inv_inertia: 0.0,
-                pos: dvec2(0.0, -50.0),
+                pos: dvec2(0.0, 0.0),
                 shape: Shape::HalfPlane {
                     normal_angle: PI / 2.0,
                 },
@@ -39,8 +45,9 @@ impl GameState {
     }
 
     fn update(&mut self) {
-        let dt = get_frame_time();
-        self.engine.step(dt as f64);
+        //let dt = get_frame_time() as f64;
+        let dt = 1e-3;
+        self.engine.step(dt);
     }
 
     fn render(&self) {
@@ -55,7 +62,7 @@ async fn main() {
     let mut state = GameState::default();
     state.setup();
 
-    loop {
+    for _i in 1..10 {
         state.update();
         state.render();
         next_frame().await;
