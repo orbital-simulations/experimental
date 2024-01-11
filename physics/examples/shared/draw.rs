@@ -1,6 +1,6 @@
 use glam::{DMat2, DVec2};
 use macroquad::{
-    color::{Color, RED, WHITE},
+    color::{Color, RED, WHITE, GREEN},
     shapes::{draw_circle_lines, draw_line},
 };
 
@@ -42,6 +42,7 @@ impl Draw for Particle {
                 let capsule = geometry::Capsule::new(self.pos, self.angle, length, radius);
                 let start = capsule.start;
                 let end = capsule.end;
+                draw_circle_lines_vec(self.pos, 5.0, 1.0, GREEN);
                 draw_circle_lines_vec(start, radius, 1.0, WHITE);
                 draw_circle_lines_vec(end, radius, 1.0, WHITE);
                 let x = radius * DMat2::from_angle(self.angle) * DVec2::X;

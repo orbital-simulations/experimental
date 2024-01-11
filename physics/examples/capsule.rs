@@ -17,13 +17,13 @@ impl GameState {
     fn setup(&mut self) {
         self.engine.gravity = GRAVITY;
         let radius = 50.0;
-        let length = 100.0;
+        let length = 400.0;
         self.engine.particles = vec![
             Particle {
-                pos: dvec2(0.0, 100.0),
+                pos: dvec2(0.0, 0.0),
                 vel: dvec2(0.0, 0.0),
                 inv_inertia: 1.0 / 1000.0,
-                angle: PI / 2.0 + 0.1,
+                angle: PI / 4.0,
                 shape: Shape::Capsule { length, radius },
                 ..Default::default()
             },
@@ -41,6 +41,7 @@ impl GameState {
 
     fn update(&mut self) {
         let dt = get_frame_time() as f64;
+        let dt = 1e-2;
         self.engine.step(dt);
     }
 
