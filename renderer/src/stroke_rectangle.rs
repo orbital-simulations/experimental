@@ -4,8 +4,8 @@ use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
-    vertex_attr_array, BindGroup, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor,
-    RenderPass, RenderPipeline, VertexBufferLayout,
+    vertex_attr_array, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor, RenderPass,
+    RenderPipeline, VertexBufferLayout,
 };
 
 use crate::{
@@ -111,7 +111,7 @@ impl StrokeRectangleRenderer {
                         module: &rectangle_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: context.texture_format,
+                            format: context.output_texture_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -182,12 +182,7 @@ impl StrokeRectangleRenderer {
         self.rectangles.push(rectangle);
     }
 
-    pub fn render<'a>(
-        &'a mut self,
-        context: &Context,
-        projection_bind_group: &'a BindGroup,
-        render_pass: &mut RenderPass<'a>,
-    ) {
+    pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
         if self.rectangle_instance_buffer_capacity < self.rectangles.len() {
             self.rectangle_instance_buffer_capacity = self.rectangles.len();
             self.rectangle_instance_buffer =
@@ -205,7 +200,6 @@ impl StrokeRectangleRenderer {
         }
 
         render_pass.set_pipeline(&self.rectangle_pipeline);
-        render_pass.set_bind_group(0, projection_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.rectangle_vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.rectangle_instance_buffer.slice(..));
         render_pass.set_index_buffer(

@@ -9,7 +9,7 @@ edition = "2021"
 eyre = { workspace = true }
 glam = { workspace = true }
 tracing = { workspace = true }
-wgpu = { git = "https://github.com/gfx-rs/wgpu", package = "wgpu" }
+wgpu = { workspace = true }
 
 [dev-dependencies]
 color-eyre = { workspace = true }

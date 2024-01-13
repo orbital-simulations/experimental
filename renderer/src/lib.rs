@@ -1,136 +1,70 @@
 pub mod buffers;
 pub mod colors;
 pub mod context;
+pub mod custom_mesh_renderer;
 pub mod filled_circle;
 pub mod filled_rectangle;
 pub mod line_segment;
+pub mod mesh;
+pub mod projection;
 pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
 
-use context::Context;
+use context::{Context, RenderingContext};
+use custom_mesh_renderer::CustomMashRenderer;
 use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
 use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
-use raw::Raw;
+use projection::{Projection, ProjectionManipulation};
 
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
-use tracing::info;
-use wgpu::util::DeviceExt;
+use tracing::{info, warn};
 use wgpu::{StoreOp, Texture};
 
 pub struct Renderer {
     pub context: Context,
-    projection_bind_group: wgpu::BindGroup,
-    projection_buffer: wgpu::Buffer,
+    pub renderer_context: RenderingContext,
 
     filled_circle_renderer: FilledCircleRenderer,
     stroke_circle_renderer: StrokeCircleRenderer,
     filled_rectangle_renderer: FilledRectangleRenderer,
     stroke_rectangle_renderer: StrokeRectangleRenderer,
     line_segment_renderer: LineSegmentRenderer,
-
-    scale_factor: f64,
+    custom_mesh_renderers: Vec<CustomMashRenderer>,
+    projection: Projection,
     size: Vec2,
 }
 
 impl Renderer {
-    pub fn new(context: Context, scale_factor: f64, size: Vec2) -> eyre::Result<Self> {
-        let (projection_buffer, projection_bind_group_layout, projection_bind_group) =
-            Self::create_projection(&context, scale_factor, size);
+    pub fn new(context: Context, size: Vec2, projection: Projection) -> eyre::Result<Self> {
+        let renderer_context = RenderingContext::new(&context, &projection);
 
         let filled_circle_renderer =
-            FilledCircleRenderer::new(&context, &projection_bind_group_layout);
+            FilledCircleRenderer::new(&context, &renderer_context.common_bind_group_layout);
         let stroke_circle_renderer =
-            StrokeCircleRenderer::new(&context, &projection_bind_group_layout);
+            StrokeCircleRenderer::new(&context, &renderer_context.common_bind_group_layout);
         let filled_rectangle_renderer =
-            FilledRectangleRenderer::new(&context, &projection_bind_group_layout);
+            FilledRectangleRenderer::new(&context, &renderer_context.common_bind_group_layout);
         let stroke_rectangle_renderer =
-            StrokeRectangleRenderer::new(&context, &projection_bind_group_layout);
+            StrokeRectangleRenderer::new(&context, &renderer_context.common_bind_group_layout);
         let line_segment_renderer =
-            LineSegmentRenderer::new(&context, &projection_bind_group_layout);
+            LineSegmentRenderer::new(&context, &renderer_context.common_bind_group_layout);
 
         Ok(Self {
+            renderer_context,
             context,
-            projection_bind_group,
-            projection_buffer,
             filled_circle_renderer,
             stroke_circle_renderer,
             filled_rectangle_renderer,
             stroke_rectangle_renderer,
             line_segment_renderer,
-            scale_factor,
             size,
+            custom_mesh_renderers: vec![],
+            projection,
         })
-    }
-
-    /// Return a orthographics projection matrix which will place the (0,0) into the left top
-    /// corner.
-    fn create_projection(
-        context: &Context,
-        scale_factor: f64,
-        size: Vec2,
-    ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        let projection_matrix = Self::generate_projection_matrix(size, scale_factor);
-
-        let projection_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Projection Buffer"),
-                    contents: projection_matrix.get_raw(),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                    // TODO: Check if the COPY_DST is needed.
-                });
-
-        let projection_bind_group_layout =
-            context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Projection Bind Group Descriptor"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
-        let projection_bind_group = context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &projection_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: projection_buffer.as_entire_binding(),
-                }],
-                label: Some("Projection Bind Group"),
-            });
-
-        (
-            projection_buffer,
-            projection_bind_group_layout,
-            projection_bind_group,
-        )
-    }
-
-    fn generate_projection_matrix(size: Vec2, scale_factor: f64) -> glam::Mat4 {
-        let half_width = size.x / (2. * scale_factor as f32);
-        let half_height = size.y / (2. * scale_factor as f32);
-        glam::Mat4::orthographic_lh(
-            -half_width,
-            half_width,
-            -half_height,
-            half_height,
-            0.0,
-            -1.0,
-        )
     }
 
     pub fn draw_full_circle(&mut self, full_circle: FilledCircle) {
@@ -154,22 +88,27 @@ impl Renderer {
         self.line_segment_renderer.add_line_segment(line_segment);
     }
 
+    pub fn add_custom_mesh_renderer(&mut self, custom_mesh_renderer: CustomMashRenderer) {
+        self.custom_mesh_renderers.push(custom_mesh_renderer);
+    }
+
     pub fn on_resize(&mut self, new_size: Vec2) {
         info!("on resize event received new_size: {:?}", new_size);
         self.size = new_size;
-        self.context.queue.write_buffer(
-            &self.projection_buffer,
-            0,
-            Self::generate_projection_matrix(self.size, self.scale_factor).get_raw(),
-        );
+        self.projection.resize(new_size.x, new_size.y);
+        self.renderer_context
+            .set_projection_matrix(&self.context, &self.projection.make_projection_matrix());
     }
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
-        self.scale_factor = scale_factor;
+        self.projection.scale(scale_factor as f32);
+        self.renderer_context
+            .set_projection_matrix(&self.context, &self.projection.make_projection_matrix());
     }
 
     pub fn render(&mut self, texture: &Texture) {
+        warn!("projection: {:?}", self.projection);
         info!("creating view from the texture");
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -201,31 +140,23 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
-            self.filled_circle_renderer.render(
-                &self.context,
-                &self.projection_bind_group,
-                &mut render_pass,
-            );
-            self.stroke_circle_renderer.render(
-                &self.context,
-                &self.projection_bind_group,
-                &mut render_pass,
-            );
-            self.filled_rectangle_renderer.render(
-                &self.context,
-                &self.projection_bind_group,
-                &mut render_pass,
-            );
-            self.line_segment_renderer.render(
-                &self.context,
-                &self.projection_bind_group,
-                &mut render_pass,
-            );
-            self.stroke_rectangle_renderer.render(
-                &self.context,
-                &self.projection_bind_group,
-                &mut render_pass,
-            );
+            self.renderer_context.bind(&mut render_pass, 0);
+
+            self.filled_circle_renderer
+                .render(&self.context, &mut render_pass);
+            self.stroke_circle_renderer
+                .render(&self.context, &mut render_pass);
+            self.filled_rectangle_renderer
+                .render(&self.context, &mut render_pass);
+            self.line_segment_renderer
+                .render(&self.context, &mut render_pass);
+            self.stroke_rectangle_renderer
+                .render(&self.context, &mut render_pass);
+
+            for custom_mesh_renderer in self.custom_mesh_renderers.iter_mut() {
+                custom_mesh_renderer
+                    .render(&self.renderer_context.common_bind_group, &mut render_pass);
+            }
         }
 
         self.context.queue.submit(std::iter::once(encoder.finish()));

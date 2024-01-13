@@ -4,7 +4,11 @@ use color_eyre::eyre::Result;
 use eyre::OptionExt;
 use glam::vec2;
 use image::{ImageBuffer, Rgba};
-use renderer::{context::Context, Renderer};
+use renderer::{
+    context::Context,
+    projection::{OrtographicProjection, Projection},
+    Renderer,
+};
 
 const OUTPUT_HEIGH: u32 = 600;
 const OUTPUT_WIDTH: u32 = 600;
@@ -83,7 +87,18 @@ where
 
     let context = Context::new(device, queue, texture_format);
 
-    let mut renderer = Renderer::new(context, 1., vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32))?;
+    let projection = Projection::Ortographic(OrtographicProjection::new(
+        OUTPUT_WIDTH as f32,
+        OUTPUT_HEIGH as f32,
+        2.,
+        1.,
+    ));
+
+    let mut renderer = Renderer::new(
+        context,
+        vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32),
+        projection,
+    )?;
 
     render(&mut renderer);
 
