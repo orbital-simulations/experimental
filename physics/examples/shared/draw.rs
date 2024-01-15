@@ -1,6 +1,6 @@
 use glam::{DMat2, DVec2};
 use macroquad::{
-    color::{Color, RED, WHITE, GREEN},
+    color::{Color, GREEN, RED, WHITE},
     shapes::{draw_circle_lines, draw_line},
 };
 
@@ -67,6 +67,8 @@ impl Draw for CollisionConstraint {
     fn draw(&self) {
         let contact = &self.contact;
         let pos_inside = contact.pos + contact.separation * contact.normal;
+        draw_circle_lines_vec(contact.pos, 5.0, 1.0, RED);
+        draw_circle_lines_vec(pos_inside, 5.0, 1.0, RED);
         draw_line_vec(contact.pos, pos_inside, 2.0, RED);
     }
 }

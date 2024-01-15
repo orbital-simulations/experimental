@@ -24,7 +24,6 @@ fn make_circle(pos: DVec2) -> Particle {
 impl GameState {
     fn setup(&mut self) {
         self.engine.gravity = GRAVITY;
-        self.engine.solver_iterations = 2;
         self.engine.particles = vec![
             make_circle(dvec2(-200.0, -100.0)),
             make_circle(dvec2(0.0, -50.0)),
@@ -42,8 +41,9 @@ impl GameState {
     }
 
     fn update(&mut self) {
-        let dt = get_frame_time();
-        self.engine.step(dt as f64);
+        let _dt = get_frame_time() as f64;
+        let dt = 1.0 / 120.0;
+        self.engine.step(dt);
     }
 
     fn render(&self) {

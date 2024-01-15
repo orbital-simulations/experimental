@@ -145,25 +145,40 @@ impl Capsule {
     // TODO: we should probably have a ContactManifold that can be supported on multiple points
     // and return Option<ContactManifold>.
     pub fn test_overlap_with_half_plane(&self, other: &HalfPlane) -> Vec<Contact> {
-        let start_circle = Circle {
-            pos: self.start,
-            radius: self.radius,
+        let normal = -DVec2::from_angle(other.normal_angle);
+        let start_diff = other.pos - self.start;
+        let start_separation = start_diff.dot(normal) - self.radius;
+        let end_diff = other.pos - self.end;
+        let end_separation = end_diff.dot(normal) - self.radius;
+        let make_contact = |pos, separation| Contact {
+            pos: pos + self.radius * normal,
+            normal,
+            separation,
         };
-        let start_contact = start_circle.test_overlap_with_half_plane(other);
-        let end_circle = Circle {
-            pos: self.end,
-            radius: self.radius,
-        };
-        let end_contact = end_circle.test_overlap_with_half_plane(other);
-        match (start_contact, end_contact) {
-            (Some(c1), Some(c2)) => {
-                vec![c1, c2]
+        match (start_separation <= 0.0, end_separation <= 0.0) {
+            (true, true) => {
+                vec![
+                    make_contact(self.start, start_separation),
+                    make_contact(self.end, end_separation),
+                ]
             }
-            // TODO: maybe create multiple contacts in this case also if the line segment
-            // overlaps the half-plane
-            (Some(c), None) => vec![c],
-            (None, Some(c)) => vec![c],
-            (None, None) => vec![],
+            (true, false) => {
+                let alpha = start_separation / (start_separation - end_separation);
+                let pos = self.start.lerp(self.end, alpha);
+                vec![
+                    make_contact(self.start, start_separation),
+                    make_contact(pos, 0.0),
+                ]
+            }
+            (false, true) => {
+                let alpha = end_separation / (end_separation - start_separation);
+                let pos = self.end.lerp(self.start, alpha);
+                vec![
+                    make_contact(pos, 0.0),
+                    make_contact(self.end, end_separation),
+                ]
+            }
+            (false, false) => vec![],
         }
     }
 }
