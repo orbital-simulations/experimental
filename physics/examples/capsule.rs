@@ -11,20 +11,30 @@ pub struct GameState {
     engine: Engine,
 }
 
-const GRAVITY: DVec2 = DVec2::new(0.0, -100.0);
+const GRAVITY: DVec2 = DVec2::new(0.0, -10.0);
 
 impl GameState {
     fn setup(&mut self) {
         self.engine.gravity = GRAVITY;
         self.engine.solver_iterations = 100;
-        let radius = 50.0;
+        let capsule_radius = 50.0;
         let length = 400.0;
         self.engine.particles = vec![
             Particle {
-                pos: dvec2(0.0, 60.0),
+                pos: dvec2(0.0, 30.0),
                 inv_inertia: 1.0 / 1000.0,
                 angle: PI / 4.0,
-                shape: Shape::Capsule { length, radius },
+                shape: Shape::Circle { radius: 20.0 },
+                ..Default::default()
+            },
+            Particle {
+                pos: dvec2(100.0, 60.0),
+                inv_inertia: 1.0 / 1000.0,
+                angle: PI / 4.0,
+                shape: Shape::Capsule {
+                    length,
+                    radius: capsule_radius,
+                },
                 ..Default::default()
             },
             Particle {

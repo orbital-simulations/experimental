@@ -117,8 +117,6 @@ impl Default for Engine {
     }
 }
 
-const STATIC_SPEED_FACTOR: f64 = 2.0;
-
 impl Engine {
     #[instrument(level = "trace", skip_all)]
     pub fn detect_collisions(&self) -> Vec<CollisionConstraint> {
@@ -250,6 +248,8 @@ impl Engine {
 
         // TODO: should we predict positions using the updated velocities before detecting collisions?
         // see https://github.com/orbital-simulations/experimental/issues/55
+
+        const STATIC_SPEED_FACTOR: f64 = 2.0;
 
         // 2. Detect collisions
         let collision_constraints: Vec<_> = self

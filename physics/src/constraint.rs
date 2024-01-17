@@ -158,7 +158,7 @@ impl CollisionConstraint {
 // Once we remember static contacts we can treat them as static collisions
 // and handle them properly.
 // see https://github.com/orbital-simulations/experimental/issues/58
-const PENETRATION_RELAXATION_FACTOR: f64 = 0.02;
+const PENETRATION_RELAXATION_FACTOR: f64 = 0.002;
 
 impl Constraint for CollisionConstraint {
     fn get_ids(&self) -> (usize, usize) {
@@ -166,7 +166,7 @@ impl Constraint for CollisionConstraint {
     }
 
     fn is_equality(&self) -> bool {
-        self.dynamic
+        false
     }
 
     fn value(&self, _a: &Particle, _b: &Particle) -> f64 {

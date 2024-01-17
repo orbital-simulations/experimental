@@ -1,6 +1,6 @@
 use glam::{DMat2, DVec2};
 use macroquad::{
-    color::{Color, GREEN, RED, WHITE},
+    color::{Color, BLUE, GREEN, RED, WHITE},
     shapes::{draw_circle_lines, draw_line},
 };
 
@@ -66,10 +66,14 @@ impl Draw for Particle {
 impl Draw for CollisionConstraint {
     fn draw(&self) {
         let contact = &self.contact;
-        let pos_inside = contact.pos + contact.separation * contact.normal;
-        draw_circle_lines_vec(contact.pos, 5.0, 1.0, RED);
-        draw_circle_lines_vec(pos_inside, 5.0, 1.0, RED);
-        draw_line_vec(contact.pos, pos_inside, 2.0, RED);
+        let pos_inside = contact.pos - contact.separation / 2.0 * contact.normal;
+        let pos_outside = contact.pos + contact.separation / 2.0 * contact.normal;
+        let normal = pos_outside + 10.0 * contact.normal;
+        let color = if self.dynamic { BLUE } else { GREEN };
+        draw_circle_lines_vec(pos_outside, 5.0, 2.0, color);
+        draw_line_vec(pos_outside, normal, 2.0, color);
+        draw_circle_lines_vec(pos_inside, 5.0, 2.0, RED);
+        draw_line_vec(pos_outside, pos_inside, 2.0, RED);
     }
 }
 
