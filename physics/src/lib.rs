@@ -29,7 +29,7 @@ pub struct Particle {
     /// Zero corresponds to infinite inertia (i.e. immovable object).
     /// Moment inertia depends on object's geometry and mass density distribution.
     /// TODO: provide helper functions to calculate inertia for common shapes with uniform density.
-    /// see https://github.com/orbital-simulations/experimental/issues/56
+    /// see <https://github.com/orbital-simulations/experimental/issues/56>
     pub inv_inertia: f64,
     /// Orientation
     pub angle: f64,

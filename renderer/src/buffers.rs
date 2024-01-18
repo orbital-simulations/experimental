@@ -2,9 +2,8 @@ use std::marker::PhantomData;
 
 use glam::{Vec2, Vec3};
 use wgpu::{
-    util::DeviceExt,
-    BindGroupLayoutEntry, Buffer, BufferAddress, BufferUsages, IndexFormat, RenderPass,
-    VertexAttribute, VertexBufferLayout, VertexFormat,
+    util::DeviceExt, BindGroupLayoutEntry, Buffer, BufferAddress, BufferUsages, IndexFormat,
+    RenderPass, VertexAttribute, VertexBufferLayout, VertexFormat,
 };
 
 use crate::{
