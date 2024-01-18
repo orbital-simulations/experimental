@@ -4,8 +4,8 @@ use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
-    vertex_attr_array, BindGroup, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor,
-    RenderPass, RenderPipeline, VertexBufferLayout,
+    vertex_attr_array, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor, RenderPass,
+    RenderPipeline, VertexBufferLayout,
 };
 
 use crate::{
@@ -107,7 +107,7 @@ impl LineSegmentRenderer {
                         module: &line_segment_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: context.texture_format,
+                            format: context.output_texture_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent::REPLACE,
                                 alpha: wgpu::BlendComponent::REPLACE,
@@ -178,12 +178,7 @@ impl LineSegmentRenderer {
         self.line_segments.push(line_segment);
     }
 
-    pub fn render<'a>(
-        &'a mut self,
-        context: &Context,
-        projection_bind_group: &'a BindGroup,
-        render_pass: &mut RenderPass<'a>,
-    ) {
+    pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
         if self.line_segment_buffer_capacity < self.line_segments.len() {
             self.line_segment_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
@@ -201,7 +196,6 @@ impl LineSegmentRenderer {
         }
 
         render_pass.set_pipeline(&self.line_segment_pipeline);
-        render_pass.set_bind_group(0, projection_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.line_segment_vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.line_segment_instance_buffer.slice(..));
         render_pass.set_index_buffer(

@@ -1,14 +1,22 @@
-use std::time::Instant;
+pub mod camera;
+pub mod inputs;
+pub mod mesh;
 
-use glam::{vec2, Vec2};
+use camera::{Camera, CameraController};
+use glam::{vec2, vec3, Vec2};
+use inputs::InputKeys;
+use renderer::projection::{OrtographicProjection, PerspectiveProjection, Projection};
 use renderer::Renderer;
-use tracing::{debug, info};
+use std::f32::consts::PI;
+use std::time::Instant;
+use tracing::{debug, info, warn};
 use wgpu::{
     Backends, DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor,
     InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface,
     SurfaceConfiguration, TextureUsages,
 };
 
+use winit::dpi::PhysicalPosition;
 use winit::event::WindowEvent::{
     CloseRequested, KeyboardInput, MouseInput, RedrawRequested, Resized, ScaleFactorChanged,
 };
@@ -23,20 +31,50 @@ pub struct GameEngine<'a> {
     window: &'a Window,
     pub last_frame_delta: f32,
     timer: Instant,
-    renderer: Renderer,
+    pub renderer: Renderer,
     surface_configuration: SurfaceConfiguration,
     surface: Surface<'a>,
     size: PhysicalSize<u32>,
+    input_keys: InputKeys,
+    camera_controler: CameraController,
+    camera: Camera,
+    is_pressed: bool,
+    old_mouse_position: PhysicalPosition<f64>,
 }
 
 fn size_to_vec2(size: &PhysicalSize<u32>) -> Vec2 {
     vec2(size.width as f32, size.height as f32)
 }
 
+pub struct MkGameEngine {
+    projection: ProjectionInit,
+    camera: Camera,
+}
+
+pub fn game_engine_3d_parameters() -> MkGameEngine {
+    MkGameEngine {
+        projection: ProjectionInit::Perspective,
+        camera: Camera::new(vec3(0., 10., 0.), 0., 0.),
+    }
+}
+
+pub fn game_engine_2_5d_parameters() -> MkGameEngine {
+    MkGameEngine {
+        projection: ProjectionInit::Ortographic,
+        camera: Camera::new(vec3(0., 0., 10.), 0., -PI / 2.),
+    }
+}
+
+enum ProjectionInit {
+    Perspective,
+    Ortographic,
+}
+
 impl<'a> GameEngine<'a> {
     pub async fn new(
         event_loop: EventLoop<()>,
         window: &'a Window,
+        game_engine_parameters: MkGameEngine,
     ) -> eyre::Result<(Self, EventLoop<()>)> {
         let instance = Instance::new(InstanceDescriptor {
             backends: Backends::all(),
@@ -88,7 +126,23 @@ impl<'a> GameEngine<'a> {
         };
         surface.configure(&device, &surface_configuration);
         let context = Context::new(device, queue, swapchain_format);
-        let renderer = Renderer::new(context, scale_factor, size_to_vec2(&size))?;
+        let projection = match game_engine_parameters.projection {
+            ProjectionInit::Perspective => Projection::Perspective(PerspectiveProjection::new(
+                size.width as f32,
+                size.height as f32,
+                45.,
+                0.01,
+                1000.,
+                scale_factor as f32,
+            )),
+            ProjectionInit::Ortographic => Projection::Ortographic(OrtographicProjection::new(
+                size.width as f32,
+                size.height as f32,
+                100.,
+                scale_factor as f32,
+            )),
+        };
+        let renderer = Renderer::new(context, size_to_vec2(&size), projection)?;
 
         Ok((
             Self {
@@ -99,6 +153,11 @@ impl<'a> GameEngine<'a> {
                 surface_configuration,
                 surface,
                 size,
+                input_keys: InputKeys::new(),
+                camera_controler: CameraController::new(100., 1.),
+                camera: game_engine_parameters.camera,
+                is_pressed: false,
+                old_mouse_position: PhysicalPosition::default(),
             },
             event_loop,
         ))
@@ -112,11 +171,11 @@ impl<'a> GameEngine<'a> {
         render: &FRender,
     ) -> eyre::Result<()>
     where
-        FSetup: FnOnce() -> State,
+        FSetup: FnOnce(&mut GameEngine) -> State,
         FUpdate: Fn(&mut State, &mut GameEngine),
         FRender: Fn(&State, &mut Renderer),
     {
-        let mut state = setup();
+        let mut state = setup(self);
         // Restart timer just in case the setup takes forever.
         self.timer = Instant::now();
         info!("rendering firs frame with initial state");
@@ -136,6 +195,8 @@ impl<'a> GameEngine<'a> {
                     event,
                     is_synthetic: _,
                 } => {
+                    self.input_keys
+                        .update_key(&event.physical_key, &event.state);
                     info!("Escape was pressed; terminating the event loop");
                     if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key {
                         elwt.exit()
@@ -143,12 +204,50 @@ impl<'a> GameEngine<'a> {
                 }
                 MouseInput {
                     device_id: _,
-                    state: _,
-                    button: _,
-                } => (),
+                    state,
+                    button,
+                } => {
+                    if let winit::event::MouseButton::Left = button {
+                        match state {
+                            winit::event::ElementState::Pressed => self.is_pressed = true,
+                            winit::event::ElementState::Released => self.is_pressed = false,
+                        }
+                    }
+                }
+                winit::event::WindowEvent::CursorMoved {
+                    device_id: _,
+                    position,
+                } => {
+                    if self.is_pressed {
+                        let x = self.old_mouse_position.x - position.x;
+                        let y = self.old_mouse_position.y - position.y;
+                        self.camera_controler.process_mouse(x, y);
+                    }
+                    self.old_mouse_position = position
+                }
                 RedrawRequested => {
                     self.redraw_requested(&mut state, update, render);
                 }
+                //winit::event::WindowEvent::ActivationTokenDone { serial, token } => todo!(),
+                //winit::event::WindowEvent::Moved(_) => todo!(),
+                //winit::event::WindowEvent::Destroyed => todo!(),
+                //winit::event::WindowEvent::DroppedFile(_) => todo!(),
+                //winit::event::WindowEvent::HoveredFile(_) => todo!(),
+                //winit::event::WindowEvent::HoveredFileCancelled => todo!(),
+                //winit::event::WindowEvent::Focused(_) => todo!(),
+                //winit::event::WindowEvent::ModifiersChanged(_) => todo!(),
+                //winit::event::WindowEvent::Ime(_) => todo!(),
+                //winit::event::WindowEvent::CursorEntered { device_id } => todo!(),
+                //winit::event::WindowEvent::CursorLeft { device_id } => todo!(),
+                //winit::event::WindowEvent::MouseWheel { device_id, delta, phase } => todo!(),
+                //winit::event::WindowEvent::TouchpadMagnify { device_id, delta, phase } => todo!(),
+                //winit::event::WindowEvent::SmartMagnify { device_id } => todo!(),
+                //winit::event::WindowEvent::TouchpadRotate { device_id, delta, phase } => todo!(),
+                //winit::event::WindowEvent::TouchpadPressure { device_id, pressure, stage } => todo!(),
+                //winit::event::WindowEvent::AxisMotion { device_id, axis, value } => todo!(),
+                //winit::event::WindowEvent::Touch(_) => todo!(),
+                //winit::event::WindowEvent::ThemeChanged(_) => todo!(),
+                //winit::event::WindowEvent::Occluded(_) => todo!(),
                 _ => {
                     debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
                 }
@@ -173,6 +272,15 @@ impl<'a> GameEngine<'a> {
         info!("rendering as per the RedrawRequested was received");
 
         self.last_frame_delta = self.timer.elapsed().as_secs_f32();
+        self.camera_controler.update_camera(
+            &mut self.camera,
+            self.last_frame_delta,
+            &self.input_keys,
+        );
+        self.renderer
+            .renderer_context
+            .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
+        warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
         update(state, self);
         render(state, &mut self.renderer);
@@ -196,7 +304,7 @@ impl<'a> GameEngine<'a> {
         self.window.request_redraw();
     }
 
-    pub fn on_resize(&mut self, new_size: PhysicalSize<u32>) {
+    fn on_resize(&mut self, new_size: PhysicalSize<u32>) {
         info!("on resize event received new_size: {:?}", new_size);
         self.surface_configuration.width = new_size.width;
         self.surface_configuration.height = new_size.height;
@@ -205,7 +313,7 @@ impl<'a> GameEngine<'a> {
         self.renderer.on_resize(size_to_vec2(&new_size));
     }
 
-    pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
+    fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
         self.renderer.on_scale_factor_change(scale_factor);
     }
