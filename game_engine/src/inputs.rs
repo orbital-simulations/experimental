@@ -1,4 +1,3 @@
-use core::f64;
 use std::collections::{HashMap, HashSet};
 
 use winit::{
@@ -50,13 +49,12 @@ impl Inputs {
         self.mouse_events.insert(*button, *state);
     }
 
-    pub fn update_cursor_move(&mut self, position: PhysicalPosition<f64>) {
-        let tmp: (f32, f32) = position.into();
-        self.current_position = tmp.into();
+    pub fn update_cursor_move(&mut self, position: PhysicalPosition<f32>) {
+        self.current_position = position;
     }
 
-    pub fn update_cursor_delta(&mut self, delta: &(f64, f64)) {
-        self.cursor_delta = Some((delta.0 as f32, delta.1 as f32));
+    pub fn update_cursor_delta(&mut self, delta: (f32, f32)) {
+        self.cursor_delta = Some(delta);
     }
 
     pub fn reset_events(&mut self) {

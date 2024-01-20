@@ -207,7 +207,8 @@ impl<'a> GameEngine<'a> {
                     device_id: _,
                     position,
                 } => {
-                    self.inputs.update_cursor_move(position);
+                    let tmp: (f32, f32) = position.into();
+                    self.inputs.update_cursor_move(tmp.into());
                 }
                 RedrawRequested => {
                     self.redraw_requested(&mut state, update, render);
@@ -243,7 +244,7 @@ impl<'a> GameEngine<'a> {
                 event,
             } => {
                 if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-                    self.inputs.update_cursor_delta(&delta);
+                    self.inputs.update_cursor_delta((delta.0 as f32, delta.1 as f32));
                 }
             }
             _ => {
