@@ -11,9 +11,9 @@ use std::f32::consts::PI;
 use std::time::Instant;
 use tracing::{debug, info, warn};
 use wgpu::{
-    Backends, DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor,
-    InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureUsages, CommandEncoderDescriptor, StoreOp,
+    Backends, CommandEncoderDescriptor, DeviceDescriptor, Features, Gles3MinorVersion, Instance,
+    InstanceDescriptor, InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions,
+    StoreOp, Surface, SurfaceConfiguration, TextureUsages,
 };
 
 use winit::event::WindowEvent::{
@@ -198,76 +198,78 @@ impl<'a> GameEngine<'a> {
         event_loop.run(move |event, elwt| match event {
             Event::WindowEvent { event, .. } => {
                 let res = self.egui_winit_state.on_window_event(self.window, &event);
-                if  res.consumed {
+                if res.consumed {
                 } else {
-                match event {
-                ScaleFactorChanged {
-                    scale_factor,
-                    inner_size_writer: _,
-                } => {
-                    self.on_scale_factor_change(scale_factor);
-                    self.egui_screen_descriptor.pixels_per_point = scale_factor as f32;
-                }
-                Resized(physical_size) => {
-                    self.on_resize(physical_size);
-                    self.egui_screen_descriptor.size_in_pixels =
-                        [physical_size.width, physical_size.height];
-                }
-                CloseRequested => elwt.exit(),
-                KeyboardInput {
-                    device_id: _,
-                    event,
-                    is_synthetic: _,
-                } => {
-                    self.inputs.update_key(&event.physical_key, &event.state);
-                    info!("Escape was pressed; terminating the event loop");
-                    if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key {
-                        elwt.exit()
+                    match event {
+                        ScaleFactorChanged {
+                            scale_factor,
+                            inner_size_writer: _,
+                        } => {
+                            self.on_scale_factor_change(scale_factor);
+                            self.egui_screen_descriptor.pixels_per_point = scale_factor as f32;
+                        }
+                        Resized(physical_size) => {
+                            self.on_resize(physical_size);
+                            self.egui_screen_descriptor.size_in_pixels =
+                                [physical_size.width, physical_size.height];
+                        }
+                        CloseRequested => elwt.exit(),
+                        KeyboardInput {
+                            device_id: _,
+                            event,
+                            is_synthetic: _,
+                        } => {
+                            self.inputs.update_key(&event.physical_key, &event.state);
+                            info!("Escape was pressed; terminating the event loop");
+                            if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key
+                            {
+                                elwt.exit()
+                            }
+                        }
+                        MouseInput {
+                            device_id: _,
+                            state,
+                            button,
+                        } => {
+                            self.inputs.update_mouse_buttons(&button, &state);
+                        }
+                        winit::event::WindowEvent::CursorMoved {
+                            device_id: _,
+                            position,
+                        } => {
+                            let tmp: (f32, f32) = position.into();
+                            self.inputs.update_cursor_move(tmp.into());
+                        }
+                        RedrawRequested => {
+                            self.redraw_requested(&mut state, update, render);
+                            self.inputs.reset_events();
+                        }
+                        //winit::event::WindowEvent::ActivationTokenDone { serial, token } => todo!(),
+                        //winit::event::WindowEvent::Moved(_) => todo!(),
+                        //winit::event::WindowEvent::Destroyed => todo!(),
+                        //winit::event::WindowEvent::DroppedFile(_) => todo!(),
+                        //winit::event::WindowEvent::HoveredFile(_) => todo!(),
+                        //winit::event::WindowEvent::HoveredFileCancelled => todo!(),
+                        //winit::event::WindowEvent::Focused(_) => todo!(),
+                        //winit::event::WindowEvent::ModifiersChanged(_) => todo!(),
+                        //winit::event::WindowEvent::Ime(_) => todo!(),
+                        //winit::event::WindowEvent::CursorEntered { device_id } => todo!(),
+                        //winit::event::WindowEvent::CursorLeft { device_id } => todo!(),
+                        //winit::event::WindowEvent::MouseWheel { device_id, delta, phase } => todo!(),
+                        //winit::event::WindowEvent::TouchpadMagnify { device_id, delta, phase } => todo!(),
+                        //winit::event::WindowEvent::SmartMagnify { device_id } => todo!(),
+                        //winit::event::WindowEvent::TouchpadRotate { device_id, delta, phase } => todo!(),
+                        //winit::event::WindowEvent::TouchpadPressure { device_id, pressure, stage } => todo!(),
+                        //winit::event::WindowEvent::AxisMotion { device_id, axis, value } => todo!(),
+                        //winit::event::WindowEvent::Touch(_) => todo!(),
+                        //winit::event::WindowEvent::ThemeChanged(_) => todo!(),
+                        //winit::event::WindowEvent::Occluded(_) => todo!(),
+                        _ => {
+                            debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
+                        }
                     }
                 }
-                MouseInput {
-                    device_id: _,
-                    state,
-                    button,
-                } => {
-                    self.inputs.update_mouse_buttons(&button, &state);
-                }
-                winit::event::WindowEvent::CursorMoved {
-                    device_id: _,
-                    position,
-                } => {
-                    let tmp: (f32, f32) = position.into();
-                    self.inputs.update_cursor_move(tmp.into());
-                }
-                RedrawRequested => {
-                    self.redraw_requested(&mut state, update, render);
-                    self.inputs.reset_events();
-
-                }
-                //winit::event::WindowEvent::ActivationTokenDone { serial, token } => todo!(),
-                //winit::event::WindowEvent::Moved(_) => todo!(),
-                //winit::event::WindowEvent::Destroyed => todo!(),
-                //winit::event::WindowEvent::DroppedFile(_) => todo!(),
-                //winit::event::WindowEvent::HoveredFile(_) => todo!(),
-                //winit::event::WindowEvent::HoveredFileCancelled => todo!(),
-                //winit::event::WindowEvent::Focused(_) => todo!(),
-                //winit::event::WindowEvent::ModifiersChanged(_) => todo!(),
-                //winit::event::WindowEvent::Ime(_) => todo!(),
-                //winit::event::WindowEvent::CursorEntered { device_id } => todo!(),
-                //winit::event::WindowEvent::CursorLeft { device_id } => todo!(),
-                //winit::event::WindowEvent::MouseWheel { device_id, delta, phase } => todo!(),
-                //winit::event::WindowEvent::TouchpadMagnify { device_id, delta, phase } => todo!(),
-                //winit::event::WindowEvent::SmartMagnify { device_id } => todo!(),
-                //winit::event::WindowEvent::TouchpadRotate { device_id, delta, phase } => todo!(),
-                //winit::event::WindowEvent::TouchpadPressure { device_id, pressure, stage } => todo!(),
-                //winit::event::WindowEvent::AxisMotion { device_id, axis, value } => todo!(),
-                //winit::event::WindowEvent::Touch(_) => todo!(),
-                //winit::event::WindowEvent::ThemeChanged(_) => todo!(),
-                //winit::event::WindowEvent::Occluded(_) => todo!(),
-                _ => {
-                    debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
-                }
-            }}},
+            }
             Event::AboutToWait => {}
             Event::DeviceEvent {
                 device_id: _,
@@ -305,7 +307,7 @@ impl<'a> GameEngine<'a> {
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
-        let raw_input = self.egui_winit_state .take_egui_input(self.window);
+        let raw_input = self.egui_winit_state.take_egui_input(self.window);
         self.egui_winit_state.egui_ctx().begin_frame(raw_input);
         update(state, self);
         render(state, &mut self.renderer);
@@ -314,24 +316,39 @@ impl<'a> GameEngine<'a> {
             Ok(output) => {
                 self.renderer.render(&output.texture);
 
-                let mut encoder =
-                self.renderer.context.device.create_command_encoder(&CommandEncoderDescriptor { label: Some("Egui encoder") });
+                let mut encoder = self.renderer.context.device.create_command_encoder(
+                    &CommandEncoderDescriptor {
+                        label: Some("Egui encoder"),
+                    },
+                );
 
                 let egui_context = self.egui_winit_state.egui_ctx();
 
-                let egui::FullOutput { shapes, textures_delta, .. } = egui_context.end_frame();
+                let egui::FullOutput {
+                    shapes,
+                    textures_delta,
+                    ..
+                } = egui_context.end_frame();
 
-                let paint_jobs = egui_context.tessellate(shapes, self.egui_screen_descriptor.pixels_per_point);
+                let paint_jobs =
+                    egui_context.tessellate(shapes, self.egui_screen_descriptor.pixels_per_point);
 
                 for id in textures_delta.free {
                     self.egui_renderer.free_texture(&id);
                 }
 
                 for (id, image_delta) in textures_delta.set {
-                    self.egui_renderer.update_texture(&self.renderer.context.device, &self.renderer.context.queue, id, &image_delta);
+                    self.egui_renderer.update_texture(
+                        &self.renderer.context.device,
+                        &self.renderer.context.queue,
+                        id,
+                        &image_delta,
+                    );
                 }
 
-                let texture_view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+                let texture_view = output
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
 
                 self.egui_renderer.update_buffers(
                     &self.renderer.context.device,
@@ -342,20 +359,20 @@ impl<'a> GameEngine<'a> {
                 );
 
                 {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Egui renderer pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &texture_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("Egui renderer pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &texture_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Load,
+                                store: StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                    });
                     self.egui_renderer.render(
                         &mut render_pass,
                         &paint_jobs,
@@ -363,10 +380,12 @@ impl<'a> GameEngine<'a> {
                     );
                 }
 
-                self.renderer.context.queue.submit(std::iter::once(encoder.finish()));
+                self.renderer
+                    .context
+                    .queue
+                    .submit(std::iter::once(encoder.finish()));
 
                 output.present();
-
             }
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 self.on_resize(self.size);

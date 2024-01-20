@@ -25,22 +25,21 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     let egui_context = game_engine.egui();
 
     egui::CentralPanel::default().show(egui_context, |ui| {
-            ui.heading("My egui Application");
-            ui.horizontal(|ui| {
-                let name_label = ui.label("Your name: ");
-                ui.text_edit_singleline(&mut state.name)
-                    .labelled_by(name_label.id);
-            });
-            ui.add(egui::Slider::new(&mut state.age, 0..=120).text("age"));
-            if ui.button("Click each year").clicked() {
-                state.age += 1;
-            }
-            ui.label(format!("Hello '{}', age {}", state.name, state.age));
+        ui.heading("My egui Application");
+        ui.horizontal(|ui| {
+            let name_label = ui.label("Your name: ");
+            ui.text_edit_singleline(&mut state.name)
+                .labelled_by(name_label.id);
         });
+        ui.add(egui::Slider::new(&mut state.age, 0..=120).text("age"));
+        if ui.button("Click each year").clicked() {
+            state.age += 1;
+        }
+        ui.label(format!("Hello '{}', age {}", state.name, state.age));
+    });
 }
 
-fn render(_state: &GameState, _renderer: &mut Renderer) {
-}
+fn render(_state: &GameState, _renderer: &mut Renderer) {}
 
 fn main() -> color_eyre::eyre::Result<()> {
     let fmt_layer = fmt::layer().pretty();
