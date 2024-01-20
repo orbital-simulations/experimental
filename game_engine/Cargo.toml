@@ -9,11 +9,14 @@ edition = "2021"
 eyre = { workspace = true }
 glam = { workspace = true }
 tracing = { workspace = true }
-wgpu = { git = "https://github.com/gfx-rs/wgpu", package = "wgpu" }
+wgpu = { workspace = true }
 winit = { workspace = true }
 renderer = { path = "../renderer" }
 physics = { path = "../physics" }
 itertools = { workspace = true }
+egui = { git = "https://github.com/emilk/egui", package = "egui", features = ["color-hex", "default_fonts", "log", "mint"] }
+egui-winit = { git = "https://github.com/emilk/egui", package = "egui-winit" }
+egui-wgpu = { git = "https://github.com/emilk/egui", package = "egui-wgpu" }
 
 [dev-dependencies]
 color-eyre = { workspace = true }

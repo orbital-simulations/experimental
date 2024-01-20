@@ -13,7 +13,7 @@ use tracing::{debug, info, warn};
 use wgpu::{
     Backends, DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor,
     InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureUsages,
+    SurfaceConfiguration, TextureUsages, CommandEncoderDescriptor, StoreOp,
 };
 
 use winit::event::WindowEvent::{
@@ -37,6 +37,9 @@ pub struct GameEngine<'a> {
     inputs: Inputs,
     camera_controler: CameraController,
     camera: Camera,
+    egui_winit_state: egui_winit::State,
+    egui_renderer: egui_wgpu::Renderer,
+    egui_screen_descriptor: egui_wgpu::renderer::ScreenDescriptor,
 }
 
 fn size_to_vec2(size: &PhysicalSize<u32>) -> Vec2 {
@@ -81,7 +84,7 @@ impl<'a> GameEngine<'a> {
         });
 
         let size = window.inner_size();
-        let scale_factor = window.scale_factor();
+        let scale_factor = window.scale_factor() as f32;
         let surface = instance.create_surface(window)?;
         use eyre::OptionExt;
         let adapter = instance
@@ -120,6 +123,7 @@ impl<'a> GameEngine<'a> {
             present_mode: PresentMode::AutoNoVsync,
             alpha_mode: swap_chain_capablities.alpha_modes[0],
             view_formats: vec![],
+            desired_maximum_frame_latency: 1,
         };
         surface.configure(&device, &surface_configuration);
         let context = Context::new(device, queue, swapchain_format);
@@ -130,15 +134,28 @@ impl<'a> GameEngine<'a> {
                 45.,
                 0.01,
                 1000.,
-                scale_factor as f32,
+                scale_factor,
             )),
             ProjectionInit::Ortographic => Projection::Ortographic(OrtographicProjection::new(
                 size.width as f32,
                 size.height as f32,
                 100.,
-                scale_factor as f32,
+                scale_factor,
             )),
         };
+
+        let egui_context = egui::Context::default();
+        let viewport_id = egui_context.viewport_id();
+        let egui_winit_state =
+            egui_winit::State::new(egui_context, viewport_id, &window, Some(scale_factor), None);
+
+        let egui_renderer =
+            egui_wgpu::Renderer::new(&context.device, surface_configuration.format, None, 1);
+        let egui_screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
+            size_in_pixels: [size.width, size.height],
+            pixels_per_point: scale_factor,
+        };
+
         let renderer = Renderer::new(context, size_to_vec2(&size), projection)?;
 
         Ok((
@@ -153,6 +170,9 @@ impl<'a> GameEngine<'a> {
                 inputs: Inputs::new(),
                 camera_controler: CameraController::new(100., 1.),
                 camera: game_engine_parameters.camera,
+                egui_renderer,
+                egui_winit_state,
+                egui_screen_descriptor,
             },
             event_loop,
         ))
@@ -176,14 +196,23 @@ impl<'a> GameEngine<'a> {
         info!("rendering firs frame with initial state");
         render(&mut state, &mut self.renderer);
         event_loop.run(move |event, elwt| match event {
-            Event::WindowEvent { event, .. } => match event {
+            Event::WindowEvent { event, .. } => {
+                let res = self.egui_winit_state.on_window_event(self.window, &event);
+                if  res.consumed {
+                } else {
+                match event {
                 ScaleFactorChanged {
                     scale_factor,
                     inner_size_writer: _,
                 } => {
                     self.on_scale_factor_change(scale_factor);
+                    self.egui_screen_descriptor.pixels_per_point = scale_factor as f32;
                 }
-                Resized(physical_size) => self.on_resize(physical_size),
+                Resized(physical_size) => {
+                    self.on_resize(physical_size);
+                    self.egui_screen_descriptor.size_in_pixels =
+                        [physical_size.width, physical_size.height];
+                }
                 CloseRequested => elwt.exit(),
                 KeyboardInput {
                     device_id: _,
@@ -213,6 +242,7 @@ impl<'a> GameEngine<'a> {
                 RedrawRequested => {
                     self.redraw_requested(&mut state, update, render);
                     self.inputs.reset_events();
+
                 }
                 //winit::event::WindowEvent::ActivationTokenDone { serial, token } => todo!(),
                 //winit::event::WindowEvent::Moved(_) => todo!(),
@@ -237,7 +267,7 @@ impl<'a> GameEngine<'a> {
                 _ => {
                     debug!("UNKNOWN WINDOW EVENT RECEIVED: {:?}", event);
                 }
-            },
+            }}},
             Event::AboutToWait => {}
             Event::DeviceEvent {
                 device_id: _,
@@ -274,13 +304,69 @@ impl<'a> GameEngine<'a> {
             .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
+
+        let raw_input = self.egui_winit_state .take_egui_input(self.window);
+        self.egui_winit_state.egui_ctx().begin_frame(raw_input);
         update(state, self);
         render(state, &mut self.renderer);
 
         match self.surface.get_current_texture() {
             Ok(output) => {
                 self.renderer.render(&output.texture);
+
+                let mut encoder =
+                self.renderer.context.device.create_command_encoder(&CommandEncoderDescriptor { label: Some("Egui encoder") });
+
+                let egui_context = self.egui_winit_state.egui_ctx();
+
+                let egui::FullOutput { shapes, textures_delta, .. } = egui_context.end_frame();
+
+                let paint_jobs = egui_context.tessellate(shapes, self.egui_screen_descriptor.pixels_per_point);
+
+                for id in textures_delta.free {
+                    self.egui_renderer.free_texture(&id);
+                }
+
+                for (id, image_delta) in textures_delta.set {
+                    self.egui_renderer.update_texture(&self.renderer.context.device, &self.renderer.context.queue, id, &image_delta);
+                }
+
+                let texture_view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+                self.egui_renderer.update_buffers(
+                    &self.renderer.context.device,
+                    &self.renderer.context.queue,
+                    &mut encoder,
+                    &paint_jobs,
+                    &self.egui_screen_descriptor,
+                );
+
+                {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Egui renderer pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+                    self.egui_renderer.render(
+                        &mut render_pass,
+                        &paint_jobs,
+                        &self.egui_screen_descriptor,
+                    );
+                }
+
+                self.renderer.context.queue.submit(std::iter::once(encoder.finish()));
+
                 output.present();
+
             }
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 self.on_resize(self.size);
@@ -308,5 +394,9 @@ impl<'a> GameEngine<'a> {
     fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
         self.renderer.on_scale_factor_change(scale_factor);
+    }
+
+    pub fn egui(&self) -> &egui::Context {
+        self.egui_winit_state.egui_ctx()
     }
 }
