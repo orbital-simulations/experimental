@@ -244,7 +244,8 @@ impl<'a> GameEngine<'a> {
                 event,
             } => {
                 if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-                    self.inputs.update_cursor_delta((delta.0 as f32, delta.1 as f32));
+                    self.inputs
+                        .update_cursor_delta((delta.0 as f32, delta.1 as f32));
                 }
             }
             _ => {
