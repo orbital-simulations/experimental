@@ -296,7 +296,7 @@ impl<'a> GameEngine<'a> {
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
-        self.egui_integration.prepare_frame(&self.window);
+        self.egui_integration.prepare_frame(self.window);
         update(state, self);
         render(state, &mut self.renderer);
 
