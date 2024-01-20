@@ -1,8 +1,10 @@
 pub mod camera;
+mod egui_integration;
 pub mod inputs;
 pub mod mesh;
 
 use camera::{Camera, CameraController};
+use egui_integration::EguiIntegration;
 use glam::{vec2, vec3, Vec2};
 use inputs::Inputs;
 use renderer::projection::{OrtographicProjection, PerspectiveProjection, Projection};
@@ -11,9 +13,9 @@ use std::f32::consts::PI;
 use std::time::Instant;
 use tracing::{debug, info, warn};
 use wgpu::{
-    Backends, CommandEncoderDescriptor, DeviceDescriptor, Features, Gles3MinorVersion, Instance,
-    InstanceDescriptor, InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions,
-    StoreOp, Surface, SurfaceConfiguration, TextureUsages,
+    Backends, DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor,
+    InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface,
+    SurfaceConfiguration, TextureUsages,
 };
 
 use winit::event::WindowEvent::{
@@ -37,9 +39,7 @@ pub struct GameEngine<'a> {
     inputs: Inputs,
     camera_controler: CameraController,
     camera: Camera,
-    egui_winit_state: egui_winit::State,
-    egui_renderer: egui_wgpu::Renderer,
-    egui_screen_descriptor: egui_wgpu::renderer::ScreenDescriptor,
+    egui_integration: EguiIntegration,
 }
 
 fn size_to_vec2(size: &PhysicalSize<u32>) -> Vec2 {
@@ -144,17 +144,8 @@ impl<'a> GameEngine<'a> {
             )),
         };
 
-        let egui_context = egui::Context::default();
-        let viewport_id = egui_context.viewport_id();
-        let egui_winit_state =
-            egui_winit::State::new(egui_context, viewport_id, &window, Some(scale_factor), None);
-
-        let egui_renderer =
-            egui_wgpu::Renderer::new(&context.device, surface_configuration.format, None, 1);
-        let egui_screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
-            size_in_pixels: [size.width, size.height],
-            pixels_per_point: scale_factor,
-        };
+        let egui_integration =
+            EguiIntegration::new(window, &context.device, surface_configuration.format);
 
         let renderer = Renderer::new(context, size_to_vec2(&size), projection)?;
 
@@ -170,9 +161,7 @@ impl<'a> GameEngine<'a> {
                 inputs: Inputs::new(),
                 camera_controler: CameraController::new(100., 1.),
                 camera: game_engine_parameters.camera,
-                egui_renderer,
-                egui_winit_state,
-                egui_screen_descriptor,
+                egui_integration,
             },
             event_loop,
         ))
@@ -197,7 +186,7 @@ impl<'a> GameEngine<'a> {
         render(&mut state, &mut self.renderer);
         event_loop.run(move |event, elwt| match event {
             Event::WindowEvent { event, .. } => {
-                let res = self.egui_winit_state.on_window_event(self.window, &event);
+                let res = self.egui_integration.on_window_event(self.window, &event);
                 if res.consumed {
                 } else {
                     match event {
@@ -206,12 +195,12 @@ impl<'a> GameEngine<'a> {
                             inner_size_writer: _,
                         } => {
                             self.on_scale_factor_change(scale_factor);
-                            self.egui_screen_descriptor.pixels_per_point = scale_factor as f32;
+                            self.egui_integration
+                                .on_scale_factor_change(scale_factor as f32);
                         }
                         Resized(physical_size) => {
                             self.on_resize(physical_size);
-                            self.egui_screen_descriptor.size_in_pixels =
-                                [physical_size.width, physical_size.height];
+                            self.egui_integration.on_resize(physical_size);
                         }
                         CloseRequested => elwt.exit(),
                         KeyboardInput {
@@ -307,83 +296,18 @@ impl<'a> GameEngine<'a> {
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
-        let raw_input = self.egui_winit_state.take_egui_input(self.window);
-        self.egui_winit_state.egui_ctx().begin_frame(raw_input);
+        self.egui_integration.prepare_frame(&self.window);
         update(state, self);
         render(state, &mut self.renderer);
 
         match self.surface.get_current_texture() {
             Ok(output) => {
                 self.renderer.render(&output.texture);
-
-                let mut encoder = self.renderer.context.device.create_command_encoder(
-                    &CommandEncoderDescriptor {
-                        label: Some("Egui encoder"),
-                    },
-                );
-
-                let egui_context = self.egui_winit_state.egui_ctx();
-
-                let egui::FullOutput {
-                    shapes,
-                    textures_delta,
-                    ..
-                } = egui_context.end_frame();
-
-                let paint_jobs =
-                    egui_context.tessellate(shapes, self.egui_screen_descriptor.pixels_per_point);
-
-                for id in textures_delta.free {
-                    self.egui_renderer.free_texture(&id);
-                }
-
-                for (id, image_delta) in textures_delta.set {
-                    self.egui_renderer.update_texture(
-                        &self.renderer.context.device,
-                        &self.renderer.context.queue,
-                        id,
-                        &image_delta,
-                    );
-                }
-
-                let texture_view = output
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
-
-                self.egui_renderer.update_buffers(
+                self.egui_integration.render(
                     &self.renderer.context.device,
                     &self.renderer.context.queue,
-                    &mut encoder,
-                    &paint_jobs,
-                    &self.egui_screen_descriptor,
+                    &output,
                 );
-
-                {
-                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Egui renderer pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &texture_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Load,
-                                store: StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-                    self.egui_renderer.render(
-                        &mut render_pass,
-                        &paint_jobs,
-                        &self.egui_screen_descriptor,
-                    );
-                }
-
-                self.renderer
-                    .context
-                    .queue
-                    .submit(std::iter::once(encoder.finish()));
 
                 output.present();
             }
@@ -416,6 +340,6 @@ impl<'a> GameEngine<'a> {
     }
 
     pub fn egui(&self) -> &egui::Context {
-        self.egui_winit_state.egui_ctx()
+        self.egui_integration.egui_context()
     }
 }
