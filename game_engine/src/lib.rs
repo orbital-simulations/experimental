@@ -4,7 +4,7 @@ pub mod mesh;
 
 use camera::{Camera, CameraController};
 use glam::{vec2, vec3, Vec2};
-use inputs::InputKeys;
+use inputs::Inputs;
 use renderer::projection::{OrtographicProjection, PerspectiveProjection, Projection};
 use renderer::Renderer;
 use std::f32::consts::PI;
@@ -16,7 +16,6 @@ use wgpu::{
     SurfaceConfiguration, TextureUsages,
 };
 
-use winit::dpi::PhysicalPosition;
 use winit::event::WindowEvent::{
     CloseRequested, KeyboardInput, MouseInput, RedrawRequested, Resized, ScaleFactorChanged,
 };
@@ -35,11 +34,9 @@ pub struct GameEngine<'a> {
     surface_configuration: SurfaceConfiguration,
     surface: Surface<'a>,
     size: PhysicalSize<u32>,
-    input_keys: InputKeys,
+    inputs: Inputs,
     camera_controler: CameraController,
     camera: Camera,
-    is_pressed: bool,
-    old_mouse_position: PhysicalPosition<f64>,
 }
 
 fn size_to_vec2(size: &PhysicalSize<u32>) -> Vec2 {
@@ -153,11 +150,9 @@ impl<'a> GameEngine<'a> {
                 surface_configuration,
                 surface,
                 size,
-                input_keys: InputKeys::new(),
+                inputs: Inputs::new(),
                 camera_controler: CameraController::new(100., 1.),
                 camera: game_engine_parameters.camera,
-                is_pressed: false,
-                old_mouse_position: PhysicalPosition::default(),
             },
             event_loop,
         ))
@@ -195,8 +190,7 @@ impl<'a> GameEngine<'a> {
                     event,
                     is_synthetic: _,
                 } => {
-                    self.input_keys
-                        .update_key(&event.physical_key, &event.state);
+                    self.inputs.update_key(&event.physical_key, &event.state);
                     info!("Escape was pressed; terminating the event loop");
                     if let winit::keyboard::Key::Named(NamedKey::Escape) = event.logical_key {
                         elwt.exit()
@@ -207,26 +201,18 @@ impl<'a> GameEngine<'a> {
                     state,
                     button,
                 } => {
-                    if let winit::event::MouseButton::Left = button {
-                        match state {
-                            winit::event::ElementState::Pressed => self.is_pressed = true,
-                            winit::event::ElementState::Released => self.is_pressed = false,
-                        }
-                    }
+                    self.inputs.update_mouse_buttons(&button, &state);
                 }
                 winit::event::WindowEvent::CursorMoved {
                     device_id: _,
                     position,
                 } => {
-                    if self.is_pressed {
-                        let x = self.old_mouse_position.x - position.x;
-                        let y = self.old_mouse_position.y - position.y;
-                        self.camera_controler.process_mouse(x, y);
-                    }
-                    self.old_mouse_position = position
+                    let tmp: (f32, f32) = position.into();
+                    self.inputs.update_cursor_move(tmp.into());
                 }
                 RedrawRequested => {
                     self.redraw_requested(&mut state, update, render);
+                    self.inputs.reset_events();
                 }
                 //winit::event::WindowEvent::ActivationTokenDone { serial, token } => todo!(),
                 //winit::event::WindowEvent::Moved(_) => todo!(),
@@ -253,6 +239,15 @@ impl<'a> GameEngine<'a> {
                 }
             },
             Event::AboutToWait => {}
+            Event::DeviceEvent {
+                device_id: _,
+                event,
+            } => {
+                if let winit::event::DeviceEvent::MouseMotion { delta } = event {
+                    self.inputs
+                        .update_cursor_delta((delta.0 as f32, delta.1 as f32));
+                }
+            }
             _ => {
                 debug!("UNKNOWN EVENT RECEIVED: {:?}", event);
             }
@@ -272,11 +267,8 @@ impl<'a> GameEngine<'a> {
         info!("rendering as per the RedrawRequested was received");
 
         self.last_frame_delta = self.timer.elapsed().as_secs_f32();
-        self.camera_controler.update_camera(
-            &mut self.camera,
-            self.last_frame_delta,
-            &self.input_keys,
-        );
+        self.camera_controler
+            .update_camera(&mut self.camera, self.last_frame_delta, &self.inputs);
         self.renderer
             .renderer_context
             .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());

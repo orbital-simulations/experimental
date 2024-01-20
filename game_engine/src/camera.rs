@@ -1,8 +1,12 @@
 use glam::{vec3, Mat4, Vec3};
 use std::f32::consts::FRAC_PI_2;
-use winit::{dpi::PhysicalPosition, event::MouseScrollDelta, keyboard::KeyCode};
+use winit::{
+    dpi::PhysicalPosition,
+    event::{MouseButton, MouseScrollDelta},
+    keyboard::KeyCode,
+};
 
-use crate::inputs::InputKeys;
+use crate::inputs::Inputs;
 
 const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 
@@ -37,8 +41,6 @@ impl Camera {
 }
 #[derive(Debug)]
 pub struct CameraController {
-    rotate_horizontal: f32,
-    rotate_vertical: f32,
     scroll: f32,
     speed: f32,
     sensitivity: f32,
@@ -47,17 +49,10 @@ pub struct CameraController {
 impl CameraController {
     pub fn new(speed: f32, sensitivity: f32) -> Self {
         Self {
-            rotate_horizontal: 0.0,
-            rotate_vertical: 0.0,
             scroll: 0.0,
             speed,
             sensitivity,
         }
-    }
-
-    pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
-        self.rotate_horizontal = mouse_dx as f32;
-        self.rotate_vertical = mouse_dy as f32;
     }
 
     pub fn process_scroll(&mut self, delta: &MouseScrollDelta) {
@@ -67,26 +62,26 @@ impl CameraController {
         };
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera, dt: f32, input_keys: &InputKeys) {
+    pub fn update_camera(&mut self, camera: &mut Camera, dt: f32, inputs: &Inputs) {
         let mut forward_backward: f32 = 0.;
         let mut left_rigth: f32 = 0.;
         let mut up_down: f32 = 0.;
-        if input_keys.is_key_pressed(KeyCode::KeyW) {
+        if inputs.is_key_pressed(KeyCode::KeyW) {
             forward_backward += 1.;
         }
-        if input_keys.is_key_pressed(KeyCode::KeyS) {
+        if inputs.is_key_pressed(KeyCode::KeyS) {
             forward_backward -= 1.;
         }
-        if input_keys.is_key_pressed(KeyCode::KeyA) {
+        if inputs.is_key_pressed(KeyCode::KeyA) {
             left_rigth += 1.;
         }
-        if input_keys.is_key_pressed(KeyCode::KeyD) {
+        if inputs.is_key_pressed(KeyCode::KeyD) {
             left_rigth -= 1.;
         }
-        if input_keys.is_key_pressed(KeyCode::Space) {
+        if inputs.is_key_pressed(KeyCode::Space) {
             up_down += 1.;
         }
-        if input_keys.is_key_pressed(KeyCode::ShiftLeft) {
+        if inputs.is_key_pressed(KeyCode::ShiftLeft) {
             up_down -= 1.;
         }
 
@@ -114,20 +109,12 @@ impl CameraController {
         camera.position.z += up_down * self.speed * dt;
 
         // Rotate
-        camera.yaw -= self.rotate_horizontal * self.sensitivity * dt;
-        camera.pitch -= -self.rotate_vertical * self.sensitivity * dt;
-
-        // If process_mouse isn't called every frame, these values
-        // will not get set to zero, and the camera will rotate
-        // when moving in a non cardinal direction.
-        self.rotate_horizontal = 0.0;
-        self.rotate_vertical = 0.0;
+        if inputs.is_button_pressed(MouseButton::Left) {
+            camera.yaw -= inputs.cursor_delta.map(|v| v.0).unwrap_or(0.) * self.sensitivity * dt;
+            camera.pitch -= inputs.cursor_delta.map(|v| v.1).unwrap_or(0.) * self.sensitivity * dt;
+        }
 
         // Keep the camera's angle from going too high/low.
-        if camera.pitch < -SAFE_FRAC_PI_2 {
-            camera.pitch = -SAFE_FRAC_PI_2;
-        } else if camera.pitch > SAFE_FRAC_PI_2 {
-            camera.pitch = SAFE_FRAC_PI_2;
-        }
+        camera.pitch = camera.pitch.clamp(-SAFE_FRAC_PI_2, SAFE_FRAC_PI_2);
     }
 }
