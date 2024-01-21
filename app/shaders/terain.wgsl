@@ -13,19 +13,6 @@ struct VertexOutput {
     @location(1) color: vec3<f32>,
 }
 
-//  MIT License. © Ian McEwan, Stefan Gustavson, Munrocket, Johan Helsing
-fn mod289(x: vec2f) -> vec2f {
-    return x - floor(x * (1. / 289.)) * 289.;
-}
-
-fn mod289_3(x: vec3f) -> vec3f {
-    return x - floor(x * (1. / 289.)) * 289.;
-}
-
-fn permute3(x: vec3f) -> vec3f {
-    return mod289_3(((x * 34.) + 1.) * x);
-}
-
 @vertex
 fn vs_main(
     model: VertexInput,

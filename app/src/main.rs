@@ -3,6 +3,7 @@ use game_engine::{
     mesh::{generate_mesh_normals, generate_mesh_plane},
     GameEngine,
 };
+use glam::vec3;
 use noise::{NoiseFn, OpenSimplex};
 use renderer::{custom_mesh_renderer::CustomMashRenderer, mesh::GpuMesh, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -44,42 +45,128 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         .renderer
         .add_custom_mesh_renderer(custom_renderer);
 
-    //let vertices = [
-    //    vec3(-10., -10., -10.),
-    //    vec3(10., -10., -10.),
-    //    vec3(10., 10., -10.),
-    //    vec3(-10., 10., -10.),
-    //    vec3(-10., -10., 10.),
-    //    vec3(10., -10., 10.),
-    //    vec3(10., 10., 10.),
-    //    vec3(-10., 10., 10.),
-    //];
+    let vertices = [
+        // Front
+        vec3(-10., -10., -10.), // 0
+        vec3(10., -10., -10.), // 1
+        vec3(10., 10., -10.), // 2
 
-    //let indices = [
-    //    0, 1, 2, 2, 3, 0, // front
-    //    5, 4, 7, 7, 6, 5, // back
-    //    4, 0, 3, 3, 7, 4, // left
-    //    1, 5, 6, 6, 2, 1, // right
-    //    5, 1, 0, 0, 4, 5, // bottom
-    //    2, 6, 7, 7, 3, 2, // top
-    //];
+        vec3(10., 10., -10.), // 2
+        vec3(-10., 10., -10.), // 3
+        vec3(-10., -10., -10.), // 0
 
-    //let cube_shader = game_engine
-    //    .renderer
-    //    .context
-    //    .device
-    //    .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
-    //let cube_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &indices);
-    //let cube_renderer = CustomMashRenderer::new(
-    //    &game_engine.renderer.context,
-    //    &game_engine
-    //        .renderer
-    //        .renderer_context
-    //        .common_bind_group_layout,
-    //    cube_mesh,
-    //    cube_shader,
-    //);
-    //game_engine.renderer.add_custom_mesh_renderer(cube_renderer);
+        // Back
+        vec3(-10., -10., 10.), // 4
+        vec3(10., -10., 10.), // 5
+        vec3(10., 10., 10.), // 6
+
+        vec3(10., 10., 10.), // 6
+        vec3(-10., 10., 10.), // 7
+        vec3(-10., -10., 10.), // 4
+
+        // Right
+        vec3(10., -10., -10.), // 1
+        vec3(10., -10., 10.), // 5
+        vec3(10., 10., 10.), // 6
+
+        vec3(10., 10., 10.), // 6
+        vec3(10., 10., -10.), // 2
+        vec3(10., -10., -10.), // 1
+
+        // Left
+        vec3(-10., -10., 10.), // 4
+        vec3(-10., -10., -10.), // 0
+        vec3(-10., 10., -10.), // 3
+
+        vec3(-10., 10., -10.), // 3
+        vec3(-10., 10., 10.), // 7
+        vec3(-10., -10., 10.), // 4
+
+        // Top
+        vec3(-10., 10., -10.), // 3
+        vec3(10., 10., 10.), // 6
+        vec3(10., 10., -10.), // 2
+
+        vec3(-10., 10., 10.), // 7
+        vec3(10., 10., 10.), // 6
+        vec3(-10., 10., -10.), // 3
+
+        // Bottom
+        vec3(-10., -10., 10.), // 4
+        vec3(10., -10., 10.), // 5
+        vec3(10., -10., -10.), // 1
+
+        vec3(10., -10., -10.), // 1
+        vec3(-10., -10., -10.), // 0
+        vec3(-10., -10., 10.), // 4
+    ];
+
+    let normals = [
+        // Front
+        vec3(0., 0., -1.),
+        vec3(0., 0., -1.),
+        vec3(0., 0., -1.),
+        vec3(0., 0., -1.),
+        vec3(0., 0., -1.),
+        vec3(0., 0., -1.),
+
+        // Back
+        vec3(0., 0., 1.),
+        vec3(0., 0., 1.),
+        vec3(0., 0., 1.),
+        vec3(0., 0., 1.),
+        vec3(0., 0., 1.),
+        vec3(0., 0., 1.),
+
+        // Right
+        vec3(1., 0., 0.),
+        vec3(1., 0., 0.),
+        vec3(1., 0., 0.),
+        vec3(1., 0., 0.),
+        vec3(1., 0., 0.),
+        vec3(1., 0., 0.),
+
+        // Left
+        vec3(-1., 0., 0.),
+        vec3(-1., 0., 0.),
+        vec3(-1., 0., 0.),
+        vec3(-1., 0., 0.),
+        vec3(-1., 0., 0.),
+        vec3(-1., 0., 0.),
+
+        // Top
+        vec3(0., 1., 0.),
+        vec3(0., 1., 0.),
+        vec3(0., 1., 0.),
+        vec3(0., 1., 0.),
+        vec3(0., 1., 0.),
+        vec3(0., 1., 0.),
+
+        // Bottom
+        vec3(0., -1., 0.),
+        vec3(0., -1., 0.),
+        vec3(0., -1., 0.),
+        vec3(0., -1., 0.),
+        vec3(0., -1., 0.),
+        vec3(0., -1., 0.),
+    ];
+
+    let cube_shader = game_engine
+        .renderer
+        .context
+        .device
+        .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
+    let cube_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals);
+    let cube_renderer = CustomMashRenderer::new(
+        &game_engine.renderer.context,
+        &game_engine
+            .renderer
+            .renderer_context
+            .common_bind_group_layout,
+        cube_mesh,
+        cube_shader,
+    );
+    game_engine.renderer.add_custom_mesh_renderer(cube_renderer);
     GameState()
 }
 
