@@ -22,7 +22,9 @@ use projection::{Projection, ProjectionManipulation};
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::{info, warn};
-use wgpu::{StoreOp, Texture};
+use wgpu::{
+    Operations, RenderPassDepthStencilAttachment, StoreOp, Texture, TextureFormat, TextureView,
+};
 
 pub struct Renderer {
     pub context: Context,
@@ -36,6 +38,9 @@ pub struct Renderer {
     custom_mesh_renderers: Vec<CustomMashRenderer>,
     projection: Projection,
     size: Vec2,
+
+    depth_texture: Texture,
+    depth_view: TextureView,
 }
 
 impl Renderer {
@@ -53,6 +58,24 @@ impl Renderer {
         let line_segment_renderer =
             LineSegmentRenderer::new(&context, &renderer_context.common_bind_group_layout);
 
+        let depth_texture_size = wgpu::Extent3d {
+            width: size.x as u32,
+            height: size.y as u32,
+            depth_or_array_layers: 1,
+        };
+        let depth_texture_description = wgpu::TextureDescriptor {
+            label: Some("depth texture"),
+            size: depth_texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[TextureFormat::Depth32Float],
+        };
+        let depth_texture = context.device.create_texture(&depth_texture_description);
+        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         Ok(Self {
             renderer_context,
             context,
@@ -64,6 +87,8 @@ impl Renderer {
             size,
             custom_mesh_renderers: vec![],
             projection,
+            depth_texture,
+            depth_view,
         })
     }
 
@@ -98,6 +123,30 @@ impl Renderer {
         self.projection.resize(new_size.x, new_size.y);
         self.renderer_context
             .set_projection_matrix(&self.context, &self.projection.make_projection_matrix());
+
+        let depth_texture_size = wgpu::Extent3d {
+            width: new_size.x as u32,
+            height: new_size.y as u32,
+            depth_or_array_layers: 1,
+        };
+        let depth_texture_description = wgpu::TextureDescriptor {
+            label: Some("depth texture"),
+            size: depth_texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[TextureFormat::Depth32Float],
+        };
+
+        self.depth_texture = self
+            .context
+            .device
+            .create_texture(&depth_texture_description);
+        self.depth_view = self
+            .depth_texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
     }
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
@@ -135,7 +184,14 @@ impl Renderer {
                         store: StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });

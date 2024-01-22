@@ -3,7 +3,7 @@ use wgpu::{
     util::DeviceExt, Buffer, BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat,
 };
 
-use crate::{context::Context, raw::Raw};
+use crate::{buffers::IndexBuffer, context::Context, raw::Raw};
 
 #[derive(Debug)]
 pub struct GpuMesh {
@@ -11,7 +11,7 @@ pub struct GpuMesh {
     pub vertex_buffer_layout: VertexBufferLayout<'static>,
     pub normal_buffer_layout: VertexBufferLayout<'static>,
     pub normal_buffer: Buffer,
-    pub vertex_count: u32,
+    pub index_buffer: IndexBuffer<u32>,
 }
 
 macro_rules! prefix_label {
@@ -45,7 +45,7 @@ pub fn mesh_normal_description() -> VertexBufferLayout<'static> {
 }
 
 impl GpuMesh {
-    pub fn new(context: &Context, vertices: &[Vec3], normals: &[Vec3]) -> GpuMesh {
+    pub fn new(context: &Context, vertices: &[Vec3], normals: &[Vec3], indices: &[u32]) -> GpuMesh {
         let vertex_buffer = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -53,7 +53,6 @@ impl GpuMesh {
                 contents: vertices.get_raw(),
                 usage: wgpu::BufferUsages::VERTEX,
             });
-        let vertex_buffer_layout = mesh_vertext_buffer_description();
         let normal_buffer = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -62,12 +61,13 @@ impl GpuMesh {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
+        let index_buffer = IndexBuffer::new(context, indices, "gpu mesh");
         GpuMesh {
             vertex_buffer,
-            vertex_buffer_layout,
+            vertex_buffer_layout: mesh_vertext_buffer_description(),
             normal_buffer,
             normal_buffer_layout: mesh_normal_description(),
-            vertex_count: vertices.len() as u32,
+            index_buffer,
         }
     }
 }

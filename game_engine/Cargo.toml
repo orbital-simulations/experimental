@@ -17,6 +17,7 @@ itertools = { workspace = true }
 egui = { git = "https://github.com/emilk/egui", package = "egui", features = ["color-hex", "default_fonts", "log", "mint"] }
 egui-winit = { git = "https://github.com/emilk/egui", package = "egui-winit" }
 egui-wgpu = { git = "https://github.com/emilk/egui", package = "egui-wgpu" }
+tobj = "4.0"
 
 [dev-dependencies]
 color-eyre = { workspace = true }

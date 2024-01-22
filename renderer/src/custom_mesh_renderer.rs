@@ -1,4 +1,4 @@
-use wgpu::{BindGroup, BindGroupLayout, RenderPass, RenderPipeline, ShaderModule};
+use wgpu::{BindGroup, BindGroupLayout, RenderPass, RenderPipeline, ShaderModule, TextureFormat};
 
 use crate::{context::Context, mesh::GpuMesh};
 
@@ -56,7 +56,7 @@ impl CustomMashRenderer {
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
-                    front_face: wgpu::FrontFace::Cw,
+                    front_face: wgpu::FrontFace::Ccw,
                     cull_mode: Some(wgpu::Face::Back),
                     // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
                     // or Features::POLYGON_MODE_POINT
@@ -66,7 +66,13 @@ impl CustomMashRenderer {
                     // Requires Features::CONSERVATIVE_RASTERIZATION
                     conservative: false,
                 },
-                depth_stencil: None,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: TextureFormat::Depth32Float,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
                 multisample: wgpu::MultisampleState {
                     count: 1,
                     mask: !0,
@@ -89,6 +95,7 @@ impl CustomMashRenderer {
         render_pass.set_bind_group(0, common_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.mesh.normal_buffer.slice(..));
-        render_pass.draw(0..self.mesh.vertex_count, 0..1);
+        self.mesh.index_buffer.set_index_buffer(render_pass);
+        render_pass.draw_indexed(0..self.mesh.index_buffer.draw_count(), 0, 0..1);
     }
 }

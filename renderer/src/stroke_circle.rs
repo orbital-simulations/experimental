@@ -183,35 +183,37 @@ impl StrokeCircleRenderer {
     }
 
     pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
-        if self.circle_instance_buffer_capacity < self.circles.len() {
-            self.circle_instance_buffer_capacity = self.circles.len();
-            self.circle_instance_buffer =
-                context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "instance buffer")),
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    contents: self.circles.get_raw(),
-                });
-        } else {
-            context
-                .queue
-                .write_buffer(&self.circle_instance_buffer, 0, self.circles.get_raw());
+        if !self.circles.is_empty() {
+            if self.circle_instance_buffer_capacity < self.circles.len() {
+                self.circle_instance_buffer_capacity = self.circles.len();
+                self.circle_instance_buffer =
+                    context.device.create_buffer_init(&BufferInitDescriptor {
+                        label: Some(concat!(prefix_label!(), "instance buffer")),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        contents: self.circles.get_raw(),
+                    });
+            } else {
+                context
+                    .queue
+                    .write_buffer(&self.circle_instance_buffer, 0, self.circles.get_raw());
+            }
+
+            render_pass.set_pipeline(&self.circle_pipeline);
+            render_pass.set_vertex_buffer(0, self.circle_vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.circle_instance_buffer.slice(..));
+            render_pass.set_index_buffer(
+                self.circle_index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            render_pass.draw_indexed(
+                0..(STROKE_CIRCLE_INDICES.len() as u32),
+                0,
+                0..(self.circles.len() as u32),
+            );
+
+            // TODO: Think about some memory releasing strategy. Spike in number of
+            // circles will lead to space leak.
+            self.circles.clear();
         }
-
-        render_pass.set_pipeline(&self.circle_pipeline);
-        render_pass.set_vertex_buffer(0, self.circle_vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, self.circle_instance_buffer.slice(..));
-        render_pass.set_index_buffer(
-            self.circle_index_buffer.slice(..),
-            wgpu::IndexFormat::Uint16,
-        );
-        render_pass.draw_indexed(
-            0..(STROKE_CIRCLE_INDICES.len() as u32),
-            0,
-            0..(self.circles.len() as u32),
-        );
-
-        // TODO: Think about some memory releasing strategy. Spike in number of
-        // circles will lead to space leak.
-        self.circles.clear();
     }
 }

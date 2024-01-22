@@ -2,6 +2,7 @@ pub mod camera;
 mod egui_integration;
 pub mod inputs;
 pub mod mesh;
+pub mod obj_loader;
 
 use camera::{Camera, CameraController};
 use egui_integration::EguiIntegration;
@@ -146,7 +147,6 @@ impl<'a> GameEngine<'a> {
 
         let egui_integration =
             EguiIntegration::new(window, &context.device, surface_configuration.format);
-
         let renderer = Renderer::new(context, size_to_vec2(&size), projection)?;
 
         Ok((
@@ -159,7 +159,7 @@ impl<'a> GameEngine<'a> {
                 surface,
                 size,
                 inputs: Inputs::new(),
-                camera_controler: CameraController::new(100., 1.),
+                camera_controler: CameraController::new(10., 1.),
                 camera: game_engine_parameters.camera,
                 egui_integration,
             },

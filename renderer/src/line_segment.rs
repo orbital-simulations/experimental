@@ -179,6 +179,7 @@ impl LineSegmentRenderer {
     }
 
     pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
+        if !self.line_segments.is_empty() {
         if self.line_segment_buffer_capacity < self.line_segments.len() {
             self.line_segment_instance_buffer =
                 context.device.create_buffer_init(&BufferInitDescriptor {
@@ -211,5 +212,5 @@ impl LineSegmentRenderer {
         // TODO: Think about some memory releasing strategy. Spike in number of
         // circles will lead to space leak.
         self.line_segments.clear();
-    }
+    }}
 }

@@ -183,37 +183,39 @@ impl StrokeRectangleRenderer {
     }
 
     pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
-        if self.rectangle_instance_buffer_capacity < self.rectangles.len() {
-            self.rectangle_instance_buffer_capacity = self.rectangles.len();
-            self.rectangle_instance_buffer =
-                context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "instance buffer")),
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    contents: self.rectangles.get_raw(),
-                });
-        } else {
-            context.queue.write_buffer(
-                &self.rectangle_instance_buffer,
-                0,
-                self.rectangles.get_raw(),
+        if !self.rectangles.is_empty() {
+            if self.rectangle_instance_buffer_capacity < self.rectangles.len() {
+                self.rectangle_instance_buffer_capacity = self.rectangles.len();
+                self.rectangle_instance_buffer =
+                    context.device.create_buffer_init(&BufferInitDescriptor {
+                        label: Some(concat!(prefix_label!(), "instance buffer")),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        contents: self.rectangles.get_raw(),
+                    });
+            } else {
+                context.queue.write_buffer(
+                    &self.rectangle_instance_buffer,
+                    0,
+                    self.rectangles.get_raw(),
+                );
+            }
+
+            render_pass.set_pipeline(&self.rectangle_pipeline);
+            render_pass.set_vertex_buffer(0, self.rectangle_vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.rectangle_instance_buffer.slice(..));
+            render_pass.set_index_buffer(
+                self.rectangle_index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
             );
+            render_pass.draw_indexed(
+                0..(STROKE_RECTANGLE_INDICES.len() as u32),
+                0,
+                0..(self.rectangles.len() as u32),
+            );
+
+            // TODO: Think about some memory releasing strategy. Spike in number of
+            // rectangles will lead to space leak.
+            self.rectangles.clear();
         }
-
-        render_pass.set_pipeline(&self.rectangle_pipeline);
-        render_pass.set_vertex_buffer(0, self.rectangle_vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, self.rectangle_instance_buffer.slice(..));
-        render_pass.set_index_buffer(
-            self.rectangle_index_buffer.slice(..),
-            wgpu::IndexFormat::Uint16,
-        );
-        render_pass.draw_indexed(
-            0..(STROKE_RECTANGLE_INDICES.len() as u32),
-            0,
-            0..(self.rectangles.len() as u32),
-        );
-
-        // TODO: Think about some memory releasing strategy. Spike in number of
-        // rectangles will lead to space leak.
-        self.rectangles.clear();
     }
 }
