@@ -10,6 +10,7 @@ pub mod projection;
 pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
+pub mod api_experiments;
 
 use context::{Context, RenderingContext};
 use custom_mesh_renderer::CustomMashRenderer;

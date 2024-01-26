@@ -132,8 +132,8 @@ impl<'a> GameEngine<'a> {
             ProjectionInit::Perspective => Projection::Perspective(PerspectiveProjection::new(
                 size.width as f32,
                 size.height as f32,
-                45.,
-                0.01,
+                std::f32::consts::FRAC_PI_2,
+                1.00,
                 1000.,
                 scale_factor,
             )),
