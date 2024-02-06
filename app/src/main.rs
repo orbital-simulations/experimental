@@ -5,7 +5,7 @@ use game_engine::{
     GameEngine,
 };
 use glam::vec3;
-use noise::{NoiseFn, OpenSimplex, SuperSimplex, Perlin};
+use noise::{NoiseFn, OpenSimplex, Perlin, SuperSimplex};
 use renderer::{custom_mesh_renderer::CustomMashRenderer, mesh::GpuMesh, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use wgpu::include_wgsl;
@@ -36,41 +36,41 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         .renderer
         .add_custom_mesh_renderer(custom_renderer);
 
-        let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
-        //let (mut vertices, indices) = generate_mesh_plane(1, 1, 1.);
+    let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
+    //let (mut vertices, indices) = generate_mesh_plane(1, 1, 1.);
 
-        let shader = game_engine
-            .renderer
-            .context
-            .device
-            .create_shader_module(include_wgsl!("../shaders/terain.wgsl"));
-        let noise1 = Perlin::new(0);
-        let noise2 = Perlin::new(10);
-        let noise3 = Perlin::new(100);
-        for v in vertices.iter_mut() {
-            let mut z = noise1.get([(v.x / 50.) as f64, (v.y / 50.) as f64]) * 25.;
-            z += noise2.get([(v.x / 10.) as f64, (v.y / 10.) as f64]) * 3.;
-            z += noise3.get([v.x as f64, v.y as f64]) * 0.1;
-            v.z = z as f32;
-        }
-        let normals = generate_mesh_normals(&vertices, &indices);
+    let shader = game_engine
+        .renderer
+        .context
+        .device
+        .create_shader_module(include_wgsl!("../shaders/terain.wgsl"));
+    let noise1 = Perlin::new(0);
+    let noise2 = Perlin::new(10);
+    let noise3 = Perlin::new(100);
+    for v in vertices.iter_mut() {
+        let mut z = noise1.get([(v.x / 50.) as f64, (v.y / 50.) as f64]) * 25.;
+        z += noise2.get([(v.x / 10.) as f64, (v.y / 10.) as f64]) * 3.;
+        z += noise3.get([v.x as f64, v.y as f64]) * 0.1;
+        v.z = z as f32;
+    }
+    let normals = generate_mesh_normals(&vertices, &indices);
     //dbg!(&indices);
     //dbg!(&vertices);
     //dbg!(&normals);
 
-        let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
-        let custom_renderer = CustomMashRenderer::new(
-            &game_engine.renderer.context,
-            &game_engine
-                .renderer
-                .renderer_context
-                .common_bind_group_layout,
-            gpu_mesh,
-            shader,
-        );
-        game_engine
+    let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
+    let custom_renderer = CustomMashRenderer::new(
+        &game_engine.renderer.context,
+        &game_engine
             .renderer
-            .add_custom_mesh_renderer(custom_renderer);
+            .renderer_context
+            .common_bind_group_layout,
+        gpu_mesh,
+        shader,
+    );
+    game_engine
+        .renderer
+        .add_custom_mesh_renderer(custom_renderer);
 
     //let vertices = [
     //    vec3(-10., -10., -10.),

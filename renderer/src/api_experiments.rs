@@ -252,7 +252,6 @@ use crate::{raw::{Raw, Gpu}, context::Context};
 //    Float64x4 = 33,
 //}
 
-
 struct Buff<T> {
     buffer: Buffer,
     data_type: PhantomData<T>,
@@ -265,23 +264,29 @@ struct MeshObject {
     normals: Buff,
     indices: Buff,
     instances: Buff,
-    pipeline: Arc<Pipeline>,
+    pipeline: Pipeline,
 }
 
-struct Pipeline {
-}
-
-struct PipelineId {
-}
-
-struct DrawBundle {
-    vertext_buffers: &[(u32, Buffer)],
+struct DrawBundle<'a> {
+    instance_buffer: Option((u32, WriteableBuffer)),
+    index_buffer: Option((u32, IndexBuffer)),
+    vertext_buffers: &[(u32, WriteableBuffer)],
     bind_groups: &[(u32, BindGroup)],
-    pipeline: PipelineId, // or Pipeline directly???
+    pipeline: &'a Pipeline, // or Pipeline directly???
     use_camera_bundle: bool,
 }
 
+struct Renderer {
+    camera: Camera,
+}
+
 impl Renderer {
-    pub fn draw() {
+    pub fn new() -> Self {
+    }
+
+    pub fn Pipeline create_pipeline(parameters: &CreatePipeline) {
+    }
+
+    pub fn draw(draw_bundle: &DrawBundle) {
     }
 }

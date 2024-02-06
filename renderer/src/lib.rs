@@ -1,4 +1,5 @@
 pub mod buffers;
+pub mod camera;
 pub mod colors;
 pub mod context;
 pub mod custom_mesh_renderer;
@@ -6,30 +7,32 @@ pub mod filled_circle;
 pub mod filled_rectangle;
 pub mod line_segment;
 pub mod mesh;
+pub mod pipeline;
 pub mod projection;
 pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
 //pub mod api_experiments;
 
-use context::{Context, RenderingContext};
+use camera::Camera;
+use context::Context;
 use custom_mesh_renderer::CustomMashRenderer;
 use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
 use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
-use projection::{Projection, ProjectionManipulation};
+use projection::Projection;
 
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
-use tracing::{info, warn};
+use tracing::info;
 use wgpu::{
     Operations, RenderPassDepthStencilAttachment, StoreOp, Texture, TextureFormat, TextureView,
 };
 
 pub struct Renderer {
     pub context: Context,
-    pub renderer_context: RenderingContext,
+    pub camera: Camera,
 
     filled_circle_renderer: FilledCircleRenderer,
     stroke_circle_renderer: StrokeCircleRenderer,
@@ -37,7 +40,6 @@ pub struct Renderer {
     stroke_rectangle_renderer: StrokeRectangleRenderer,
     line_segment_renderer: LineSegmentRenderer,
     custom_mesh_renderers: Vec<CustomMashRenderer>,
-    projection: Projection,
     size: Vec2,
 
     depth_texture: Texture,
@@ -46,18 +48,18 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(context: Context, size: Vec2, projection: Projection) -> eyre::Result<Self> {
-        let renderer_context = RenderingContext::new(&context, &projection);
+        let camera = Camera::new(&context, projection);
 
         let filled_circle_renderer =
-            FilledCircleRenderer::new(&context, &renderer_context.common_bind_group_layout);
+            FilledCircleRenderer::new(&context, &camera.common_bind_group_layout);
         let stroke_circle_renderer =
-            StrokeCircleRenderer::new(&context, &renderer_context.common_bind_group_layout);
+            StrokeCircleRenderer::new(&context, &camera.common_bind_group_layout);
         let filled_rectangle_renderer =
-            FilledRectangleRenderer::new(&context, &renderer_context.common_bind_group_layout);
+            FilledRectangleRenderer::new(&context, &camera.common_bind_group_layout);
         let stroke_rectangle_renderer =
-            StrokeRectangleRenderer::new(&context, &renderer_context.common_bind_group_layout);
+            StrokeRectangleRenderer::new(&context, &camera.common_bind_group_layout);
         let line_segment_renderer =
-            LineSegmentRenderer::new(&context, &renderer_context.common_bind_group_layout);
+            LineSegmentRenderer::new(&context, &camera.common_bind_group_layout);
 
         let depth_texture_size = wgpu::Extent3d {
             width: size.x as u32,
@@ -78,7 +80,7 @@ impl Renderer {
         let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         Ok(Self {
-            renderer_context,
+            camera,
             context,
             filled_circle_renderer,
             stroke_circle_renderer,
@@ -87,7 +89,6 @@ impl Renderer {
             line_segment_renderer,
             size,
             custom_mesh_renderers: vec![],
-            projection,
             depth_texture,
             depth_view,
         })
@@ -121,9 +122,7 @@ impl Renderer {
     pub fn on_resize(&mut self, new_size: Vec2) {
         info!("on resize event received new_size: {:?}", new_size);
         self.size = new_size;
-        self.projection.resize(new_size.x, new_size.y);
-        self.renderer_context
-            .set_projection_matrix(&self.context, &self.projection.make_projection_matrix());
+        self.camera.on_resize(new_size, &self.context);
 
         let depth_texture_size = wgpu::Extent3d {
             width: new_size.x as u32,
@@ -152,13 +151,11 @@ impl Renderer {
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
-        self.projection.scale(scale_factor as f32);
-        self.renderer_context
-            .set_projection_matrix(&self.context, &self.projection.make_projection_matrix());
+        self.camera
+            .on_scale_factor_change(scale_factor, &self.context);
     }
 
     pub fn render(&mut self, texture: &Texture) {
-        warn!("projection: {:?}", self.projection);
         info!("creating view from the texture");
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -197,7 +194,7 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
-            self.renderer_context.bind(&mut render_pass, 0);
+            self.camera.bind(&mut render_pass, 0);
 
             self.filled_circle_renderer
                 .render(&self.context, &mut render_pass);
@@ -211,8 +208,7 @@ impl Renderer {
                 .render(&self.context, &mut render_pass);
 
             for custom_mesh_renderer in self.custom_mesh_renderers.iter_mut() {
-                custom_mesh_renderer
-                    .render(&self.renderer_context.common_bind_group, &mut render_pass);
+                custom_mesh_renderer.render(&self.camera.common_bind_group, &mut render_pass);
             }
         }
 

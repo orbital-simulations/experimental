@@ -180,37 +180,38 @@ impl LineSegmentRenderer {
 
     pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
         if !self.line_segments.is_empty() {
-        if self.line_segment_buffer_capacity < self.line_segments.len() {
-            self.line_segment_instance_buffer =
-                context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "instance buffer")),
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    contents: self.line_segments.get_raw(),
-                });
-            self.line_segment_buffer_capacity = self.line_segments.len()
-        } else {
-            context.queue.write_buffer(
-                &self.line_segment_instance_buffer,
-                0,
-                self.line_segments.get_raw(),
+            if self.line_segment_buffer_capacity < self.line_segments.len() {
+                self.line_segment_instance_buffer =
+                    context.device.create_buffer_init(&BufferInitDescriptor {
+                        label: Some(concat!(prefix_label!(), "instance buffer")),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        contents: self.line_segments.get_raw(),
+                    });
+                self.line_segment_buffer_capacity = self.line_segments.len()
+            } else {
+                context.queue.write_buffer(
+                    &self.line_segment_instance_buffer,
+                    0,
+                    self.line_segments.get_raw(),
+                );
+            }
+
+            render_pass.set_pipeline(&self.line_segment_pipeline);
+            render_pass.set_vertex_buffer(0, self.line_segment_vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.line_segment_instance_buffer.slice(..));
+            render_pass.set_index_buffer(
+                self.line_segment_index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
             );
+            render_pass.draw_indexed(
+                0..(LINE_SEGMENT_INDICES.len() as u32),
+                0,
+                0..(self.line_segments.len() as u32),
+            );
+
+            // TODO: Think about some memory releasing strategy. Spike in number of
+            // circles will lead to space leak.
+            self.line_segments.clear();
         }
-
-        render_pass.set_pipeline(&self.line_segment_pipeline);
-        render_pass.set_vertex_buffer(0, self.line_segment_vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, self.line_segment_instance_buffer.slice(..));
-        render_pass.set_index_buffer(
-            self.line_segment_index_buffer.slice(..),
-            wgpu::IndexFormat::Uint16,
-        );
-        render_pass.draw_indexed(
-            0..(LINE_SEGMENT_INDICES.len() as u32),
-            0,
-            0..(self.line_segments.len() as u32),
-        );
-
-        // TODO: Think about some memory releasing strategy. Spike in number of
-        // circles will lead to space leak.
-        self.line_segments.clear();
-    }}
+    }
 }
