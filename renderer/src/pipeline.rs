@@ -4,23 +4,20 @@ use wgpu::{
 };
 
 use crate::{
-    buffers::{BindGroup, DescriptiveBuffer, IndexFormatTrait},
+    buffers::{BindGroup, DescriptiveBuffer},
     context::Context,
 };
 
-struct CreatePipeline<'a> {
+pub struct CreatePipeline<'a> {
     shader: ShaderModule,
-    instance_buffer: Option<(u32, &'a dyn DescriptiveBuffer)>,
-    vertex_buffers: &'a [(u32, &'a dyn DescriptiveBuffer)],
-    index_buffer: &'a dyn IndexFormatTrait,
-    bind_groups: &'a [(u32, BindGroup)],
+    vertex_buffer_layouts: Vec<VertexBufferLayout<'static>>,
+    bind_group_layouts: &'a [&'a BindGroupLayout],
     name: String,
 }
 
 struct Pipeline {
     pipeline_layout: PipelineLayout,
     name: String,
-    vertex_buffer_layouts: Vec<VertexBufferLayout<'static>>,
     pipeline: RenderPipeline,
     shader: ShaderModule,
 }
@@ -33,32 +30,14 @@ impl Pipeline {
         let mut pipeline_layout_descriptor_name = parameters.name;
         pipeline_layout_descriptor_name.push_str("layout descriptor");
 
-        let bind_group_layouts: Vec<&BindGroupLayout> = parameters
-            .bind_groups
-            .iter()
-            .map(|b| b.1.layout())
-            .collect();
-
         let pipeline_layout =
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some(pipeline_layout_descriptor_name.as_str()),
-                    bind_group_layouts: &bind_group_layouts,
+                    bind_group_layouts: &parameters.bind_group_layouts,
                     push_constant_ranges: &[],
                 });
-        let mut vertex_buffer_layouts: Vec<VertexBufferLayout<'static>> = parameters
-            .vertex_buffers
-            .iter()
-            .map(|(binding, buffer)| buffer.describe_vertex_buffer(VertexStepMode::Vertex))
-            .collect();
-        if let Some(instance_buffer) = parameters.instance_buffer {
-            vertex_buffer_layouts.push(
-                instance_buffer
-                    .1
-                    .describe_vertex_buffer(VertexStepMode::Instance),
-            );
-        }
         let pipeline = context
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -67,7 +46,7 @@ impl Pipeline {
                 vertex: wgpu::VertexState {
                     module: &parameters.shader,
                     entry_point: "vs_main",
-                    buffers: &vertex_buffer_layouts,
+                    buffers: &parameters.vertex_buffer_layouts,
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &parameters.shader,
@@ -109,7 +88,6 @@ impl Pipeline {
             pipeline,
             shader: parameters.shader,
             pipeline_layout,
-            vertex_buffer_layouts,
         }
     }
 }

@@ -12,6 +12,8 @@ pub mod projection;
 pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
+pub mod render_bundle;
+pub mod render_pass;
 //pub mod api_experiments;
 
 use camera::Camera;

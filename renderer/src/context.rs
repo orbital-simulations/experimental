@@ -1,18 +1,34 @@
-use wgpu::{Device, Queue, TextureFormat};
+use wgpu::{Device, Queue};
+
+use crate::{camera::Camera, projection::Projection};
 
 pub struct Context {
     pub device: wgpu::Device,
     // Sends data and encoded commands to GPU
     pub queue: wgpu::Queue,
-    pub output_texture_format: TextureFormat,
 }
 
 impl Context {
-    pub fn new(device: Device, queue: Queue, texture_format: TextureFormat) -> Self {
+    pub fn new(device: Device, queue: Queue) -> Self {
         Self {
             device,
             queue,
-            output_texture_format: texture_format,
         }
+    }
+}
+
+pub struct RenderingContext {
+    camera: Camera,
+}
+
+impl RenderingContext {
+    pub fn new(context: &Context, projection: Projection) -> Self {
+        let camera = Camera::new(context, projection);
+        Self {
+            camera,
+        }
+    }
+
+    pub fn camera_description() {
     }
 }

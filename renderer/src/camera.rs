@@ -1,70 +1,33 @@
+use std::slice::from_ref;
+
 use glam::{Mat4, Vec2};
-use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Buffer, RenderPass};
+use wgpu::{ShaderStages, BindGroupLayoutEntry};
+use wgpu::{BindGroupLayout, RenderPass};
+use crate::buffers::{DescriptiveBindGroupEntry, BindGroup};
 
 use crate::{
-    buffers::simple_vertex_uniform_layout_entry,
     context::Context,
     projection::{Projection, ProjectionManipulation},
-    raw::Raw,
+    buffers::WriteableBuffer,
 };
 
 pub struct Camera {
     // Contains projection and camra layous.
-    common_bind_group_layout: BindGroupLayout,
-    common_bind_group: BindGroup,
-    projection_matrix_buffer: Buffer,
-    camera_matrix_buffer: Buffer,
+    bind_group: BindGroup,
+    projection_matrix_buffer: WriteableBuffer<Mat4>,
+    camera_matrix_buffer: WriteableBuffer<Mat4>,
     projection: Projection,
 }
 
 impl Camera {
     pub fn new(context: &Context, projection: Projection) -> Self {
-        let common_bind_group_layout =
-            context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Camera bind group layout"),
-                    entries: &[
-                        simple_vertex_uniform_layout_entry(0),
-                        simple_vertex_uniform_layout_entry(1),
-                    ],
-                });
-        let projection_matrix_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Projection buffer"),
-                    contents: projection.make_projection_matrix().get_raw(),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
-        let camera_matrix_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Camera buffer"),
-                    contents: Mat4::IDENTITY.transpose().get_raw(),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
-        let common_bind_group = context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &common_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: projection_matrix_buffer.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: camera_matrix_buffer.as_entire_binding(),
-                    },
-                ],
-                label: Some("Projection bind group"),
-            });
+        let projection_matrix_buffer: WriteableBuffer<Mat4> = WriteableBuffer::new(&context, "projectino matrix buffer", &[projection.make_projection_matrix()], wgpu::BufferUsages::UNIFORM);
+        let camera_identity_matrix = glam::Mat4::IDENTITY;
+        let camera_matrix_buffer: WriteableBuffer<Mat4> = WriteableBuffer::new(&context, "camera matrix buffer", &[camera_identity_matrix], wgpu::BufferUsages::UNIFORM);
+        let bind_group = BindGroup::new(context, "camera", &[(0, ShaderStages::VERTEX, &projection_matrix_buffer), (1, ShaderStages::VERTEX, &camera_matrix_buffer)]);
 
         Self {
-            common_bind_group_layout,
-            common_bind_group,
+            bind_group,
             projection_matrix_buffer,
             camera_matrix_buffer,
             projection,
@@ -81,20 +44,28 @@ impl Camera {
     }
 
     pub fn bind<'a>(&'a self, render_pass: &mut RenderPass<'a>, slot: u32) {
-        render_pass.set_bind_group(slot, &self.common_bind_group, &[]);
+        self.bind_group.bind(render_pass, slot);
     }
 
     pub fn set_projection_matrix(&self, context: &Context) {
-        context.queue.write_buffer(
-            &self.projection_matrix_buffer,
-            0,
-            &self.projection.make_projection_matrix().get_raw(),
-        );
+        self.projection_matrix_buffer.write_data(context, &[self.projection.make_projection_matrix()]);
     }
 
-    pub fn set_camera_matrix(&self, context: &Context, projection_matrix: &Mat4) {
-        context
-            .queue
-            .write_buffer(&self.camera_matrix_buffer, 0, projection_matrix.get_raw());
+    pub fn set_camera_matrix(&self, context: &Context, camera_matrix: &Mat4) {
+        self.projection_matrix_buffer.write_data(context, from_ref(camera_matrix));
+    }
+
+    fn bind_group_layout(&self) -> &BindGroupLayout {
+        self.bind_group.layout()
+    }
+}
+
+impl DescriptiveBindGroupEntry for Camera {
+    fn bind_group_entry_description(
+        &self,
+        binding: u32,
+        shader_stage: ShaderStages,
+    ) -> BindGroupLayoutEntry {
+        todo!()
     }
 }

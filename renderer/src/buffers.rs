@@ -13,11 +13,11 @@ use crate::{
 };
 
 pub trait DescriptiveBuffer {
-    fn describe_vertex_buffer(&self, step_mode: VertexStepMode) -> VertexBufferLayout<'static>;
+    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static>;
 }
 
 impl DescriptiveBuffer for Vec2 {
-    fn describe_vertex_buffer(&self, step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
+    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<Vec2>() as BufferAddress,
             step_mode,
@@ -31,7 +31,7 @@ impl DescriptiveBuffer for Vec2 {
 }
 
 impl DescriptiveBuffer for Vec3 {
-    fn describe_vertex_buffer(&self, step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
+    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<Vec3>() as BufferAddress,
             step_mode,
@@ -70,7 +70,7 @@ impl<T: Gpu> WriteableBuffer<T> {
             phantom_data: PhantomData,
         }
     }
-    fn write_data(&mut self, context: &Context, new_data: &[T]) {
+    pub fn write_data(&mut self, context: &Context, new_data: &[T]) {
         let new_len = new_data.len();
         if self.count < new_len {
             let buffer = context
@@ -89,7 +89,7 @@ impl<T: Gpu> WriteableBuffer<T> {
         }
     }
 
-    fn write_data_shrinking(&mut self, context: &Context, new_data: &[T]) {
+    pub fn write_data_shrinking(&mut self, context: &Context, new_data: &[T]) {
         let new_len = new_data.len();
         if self.count != new_len {
             let buffer = context
@@ -113,8 +113,8 @@ impl<T> DescriptiveBuffer for WriteableBuffer<T>
 where
     T: DescriptiveBuffer + Gpu,
 {
-    fn describe_vertex_buffer(&self, step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
-        self.describe_vertex_buffer(step_mode)
+    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
+        T::describe_vertex_buffer(step_mode)
     }
 }
 
@@ -172,7 +172,7 @@ impl<T: IndexFormatTrait + Gpu> IndexBuffer<T> {
     }
 }
 
-trait DescriptiveBindGroupEntry {
+pub trait DescriptiveBindGroupEntry {
     fn bind_group_entry_description(
         &self,
         binding: u32,
@@ -251,5 +251,9 @@ impl BindGroup {
 
     pub fn layout(&self) -> &BindGroupLayout {
         &self.bind_group_layout
+    }
+
+    pub fn bind<'a>(&'a self, render_pass: &mut RenderPass<'a>, slot: u32) {
+        render_pass.set_bind_group(slot, &self.bind_group, &[]);
     }
 }

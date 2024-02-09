@@ -9,7 +9,6 @@ use wgpu::{
 };
 
 use crate::{
-    buffers::vec2_buffer_description,
     context::Context,
     raw::{Gpu, Raw},
 };
