@@ -9,11 +9,11 @@ edition = "2021"
 glam = { workspace = true }
 tracing = { workspace = true }
 dyn-clone = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 macroquad = "0.4"
 criterion = { workspace = true }
-rand = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [[bench]]

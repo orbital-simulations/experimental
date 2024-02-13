@@ -1,0 +1,17 @@
+[package]
+name = "inspector"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+game_engine = { path = "../game_engine"}
+physics = { path = "../physics"}
+renderer = { path = "../renderer" }
+egui = { workspace = true }
+color-eyre = { workspace = true }
+pollster = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+glam = { workspace = true }
+rand = { workspace = true }
+winit = { workspace = true }

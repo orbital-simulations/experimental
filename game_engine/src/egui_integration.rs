@@ -5,7 +5,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 pub struct EguiIntegration {
     egui_winit_state: egui_winit::State,
     egui_renderer: egui_wgpu::Renderer,
-    egui_screen_descriptor: egui_wgpu::renderer::ScreenDescriptor,
+    egui_screen_descriptor: egui_wgpu::ScreenDescriptor,
 }
 
 impl EguiIntegration {
@@ -18,7 +18,7 @@ impl EguiIntegration {
 
         let egui_renderer = egui_wgpu::Renderer::new(device, surface_format, None, 1);
         let size = window.inner_size();
-        let egui_screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
+        let egui_screen_descriptor = egui_wgpu::ScreenDescriptor {
             size_in_pixels: [size.width, size.height],
             pixels_per_point: scale_factor,
         };
