@@ -29,6 +29,10 @@ impl RenderingContext {
         }
     }
 
-    pub fn camera_description() {
+    pub fn camera(&self) -> &Camera {
+        &self.camera
+    }
+    pub fn camera_mut(&mut self) -> &mut Camera {
+        &mut self.camera
     }
 }

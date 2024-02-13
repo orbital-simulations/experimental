@@ -1,17 +1,15 @@
-use std::mem::size_of;
+use std::{mem::size_of, rc::Rc};
 
 use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
-    util::{BufferInitDescriptor, DeviceExt},
-    vertex_attr_array, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor, RenderPass,
-    RenderPipeline, VertexBufferLayout,
+    vertex_attr_array, BufferAddress, RenderPass,
+    VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
-    buffers::vec2_buffer_description,
-    context::Context,
-    raw::{Gpu, Raw},
+    context::{Context, RenderingContext},
+    raw::Gpu, buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer}, pipeline::{CreatePipeline, Pipeline}, render_pass::RenderTarget,
 };
 
 #[derive(Debug)]
@@ -44,13 +42,6 @@ const LINE_SEGMENT_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 4] =
 const INITIAL_BUFFER_CAPACITY: usize = 4;
 
 const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<LineSegment>()) as u64;
-
-macro_rules! prefix_label {
-    () => {
-        "Line segment "
-    };
-}
-
 const LINE_SEGMENT_VERTICES: [Vec2; 4] = [
     Vec2 { x: -1.0, y: -1.0 },
     Vec2 { x: 1.0, y: -1.0 },
@@ -60,11 +51,11 @@ const LINE_SEGMENT_VERTICES: [Vec2; 4] = [
 
 const LINE_SEGMENT_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
-impl LineSegment {
-    fn buffer_description<'a>() -> VertexBufferLayout<'a> {
+impl DescriptiveBuffer for LineSegment {
+    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<LineSegment>() as BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
+            step_mode,
             attributes: &LINE_SEGMENT_VERTEX_ATTRIBUTES,
         }
     }
@@ -72,105 +63,36 @@ impl LineSegment {
 
 pub struct LineSegmentRenderer {
     line_segments: Vec<LineSegment>,
-    line_segment_pipeline: RenderPipeline,
-    line_segment_buffer_capacity: usize,
-    line_segment_vertex_buffer: Buffer,
-    line_segment_index_buffer: Buffer,
-    line_segment_instance_buffer: Buffer,
+    pipeline: Pipeline,
+    vertex_buffer: WriteableBuffer<Vec2>,
+    index_buffer: IndexBuffer<u16>,
+    instance_buffer: WriteableBuffer<LineSegment>,
 }
 
 impl LineSegmentRenderer {
-    pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
-        let line_segment_shader = context
+    pub fn new(context: &Context, rendering_context: &RenderingContext, render_target: &RenderTarget) -> Self {
+        let shader = Rc::new(context
             .device
-            .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl"));
-        let render_pipeline_layout =
-            context
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
-                    bind_group_layouts: &[projection_bind_group_layout],
-                    push_constant_ranges: &[],
-                });
-        let line_segment_pipeline =
-            context
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some(concat!(prefix_label!(), "render pipeline")),
-                    layout: Some(&render_pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: &line_segment_shader,
-                        entry_point: "vs_main",
-                        buffers: &[vec2_buffer_description(), LineSegment::buffer_description()],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &line_segment_shader,
-                        entry_point: "fs_main",
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: context.output_texture_format,
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent::REPLACE,
-                                alpha: wgpu::BlendComponent::REPLACE,
-                            }),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: Some(wgpu::Face::Back),
-                        // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                        // or Features::POLYGON_MODE_POINT
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        // Requires Features::DEPTH_CLIP_CONTROL
-                        unclipped_depth: false,
-                        // Requires Features::CONSERVATIVE_RASTERIZATION
-                        conservative: false,
-                    },
-                    depth_stencil: None,
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    // If the pipeline will be used with a multiview render pass, this
-                    // indicates how many array layers the attachments will have.
-                    multiview: None,
-                });
+            .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl")));
+        let index_buffer = IndexBuffer::new(context, "circle index buffer", LINE_SEGMENT_INDICES);
+        let vertex_buffer = WriteableBuffer::new(context, "circle vertex buffer", &LINE_SEGMENT_VERTICES, wgpu::BufferUsages::VERTEX);
 
-        let line_segment_vertex_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "vertex buffer")),
-                    contents: LINE_SEGMENT_VERTICES.get_raw(),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
+        let instance_buffer = WriteableBuffer::new(context, "circle instance buffer", &[], wgpu::BufferUsages::VERTEX);
 
-        let line_segment_index_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "index buffer")),
-                    contents: LINE_SEGMENT_INDICES.get_raw(),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
-
-        let line_segment_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some(concat!(prefix_label!(), "instance buffer")),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: INITIAL_BUFFER_SIZE,
-            mapped_at_creation: false,
-        });
+        let pipeline_create_parameters = CreatePipeline {
+            shader,
+            vertex_buffer_layouts: &[Vec2::describe_vertex_buffer(VertexStepMode::Vertex),LineSegment::describe_vertex_buffer(VertexStepMode::Instance)],
+            bind_group_layouts: &[rendering_context.camera().bind_group_layout()],
+            name: "custom mash renderer".to_string(),
+        };
+        let pipeline = Pipeline::new(context, &pipeline_create_parameters, render_target);
 
         Self {
             line_segments: vec![],
-            line_segment_vertex_buffer,
-            line_segment_pipeline,
-            line_segment_buffer_capacity: INITIAL_BUFFER_CAPACITY,
-            line_segment_index_buffer,
-            line_segment_instance_buffer,
+            vertex_buffer,
+            index_buffer,
+            instance_buffer,
+            pipeline,
         }
     }
 
@@ -178,33 +100,17 @@ impl LineSegmentRenderer {
         self.line_segments.push(line_segment);
     }
 
-    pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
+    pub fn render<'a>(&'a mut self, context: &Context, rendering_context: &'a RenderingContext, render_pass: &mut RenderPass<'a>) {
         if !self.line_segments.is_empty() {
-            if self.line_segment_buffer_capacity < self.line_segments.len() {
-                self.line_segment_instance_buffer =
-                    context.device.create_buffer_init(&BufferInitDescriptor {
-                        label: Some(concat!(prefix_label!(), "instance buffer")),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        contents: self.line_segments.get_raw(),
-                    });
-                self.line_segment_buffer_capacity = self.line_segments.len()
-            } else {
-                context.queue.write_buffer(
-                    &self.line_segment_instance_buffer,
-                    0,
-                    self.line_segments.get_raw(),
-                );
-            }
+            self.instance_buffer.write_data(context, &self.line_segments);
 
-            render_pass.set_pipeline(&self.line_segment_pipeline);
-            render_pass.set_vertex_buffer(0, self.line_segment_vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.line_segment_instance_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.line_segment_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
+            render_pass.set_pipeline(&self.pipeline.render_pipeline());
+            rendering_context.camera().bind(render_pass, 0);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            self.index_buffer.set_index_buffer(render_pass);
             render_pass.draw_indexed(
-                0..(LINE_SEGMENT_INDICES.len() as u32),
+                0..self.index_buffer.draw_count(),
                 0,
                 0..(self.line_segments.len() as u32),
             );

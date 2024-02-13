@@ -1,33 +1,36 @@
+use std::rc::Rc;
+
 use wgpu::{
     BindGroupLayout, PipelineLayout, RenderPipeline, ShaderModule, VertexBufferLayout,
-    VertexStepMode,
+    ColorTargetState,
 };
 
 use crate::{
-    buffers::{BindGroup, DescriptiveBuffer},
-    context::Context,
+    context::Context, render_pass::RenderTarget,
 };
 
 pub struct CreatePipeline<'a> {
-    shader: ShaderModule,
-    vertex_buffer_layouts: Vec<VertexBufferLayout<'static>>,
-    bind_group_layouts: &'a [&'a BindGroupLayout],
-    name: String,
+    pub shader: Rc<ShaderModule>,
+    pub vertex_buffer_layouts: &'a [VertexBufferLayout<'static>],
+    pub bind_group_layouts: &'a [&'a BindGroupLayout],
+    pub name: String,
 }
 
-struct Pipeline {
+#[derive(Debug)]
+pub struct Pipeline {
     pipeline_layout: PipelineLayout,
     name: String,
     pipeline: RenderPipeline,
-    shader: ShaderModule,
+    shader: Rc<ShaderModule>,
 }
 
 impl Pipeline {
-    pub fn new<'a>(
+    pub fn new(
         context: &Context,
-        parameters: &CreatePipeline<'a>,
+        parameters: &CreatePipeline,
+        render_target: &RenderTarget,
     ) -> Self {
-        let mut pipeline_layout_descriptor_name = parameters.name;
+        let mut pipeline_layout_descriptor_name = parameters.name.clone();
         pipeline_layout_descriptor_name.push_str("layout descriptor");
 
         let pipeline_layout =
@@ -38,6 +41,17 @@ impl Pipeline {
                     bind_group_layouts: &parameters.bind_group_layouts,
                     push_constant_ranges: &[],
                 });
+
+        let targets:Vec<Option<ColorTargetState>> = render_target.targets().iter().map(|(target_texture, _, _)|{
+                Some(wgpu::ColorTargetState {
+                        format: target_texture.format(),
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })
+        }).collect();
         let pipeline = context
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -51,14 +65,7 @@ impl Pipeline {
                 fragment: Some(wgpu::FragmentState {
                     module: &parameters.shader,
                     entry_point: "fs_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: context.output_texture_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
+                    targets: &targets,
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -75,7 +82,7 @@ impl Pipeline {
                 },
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState {
-                    count: 1,
+                    count: render_target.multisampling(),
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
@@ -84,10 +91,14 @@ impl Pipeline {
                 multiview: None,
             });
         Self {
-            name: parameters.name,
+            name: parameters.name.to_string(),
             pipeline,
-            shader: parameters.shader,
+            shader: parameters.shader.clone(),
             pipeline_layout,
         }
+    }
+
+    pub fn render_pipeline(&self) -> &RenderPipeline{
+        &self.pipeline
     }
 }

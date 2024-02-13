@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::RangeBounds};
 
 use glam::{Vec2, Vec3};
 use wgpu::{
     util::DeviceExt, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingResource,
     Buffer, BufferAddress, BufferUsages, IndexFormat, RenderPass, ShaderStages, VertexAttribute,
-    VertexBufferLayout, VertexFormat, VertexStepMode,
+    VertexBufferLayout, VertexFormat, VertexStepMode, BufferSlice,
 };
 
 use crate::{
@@ -107,6 +107,10 @@ impl<T: Gpu> WriteableBuffer<T> {
                 .write_buffer(&self.buffer, 0, new_data.get_raw());
         }
     }
+
+    pub fn slice<S: RangeBounds<BufferAddress>>(&self, bounds: S) -> BufferSlice<'_> {
+        self.buffer.slice(bounds)
+    }
 }
 
 impl<T> DescriptiveBuffer for WriteableBuffer<T>
@@ -119,7 +123,7 @@ where
 }
 
 pub trait BindableBuffer {
-    fn as_entire_binding<'a>(&self) -> BindingResource<'_>;
+    fn as_entire_binding(&self) -> BindingResource<'_>;
 }
 
 impl<T: Gpu> BindableBuffer for WriteableBuffer<T> {
@@ -152,7 +156,7 @@ pub struct IndexBuffer<T: IndexFormatTrait + Gpu> {
 }
 
 impl<T: IndexFormatTrait + Gpu> IndexBuffer<T> {
-    pub fn new(context: &Context, data: &[T], base_name: &str) -> Self {
+    pub fn new(context: &Context, base_name: &str, data: &[T]) -> Self {
         let mut name = base_name.to_string();
         name.push_str(" index buffer");
         let buffer = WriteableBuffer::new(context, &name, data, BufferUsages::INDEX);
@@ -204,7 +208,7 @@ pub struct BindGroup {
     bind_group_layout: BindGroupLayout,
 }
 
-trait DescriptiveBindableGroupEntry: DescriptiveBindGroupEntry + BindableBuffer {}
+pub trait DescriptiveBindableGroupEntry: DescriptiveBindGroupEntry + BindableBuffer {}
 impl<T: DescriptiveBindGroupEntry + BindableBuffer> DescriptiveBindableGroupEntry for T {}
 
 impl BindGroup {

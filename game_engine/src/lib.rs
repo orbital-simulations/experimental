@@ -127,7 +127,7 @@ impl<'a> GameEngine<'a> {
             desired_maximum_frame_latency: 1,
         };
         surface.configure(&device, &surface_configuration);
-        let context = Context::new(device, queue, swapchain_format);
+        let context = Context::new(device, queue);
         let projection = match game_engine_parameters.projection {
             ProjectionInit::Perspective => Projection::Perspective(PerspectiveProjection::new(
                 size.width as f32,
@@ -147,7 +147,9 @@ impl<'a> GameEngine<'a> {
 
         let egui_integration =
             EguiIntegration::new(window, &context.device, surface_configuration.format);
-        let renderer = Renderer::new(context, size_to_vec2(&size), projection)?;
+
+        let texture = surface.get_current_texture().unwrap();
+        let renderer = Renderer::new(context, size_to_vec2(&size), projection, texture.texture)?;
 
         Ok((
             Self {

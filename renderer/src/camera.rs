@@ -47,15 +47,15 @@ impl Camera {
         self.bind_group.bind(render_pass, slot);
     }
 
-    pub fn set_projection_matrix(&self, context: &Context) {
+    pub fn set_projection_matrix(&mut self, context: &Context) {
         self.projection_matrix_buffer.write_data(context, &[self.projection.make_projection_matrix()]);
     }
 
-    pub fn set_camera_matrix(&self, context: &Context, camera_matrix: &Mat4) {
+    pub fn set_camera_matrix(&mut self, context: &Context, camera_matrix: &Mat4) {
         self.projection_matrix_buffer.write_data(context, from_ref(camera_matrix));
     }
 
-    fn bind_group_layout(&self) -> &BindGroupLayout {
+    pub fn bind_group_layout(&self) -> &BindGroupLayout {
         self.bind_group.layout()
     }
 }

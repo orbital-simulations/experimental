@@ -1,98 +1,42 @@
-use wgpu::{BindGroup, BindGroupLayout, RenderPass, RenderPipeline, ShaderModule, TextureFormat};
+use std::rc::Rc;
 
-use crate::{context::Context, mesh::GpuMesh};
+use wgpu::{RenderPass, ShaderModule};
 
-macro_rules! prefix_label {
-    () => {
-        "Custom mesh "
-    };
-}
+use crate::{context::{Context, RenderingContext}, mesh::GpuMesh, pipeline::{Pipeline, CreatePipeline}, render_pass::RenderTarget};
+
 #[derive(Debug)]
-pub struct CustomMashRenderer {
-    pipeline: RenderPipeline,
+pub struct CustomMeshRenderer {
+    pipeline: Pipeline,
     mesh: GpuMesh,
 }
 
-impl CustomMashRenderer {
+impl CustomMeshRenderer {
     pub fn new(
         context: &Context,
-        common_bind_group_layout: &BindGroupLayout,
         mesh: GpuMesh,
-        shader: ShaderModule,
+        shader: Rc<ShaderModule>,
+        render_target: &RenderTarget,
+        rendering_context: &RenderingContext,
     ) -> Self {
-        let render_pipeline_layout =
-            context
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
-                    bind_group_layouts: &[common_bind_group_layout],
-                    push_constant_ranges: &[],
-                });
-        let pipeline = context
-            .device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some(concat!(prefix_label!(), "render pipeline")),
-                layout: Some(&render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: "vs_main",
-                    buffers: &[
-                        mesh.vertex_buffer_layout.clone(),
-                        mesh.normal_buffer_layout.clone(),
-                    ],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: "fs_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: context.output_texture_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                    // or Features::POLYGON_MODE_POINT
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: TextureFormat::Depth32Float,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less,
-                    stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState::default(),
-                }),
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
-            });
 
+        let pipeline_create_parameters = CreatePipeline {
+            shader,
+            vertex_buffer_layouts: &[mesh.vertex_buffer_layout.clone(), mesh.normal_buffer_layout.clone()],
+            bind_group_layouts: &[rendering_context.camera().bind_group_layout()],
+            name: "custom mash renderer".to_string(),
+        };
+
+        let pipeline = Pipeline::new(context, &pipeline_create_parameters, render_target);
         Self { pipeline, mesh }
     }
 
-    pub fn render<'b>(
-        &'b mut self,
-        common_bind_group: &'b BindGroup,
-        render_pass: &mut RenderPass<'b>,
+    pub fn render<'a>(
+        &'a mut self,
+        rendering_context: &'a RenderingContext,
+        render_pass: &mut RenderPass<'a>,
     ) {
-        render_pass.set_pipeline(&self.pipeline);
-        render_pass.set_bind_group(0, common_bind_group, &[]);
+        render_pass.set_pipeline(&self.pipeline.render_pipeline());
+        rendering_context.camera().bind(render_pass, 0);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.mesh.normal_buffer.slice(..));
         self.mesh.index_buffer.set_index_buffer(render_pass);

@@ -1,17 +1,15 @@
-use std::mem::size_of;
+use std::{mem::size_of, rc::Rc};
 
 use glam::{Vec2, Vec3};
 use wgpu::{
     include_wgsl,
-    util::{BufferInitDescriptor, DeviceExt},
-    vertex_attr_array, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor, RenderPass,
-    RenderPipeline, VertexBufferLayout,
+    vertex_attr_array, BufferAddress, RenderPass,
+    VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
-    buffers::vec2_buffer_description,
-    context::Context,
-    raw::{Gpu, Raw},
+    context::{Context, RenderingContext},
+    raw::Gpu, buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer}, filled_circle::FilledCircle, pipeline::{CreatePipeline, Pipeline}, render_pass::RenderTarget,
 };
 
 #[derive(Debug)]
@@ -54,17 +52,11 @@ const INITIAL_BUFFER_CAPACITY: usize = 4;
 
 const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<StrokeCircle>()) as u64;
 
-macro_rules! prefix_label {
-    () => {
-        "Stroke circle "
-    };
-}
-
-impl StrokeCircle {
-    fn buffer_description<'a>() -> VertexBufferLayout<'a> {
+impl DescriptiveBuffer for StrokeCircle {
+    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<StrokeCircle>() as BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
+            step_mode,
             attributes: &STROKE_CIRCLE_VERTEX_ATTRIBUTES,
         }
     }
@@ -73,108 +65,36 @@ impl StrokeCircle {
 #[derive(Debug)]
 pub struct StrokeCircleRenderer {
     circles: Vec<StrokeCircle>,
-    circle_vertex_buffer: Buffer,
-    circle_index_buffer: Buffer,
-    circle_instance_buffer: Buffer,
-    circle_pipeline: RenderPipeline,
-    circle_instance_buffer_capacity: usize,
+    vertex_buffer: WriteableBuffer<Vec2>,
+    index_buffer: IndexBuffer<u16>,
+    instance_buffer: WriteableBuffer<StrokeCircle>,
+    pipeline: Pipeline,
 }
 
 impl StrokeCircleRenderer {
-    pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
-        let circle_shader = context
+    pub fn new(context: &Context, rendering_context: &RenderingContext, render_target: &RenderTarget) -> Self {
+        let shader = Rc::new(context
             .device
-            .create_shader_module(include_wgsl!("../shaders/stroke_circle.wgsl"));
-        let render_pipeline_layout =
-            context
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
-                    bind_group_layouts: &[projection_bind_group_layout],
-                    push_constant_ranges: &[],
-                });
-        let circle_pipeline =
-            context
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some(concat!(prefix_label!(), "render pipeline")),
-                    layout: Some(&render_pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: &circle_shader,
-                        entry_point: "vs_main",
-                        buffers: &[
-                            vec2_buffer_description(),
-                            StrokeCircle::buffer_description(),
-                        ],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &circle_shader,
-                        entry_point: "fs_main",
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: context.output_texture_format,
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent::REPLACE,
-                                alpha: wgpu::BlendComponent::REPLACE,
-                            }),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: Some(wgpu::Face::Back),
-                        // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                        // or Features::POLYGON_MODE_POINT
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        // Requires Features::DEPTH_CLIP_CONTROL
-                        unclipped_depth: false,
-                        // Requires Features::CONSERVATIVE_RASTERIZATION
-                        conservative: false,
-                    },
-                    depth_stencil: None,
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    // If the pipeline will be used with a multiview render pass, this
-                    // indicates how many array layers the attachments will have.
-                    multiview: None,
-                });
+            .create_shader_module(include_wgsl!("../shaders/stroke_circle.wgsl")));
+        let index_buffer = IndexBuffer::new(context, "circle index buffer", STROKE_CIRCLE_INDICES);
+        let vertex_buffer = WriteableBuffer::new(context, "circle vertex buffer", &STROKE_CIRCLE_VERTICES, wgpu::BufferUsages::VERTEX);
 
-        let circle_vertex_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "vertex buffer")),
-                    contents: STROKE_CIRCLE_VERTICES.get_raw(),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
+        let instance_buffer = WriteableBuffer::new(context, "circle instance buffer", &[], wgpu::BufferUsages::VERTEX);
 
-        let circle_index_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "index buffer")),
-                    contents: STROKE_CIRCLE_INDICES.get_raw(),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
-
-        let circle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some(concat!(prefix_label!(), "instance buffer")),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: INITIAL_BUFFER_SIZE,
-            mapped_at_creation: false,
-        });
+        let pipeline_create_parameters = CreatePipeline {
+            shader,
+            vertex_buffer_layouts: &[Vec2::describe_vertex_buffer(VertexStepMode::Vertex),FilledCircle::describe_vertex_buffer(VertexStepMode::Instance)],
+            bind_group_layouts: &[rendering_context.camera().bind_group_layout()],
+            name: "custom mash renderer".to_string(),
+        };
+        let pipeline = Pipeline::new(context, &pipeline_create_parameters, render_target);
 
         Self {
             circles: vec![],
-            circle_vertex_buffer,
-            circle_index_buffer,
-            circle_instance_buffer,
-            circle_pipeline,
-            circle_instance_buffer_capacity: INITIAL_BUFFER_CAPACITY,
+            vertex_buffer,
+            index_buffer,
+            instance_buffer,
+            pipeline,
         }
     }
 
@@ -182,31 +102,17 @@ impl StrokeCircleRenderer {
         self.circles.push(circle);
     }
 
-    pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
+    pub fn render<'a>(&'a mut self, context: &Context, rendering_context: &'a RenderingContext, render_pass: &mut RenderPass<'a>) {
         if !self.circles.is_empty() {
-            if self.circle_instance_buffer_capacity < self.circles.len() {
-                self.circle_instance_buffer_capacity = self.circles.len();
-                self.circle_instance_buffer =
-                    context.device.create_buffer_init(&BufferInitDescriptor {
-                        label: Some(concat!(prefix_label!(), "instance buffer")),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        contents: self.circles.get_raw(),
-                    });
-            } else {
-                context
-                    .queue
-                    .write_buffer(&self.circle_instance_buffer, 0, self.circles.get_raw());
-            }
+            self.instance_buffer.write_data(context, &self.circles);
 
-            render_pass.set_pipeline(&self.circle_pipeline);
-            render_pass.set_vertex_buffer(0, self.circle_vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.circle_instance_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.circle_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
+            render_pass.set_pipeline(&self.pipeline.render_pipeline());
+            rendering_context.camera().bind(render_pass, 0);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            self.index_buffer.set_index_buffer(render_pass);
             render_pass.draw_indexed(
-                0..(STROKE_CIRCLE_INDICES.len() as u32),
+                0..self.index_buffer.draw_count(),
                 0,
                 0..(self.circles.len() as u32),
             );

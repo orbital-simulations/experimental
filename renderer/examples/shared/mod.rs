@@ -85,7 +85,7 @@ where
     };
     let output_buffer = device.create_buffer(&output_buffer_descriptor);
 
-    let context = Context::new(device, queue, texture_format);
+    let context = Context::new(device, queue);
 
     let projection = Projection::Ortographic(OrtographicProjection::new(
         OUTPUT_WIDTH as f32,
@@ -98,6 +98,7 @@ where
         context,
         vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32),
         projection,
+        texture
     )?;
 
     render(&mut renderer);

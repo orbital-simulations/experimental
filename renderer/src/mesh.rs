@@ -61,7 +61,7 @@ impl GpuMesh {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
-        let index_buffer = IndexBuffer::new(context, indices, "gpu mesh");
+        let index_buffer = IndexBuffer::new(context, "gpu mesh", indices);
         GpuMesh {
             vertex_buffer,
             vertex_buffer_layout: mesh_vertext_buffer_description(),

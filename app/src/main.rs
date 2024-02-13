@@ -6,7 +6,7 @@ use game_engine::{
 };
 use glam::vec3;
 use noise::{NoiseFn, OpenSimplex, Perlin, SuperSimplex};
-use renderer::{custom_mesh_renderer::CustomMashRenderer, mesh::GpuMesh, Renderer};
+use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use wgpu::include_wgsl;
 use winit::{event_loop::EventLoop, window::Window};
@@ -23,7 +23,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         .device
         .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
     let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
-    let custom_renderer = CustomMashRenderer::new(
+    let custom_renderer = CustomMeshRenderer::new(
         &game_engine.renderer.context,
         &game_engine
             .renderer
@@ -59,7 +59,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     //dbg!(&normals);
 
     let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
-    let custom_renderer = CustomMashRenderer::new(
+    let custom_renderer = CustomMeshRenderer::new(
         &game_engine.renderer.context,
         &game_engine
             .renderer
