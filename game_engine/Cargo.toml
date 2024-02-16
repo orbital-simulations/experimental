@@ -14,10 +14,11 @@ winit = { workspace = true }
 renderer = { path = "../renderer" }
 physics = { path = "../physics" }
 itertools = { workspace = true }
-egui = { git = "https://github.com/emilk/egui", package = "egui", features = ["color-hex", "default_fonts", "log", "mint"] }
-egui-winit = { git = "https://github.com/emilk/egui", package = "egui-winit" }
-egui-wgpu = { git = "https://github.com/emilk/egui", package = "egui-wgpu" }
 tobj = "4.0"
+egui = { workspace = true }
+egui-winit = "0.26"
+egui-wgpu = "0.26"
+
 
 [dev-dependencies]
 color-eyre = { workspace = true }

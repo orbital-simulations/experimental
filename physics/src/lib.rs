@@ -11,6 +11,8 @@ pub mod geometry;
 
 pub mod solver;
 
+pub mod scenarios;
+
 /// A representation of a rigid body possessing geometry (`pos`, `angle`, `shape`),
 /// kinematics (`vel`, `omega`) and dynamics (`inv_mass`, `force`, `inv_inertia`, `torque`).
 #[derive(Clone, Debug)]

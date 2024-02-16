@@ -1,6 +1,6 @@
 use macroquad::{time::get_frame_time, window::next_frame};
 use physics::{
-    scenarios::{Resting, Scenario},
+    scenarios::{InclinedFall, Scenario},
     Engine,
 };
 
@@ -13,7 +13,7 @@ pub struct GameState {
 
 impl GameState {
     fn setup(&mut self) {
-        self.engine = Resting {}.create();
+        self.engine = InclinedFall {}.create();
     }
 
     fn update(&mut self) {
