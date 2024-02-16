@@ -149,7 +149,12 @@ impl<'a> GameEngine<'a> {
             EguiIntegration::new(window, &context.device, surface_configuration.format);
 
         let texture = surface.get_current_texture().unwrap();
-        let renderer = Renderer::new(context, size_to_vec2(&size), projection, texture.texture)?;
+        let renderer = Renderer::new(
+            context,
+            size_to_vec2(&size),
+            projection,
+            texture.texture.format(),
+        )?;
 
         Ok((
             Self {
@@ -293,7 +298,8 @@ impl<'a> GameEngine<'a> {
         self.camera_controler
             .update_camera(&mut self.camera, self.last_frame_delta, &self.inputs);
         self.renderer
-            .renderer_context
+            .rendering_context
+            .camera_mut()
             .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();

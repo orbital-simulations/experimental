@@ -1,15 +1,16 @@
-use std::{mem::size_of, rc::Rc};
+use std::rc::Rc;
 
 use glam::{Vec2, Vec3};
 use wgpu::{
-    include_wgsl,
-    vertex_attr_array, BufferAddress, RenderPass,
-    VertexBufferLayout, VertexStepMode,
+    include_wgsl, vertex_attr_array, BufferAddress, RenderPass, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
+    buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    raw::Gpu, buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer}, pipeline::{CreatePipeline, Pipeline}, render_pass::RenderTarget,
+    pipeline::{CreatePipeline, Pipeline},
+    raw::Gpu,
+    render_pass::RenderTargetDescription,
 };
 
 #[derive(Debug)]
@@ -39,9 +40,6 @@ unsafe impl Gpu for LineSegment {}
 const LINE_SEGMENT_VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 4] =
     vertex_attr_array![1 => Float32x2, 2 => Float32x2, 3 => Float32x3, 4 => Float32];
 
-const INITIAL_BUFFER_CAPACITY: usize = 4;
-
-const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<LineSegment>()) as u64;
 const LINE_SEGMENT_VERTICES: [Vec2; 4] = [
     Vec2 { x: -1.0, y: -1.0 },
     Vec2 { x: 1.0, y: -1.0 },
@@ -70,22 +68,45 @@ pub struct LineSegmentRenderer {
 }
 
 impl LineSegmentRenderer {
-    pub fn new(context: &Context, rendering_context: &RenderingContext, render_target: &RenderTarget) -> Self {
-        let shader = Rc::new(context
-            .device
-            .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl")));
+    pub fn new(
+        context: &Context,
+        rendering_context: &RenderingContext,
+        render_target_description: &RenderTargetDescription,
+    ) -> Self {
+        let shader = Rc::new(
+            context
+                .device
+                .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl")),
+        );
         let index_buffer = IndexBuffer::new(context, "circle index buffer", LINE_SEGMENT_INDICES);
-        let vertex_buffer = WriteableBuffer::new(context, "circle vertex buffer", &LINE_SEGMENT_VERTICES, wgpu::BufferUsages::VERTEX);
+        let vertex_buffer = WriteableBuffer::new(
+            context,
+            "circle vertex buffer",
+            &LINE_SEGMENT_VERTICES,
+            wgpu::BufferUsages::VERTEX,
+        );
 
-        let instance_buffer = WriteableBuffer::new(context, "circle instance buffer", &[], wgpu::BufferUsages::VERTEX);
+        let instance_buffer = WriteableBuffer::new(
+            context,
+            "circle instance buffer",
+            &[],
+            wgpu::BufferUsages::VERTEX,
+        );
 
         let pipeline_create_parameters = CreatePipeline {
             shader,
-            vertex_buffer_layouts: &[Vec2::describe_vertex_buffer(VertexStepMode::Vertex),LineSegment::describe_vertex_buffer(VertexStepMode::Instance)],
+            vertex_buffer_layouts: &[
+                Vec2::describe_vertex_buffer(VertexStepMode::Vertex),
+                LineSegment::describe_vertex_buffer(VertexStepMode::Instance),
+            ],
             bind_group_layouts: &[rendering_context.camera().bind_group_layout()],
             name: "custom mash renderer".to_string(),
         };
-        let pipeline = Pipeline::new(context, &pipeline_create_parameters, render_target);
+        let pipeline = Pipeline::new(
+            context,
+            &pipeline_create_parameters,
+            render_target_description,
+        );
 
         Self {
             line_segments: vec![],
@@ -100,11 +121,17 @@ impl LineSegmentRenderer {
         self.line_segments.push(line_segment);
     }
 
-    pub fn render<'a>(&'a mut self, context: &Context, rendering_context: &'a RenderingContext, render_pass: &mut RenderPass<'a>) {
+    pub fn render<'a>(
+        &'a mut self,
+        context: &Context,
+        rendering_context: &'a RenderingContext,
+        render_pass: &mut RenderPass<'a>,
+    ) {
         if !self.line_segments.is_empty() {
-            self.instance_buffer.write_data(context, &self.line_segments);
+            self.instance_buffer
+                .write_data(context, &self.line_segments);
 
-            render_pass.set_pipeline(&self.pipeline.render_pipeline());
+            render_pass.set_pipeline(self.pipeline.render_pipeline());
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

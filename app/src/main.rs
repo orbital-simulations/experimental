@@ -1,11 +1,12 @@
+use std::rc::Rc;
+
 use game_engine::{
     game_engine_3d_parameters,
     mesh::{generate_mesh_normals, generate_mesh_plane},
     obj_loader::load_model_static,
     GameEngine,
 };
-use glam::vec3;
-use noise::{NoiseFn, OpenSimplex, Perlin, SuperSimplex};
+use noise::{NoiseFn, Perlin};
 use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use wgpu::include_wgsl;
@@ -23,15 +24,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         .device
         .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
     let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
-    let custom_renderer = CustomMeshRenderer::new(
-        &game_engine.renderer.context,
-        &game_engine
-            .renderer
-            .renderer_context
-            .common_bind_group_layout,
-        gpu_mesh,
-        shader,
-    );
+    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Rc::new(shader));
     game_engine
         .renderer
         .add_custom_mesh_renderer(custom_renderer);
@@ -59,15 +52,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     //dbg!(&normals);
 
     let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
-    let custom_renderer = CustomMeshRenderer::new(
-        &game_engine.renderer.context,
-        &game_engine
-            .renderer
-            .renderer_context
-            .common_bind_group_layout,
-        gpu_mesh,
-        shader,
-    );
+    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Rc::new(shader));
     game_engine
         .renderer
         .add_custom_mesh_renderer(custom_renderer);

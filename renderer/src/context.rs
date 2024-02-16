@@ -10,10 +10,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(device: Device, queue: Queue) -> Self {
-        Self {
-            device,
-            queue,
-        }
+        Self { device, queue }
     }
 }
 
@@ -24,9 +21,7 @@ pub struct RenderingContext {
 impl RenderingContext {
     pub fn new(context: &Context, projection: Projection) -> Self {
         let camera = Camera::new(context, projection);
-        Self {
-            camera,
-        }
+        Self { camera }
     }
 
     pub fn camera(&self) -> &Camera {

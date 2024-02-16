@@ -3,8 +3,8 @@ use std::{marker::PhantomData, ops::RangeBounds};
 use glam::{Vec2, Vec3};
 use wgpu::{
     util::DeviceExt, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingResource,
-    Buffer, BufferAddress, BufferUsages, IndexFormat, RenderPass, ShaderStages, VertexAttribute,
-    VertexBufferLayout, VertexFormat, VertexStepMode, BufferSlice,
+    Buffer, BufferAddress, BufferSlice, BufferUsages, IndexFormat, RenderPass, ShaderStages,
+    VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode,
 };
 
 use crate::{
@@ -55,6 +55,7 @@ pub struct WriteableBuffer<T: Gpu> {
 
 impl<T: Gpu> WriteableBuffer<T> {
     pub fn new(context: &Context, name: &str, data: &[T], usage: BufferUsages) -> Self {
+        let usage = usage | BufferUsages::COPY_DST;
         let buffer = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -159,7 +160,7 @@ impl<T: IndexFormatTrait + Gpu> IndexBuffer<T> {
     pub fn new(context: &Context, base_name: &str, data: &[T]) -> Self {
         let mut name = base_name.to_string();
         name.push_str(" index buffer");
-        let buffer = WriteableBuffer::new(context, &name, data, BufferUsages::INDEX);
+        let buffer = WriteableBuffer::new(context, &name, data, BufferUsages::INDEX | BufferUsages::COPY_DST);
         Self { buffer }
     }
 

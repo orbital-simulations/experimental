@@ -1,13 +1,11 @@
 use std::rc::Rc;
 
 use wgpu::{
-    BindGroupLayout, PipelineLayout, RenderPipeline, ShaderModule, VertexBufferLayout,
-    ColorTargetState,
+    BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState,
+    RenderPipeline, ShaderModule, StencilState, VertexBufferLayout,
 };
 
-use crate::{
-    context::Context, render_pass::RenderTarget,
-};
+use crate::{context::Context, render_pass::RenderTargetDescription};
 
 pub struct CreatePipeline<'a> {
     pub shader: Rc<ShaderModule>,
@@ -18,7 +16,6 @@ pub struct CreatePipeline<'a> {
 
 #[derive(Debug)]
 pub struct Pipeline {
-    pipeline_layout: PipelineLayout,
     name: String,
     pipeline: RenderPipeline,
     shader: Rc<ShaderModule>,
@@ -28,7 +25,7 @@ impl Pipeline {
     pub fn new(
         context: &Context,
         parameters: &CreatePipeline,
-        render_target: &RenderTarget,
+        render_target_description: &RenderTargetDescription,
     ) -> Self {
         let mut pipeline_layout_descriptor_name = parameters.name.clone();
         pipeline_layout_descriptor_name.push_str("layout descriptor");
@@ -38,20 +35,35 @@ impl Pipeline {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some(pipeline_layout_descriptor_name.as_str()),
-                    bind_group_layouts: &parameters.bind_group_layouts,
+                    bind_group_layouts: parameters.bind_group_layouts,
                     push_constant_ranges: &[],
                 });
 
-        let targets:Vec<Option<ColorTargetState>> = render_target.targets().iter().map(|(target_texture, _, _)|{
+        let targets: Vec<Option<ColorTargetState>> = render_target_description
+            .targets
+            .iter()
+            .map(|target_texture_format| {
                 Some(wgpu::ColorTargetState {
-                        format: target_texture.format(),
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })
-        }).collect();
+                    format: *target_texture_format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent::REPLACE,
+                        alpha: wgpu::BlendComponent::REPLACE,
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })
+            })
+            .collect();
+
+        let depth_stencil =
+            render_target_description
+                .depth_texture
+                .map(|format| DepthStencilState {
+                    format,
+                    depth_write_enabled: true,
+                    depth_compare: CompareFunction::Less,
+                    stencil: StencilState::default(),
+                    bias: DepthBiasState::default(),
+                });
         let pipeline = context
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -60,7 +72,7 @@ impl Pipeline {
                 vertex: wgpu::VertexState {
                     module: &parameters.shader,
                     entry_point: "vs_main",
-                    buffers: &parameters.vertex_buffer_layouts,
+                    buffers: parameters.vertex_buffer_layouts,
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &parameters.shader,
@@ -80,9 +92,9 @@ impl Pipeline {
                     // Requires Features::CONSERVATIVE_RASTERIZATION
                     conservative: false,
                 },
-                depth_stencil: None,
+                depth_stencil,
                 multisample: wgpu::MultisampleState {
-                    count: render_target.multisampling(),
+                    count: render_target_description.multisampling,
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
@@ -94,11 +106,10 @@ impl Pipeline {
             name: parameters.name.to_string(),
             pipeline,
             shader: parameters.shader.clone(),
-            pipeline_layout,
         }
     }
 
-    pub fn render_pipeline(&self) -> &RenderPipeline{
+    pub fn render_pipeline(&self) -> &RenderPipeline {
         &self.pipeline
     }
 }

@@ -9,6 +9,7 @@ use renderer::{
     projection::{OrtographicProjection, Projection},
     Renderer,
 };
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 const OUTPUT_HEIGH: u32 = 600;
 const OUTPUT_WIDTH: u32 = 600;
@@ -27,6 +28,13 @@ pub async fn run<FRender>(render: FRender) -> Result<()>
 where
     FRender: Fn(&mut Renderer),
 {
+    let fmt_layer = tracing_subscriber::fmt::layer().pretty();
+    let filter_layer = EnvFilter::from_default_env();
+    tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(filter_layer)
+        .init();
+    color_eyre::install()?;
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
         ..Default::default()
@@ -98,7 +106,7 @@ where
         context,
         vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32),
         projection,
-        texture
+        texture.format(),
     )?;
 
     render(&mut renderer);

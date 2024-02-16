@@ -1,15 +1,16 @@
-use std::{mem::size_of, rc::Rc};
+use std::rc::Rc;
 
 use glam::{Vec2, Vec3};
 use wgpu::{
-    include_wgsl,
-    vertex_attr_array, BufferAddress, RenderPass,
-    VertexBufferLayout, VertexStepMode,
+    include_wgsl, vertex_attr_array, BufferAddress, RenderPass, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
+    buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    raw::Gpu, buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer}, pipeline::{CreatePipeline, Pipeline}, render_pass::RenderTarget,
+    pipeline::{CreatePipeline, Pipeline},
+    raw::Gpu,
+    render_pass::RenderTargetDescription,
 };
 
 #[derive(Debug)]
@@ -48,25 +49,11 @@ const STROKE_RECTANGLE_VERTICES: [Vec2; 4] = [
 
 const STROKE_RECTANGLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
-const INITIAL_BUFFER_CAPACITY: usize = 4;
-
-const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<StrokeRectangle>()) as u64;
-
 impl DescriptiveBuffer for StrokeRectangle {
     fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<StrokeRectangle>() as BufferAddress,
             step_mode,
-            attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
-        }
-    }
-}
-
-impl StrokeRectangle {
-    fn buffer_description<'a>() -> VertexBufferLayout<'a> {
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<StrokeRectangle>() as BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
         }
     }
@@ -82,22 +69,46 @@ pub struct StrokeRectangleRenderer {
 }
 
 impl StrokeRectangleRenderer {
-    pub fn new(context: &Context, rendering_context: &RenderingContext, render_target: &RenderTarget) -> Self {
-        let shader = Rc::new(context
-            .device
-            .create_shader_module(include_wgsl!("../shaders/stroke_rectangle.wgsl")));
-        let index_buffer = IndexBuffer::new(context, "circle index buffer", STROKE_RECTANGLE_INDICES);
-        let vertex_buffer = WriteableBuffer::new(context, "circle vertex buffer", &STROKE_RECTANGLE_VERTICES, wgpu::BufferUsages::VERTEX);
+    pub fn new(
+        context: &Context,
+        rendering_context: &RenderingContext,
+        render_target_description: &RenderTargetDescription,
+    ) -> Self {
+        let shader = Rc::new(
+            context
+                .device
+                .create_shader_module(include_wgsl!("../shaders/stroke_rectangle.wgsl")),
+        );
+        let index_buffer =
+            IndexBuffer::new(context, "circle index buffer", STROKE_RECTANGLE_INDICES);
+        let vertex_buffer = WriteableBuffer::new(
+            context,
+            "circle vertex buffer",
+            &STROKE_RECTANGLE_VERTICES,
+            wgpu::BufferUsages::VERTEX,
+        );
 
-        let instance_buffer = WriteableBuffer::new(context, "circle instance buffer", &[], wgpu::BufferUsages::VERTEX);
+        let instance_buffer = WriteableBuffer::new(
+            context,
+            "circle instance buffer",
+            &[],
+            wgpu::BufferUsages::VERTEX,
+        );
 
         let pipeline_create_parameters = CreatePipeline {
             shader,
-            vertex_buffer_layouts: &[Vec2::describe_vertex_buffer(VertexStepMode::Vertex),StrokeRectangle::describe_vertex_buffer(VertexStepMode::Instance)],
+            vertex_buffer_layouts: &[
+                Vec2::describe_vertex_buffer(VertexStepMode::Vertex),
+                StrokeRectangle::describe_vertex_buffer(VertexStepMode::Instance),
+            ],
             bind_group_layouts: &[rendering_context.camera().bind_group_layout()],
-            name: "custom mash renderer".to_string(),
+            name: "stroke rectangle renderer".to_string(),
         };
-        let pipeline = Pipeline::new(context, &pipeline_create_parameters, render_target);
+        let pipeline = Pipeline::new(
+            context,
+            &pipeline_create_parameters,
+            render_target_description,
+        );
 
         Self {
             rectangles: vec![],
@@ -112,11 +123,16 @@ impl StrokeRectangleRenderer {
         self.rectangles.push(rectangle);
     }
 
-    pub fn render<'a>(&'a mut self, context: &Context, rendering_context: &'a RenderingContext, render_pass: &mut RenderPass<'a>) {
+    pub fn render<'a>(
+        &'a mut self,
+        context: &Context,
+        rendering_context: &'a RenderingContext,
+        render_pass: &mut RenderPass<'a>,
+    ) {
         if !self.rectangles.is_empty() {
             self.instance_buffer.write_data(context, &self.rectangles);
 
-            render_pass.set_pipeline(&self.pipeline.render_pipeline());
+            render_pass.set_pipeline(self.pipeline.render_pipeline());
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

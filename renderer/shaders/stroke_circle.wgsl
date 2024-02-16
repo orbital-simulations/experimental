@@ -1,5 +1,7 @@
 @group(0) @binding(0)
 var<uniform> projection: mat4x4<f32>;
+@group(0) @binding(1)
+var<uniform> camera: mat4x4<f32>;
 
 struct VertexInput {
     @location(0) position: vec2<f32>,

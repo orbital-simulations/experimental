@@ -1,14 +1,14 @@
 use std::slice::from_ref;
 
+use crate::buffers::{BindGroup, DescriptiveBindGroupEntry};
 use glam::{Mat4, Vec2};
-use wgpu::{ShaderStages, BindGroupLayoutEntry};
-use wgpu::{BindGroupLayout, RenderPass};
-use crate::buffers::{DescriptiveBindGroupEntry, BindGroup};
+use wgpu::{BindGroupLayout, RenderPass, BufferUsages};
+use wgpu::{BindGroupLayoutEntry, ShaderStages};
 
 use crate::{
+    buffers::WriteableBuffer,
     context::Context,
     projection::{Projection, ProjectionManipulation},
-    buffers::WriteableBuffer,
 };
 
 pub struct Camera {
@@ -21,10 +21,27 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(context: &Context, projection: Projection) -> Self {
-        let projection_matrix_buffer: WriteableBuffer<Mat4> = WriteableBuffer::new(&context, "projectino matrix buffer", &[projection.make_projection_matrix()], wgpu::BufferUsages::UNIFORM);
+        let projection_matrix_buffer: WriteableBuffer<Mat4> = WriteableBuffer::new(
+            context,
+            "projectino matrix buffer",
+            &[projection.make_projection_matrix()],
+            BufferUsages::UNIFORM,
+        );
         let camera_identity_matrix = glam::Mat4::IDENTITY;
-        let camera_matrix_buffer: WriteableBuffer<Mat4> = WriteableBuffer::new(&context, "camera matrix buffer", &[camera_identity_matrix], wgpu::BufferUsages::UNIFORM);
-        let bind_group = BindGroup::new(context, "camera", &[(0, ShaderStages::VERTEX, &projection_matrix_buffer), (1, ShaderStages::VERTEX, &camera_matrix_buffer)]);
+        let camera_matrix_buffer: WriteableBuffer<Mat4> = WriteableBuffer::new(
+            context,
+            "camera matrix buffer",
+            &[camera_identity_matrix],
+            BufferUsages::UNIFORM,
+        );
+        let bind_group = BindGroup::new(
+            context,
+            "camera",
+            &[
+                (0, ShaderStages::VERTEX, &projection_matrix_buffer),
+                (1, ShaderStages::VERTEX, &camera_matrix_buffer),
+            ],
+        );
 
         Self {
             bind_group,
@@ -48,11 +65,13 @@ impl Camera {
     }
 
     pub fn set_projection_matrix(&mut self, context: &Context) {
-        self.projection_matrix_buffer.write_data(context, &[self.projection.make_projection_matrix()]);
+        self.projection_matrix_buffer
+            .write_data(context, &[self.projection.make_projection_matrix()]);
     }
 
     pub fn set_camera_matrix(&mut self, context: &Context, camera_matrix: &Mat4) {
-        self.projection_matrix_buffer.write_data(context, from_ref(camera_matrix));
+        self.camera_matrix_buffer
+            .write_data(context, from_ref(camera_matrix));
     }
 
     pub fn bind_group_layout(&self) -> &BindGroupLayout {
@@ -63,8 +82,8 @@ impl Camera {
 impl DescriptiveBindGroupEntry for Camera {
     fn bind_group_entry_description(
         &self,
-        binding: u32,
-        shader_stage: ShaderStages,
+        _binding: u32,
+        _shader_stage: ShaderStages,
     ) -> BindGroupLayoutEntry {
         todo!()
     }
