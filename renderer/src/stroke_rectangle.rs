@@ -96,7 +96,7 @@ impl StrokeRectangleRenderer {
         );
 
         let pipeline_create_parameters = CreatePipeline {
-            shader,
+            shader: &shader,
             vertex_buffer_layouts: &[
                 Vec2::describe_vertex_buffer(VertexStepMode::Vertex),
                 StrokeRectangle::describe_vertex_buffer(VertexStepMode::Instance),

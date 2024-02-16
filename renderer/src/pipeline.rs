@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use wgpu::{
     BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState,
     RenderPipeline, ShaderModule, StencilState, VertexBufferLayout,
@@ -8,7 +6,7 @@ use wgpu::{
 use crate::{context::Context, render_pass::RenderTargetDescription};
 
 pub struct CreatePipeline<'a> {
-    pub shader: Rc<ShaderModule>,
+    pub shader: &'a ShaderModule,
     pub vertex_buffer_layouts: &'a [VertexBufferLayout<'static>],
     pub bind_group_layouts: &'a [&'a BindGroupLayout],
     pub name: String,
@@ -16,9 +14,9 @@ pub struct CreatePipeline<'a> {
 
 #[derive(Debug)]
 pub struct Pipeline {
+    #[allow(dead_code)]
     name: String,
     pipeline: RenderPipeline,
-    shader: Rc<ShaderModule>,
 }
 
 impl Pipeline {
@@ -105,7 +103,6 @@ impl Pipeline {
         Self {
             name: parameters.name.to_string(),
             pipeline,
-            shader: parameters.shader.clone(),
         }
     }
 

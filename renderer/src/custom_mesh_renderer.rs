@@ -34,7 +34,7 @@ impl CustomMeshRenderer {
     ) {
         let pipeline = self.pipeline.get_or_insert_with(|| {
             let pipeline_create_parameters = CreatePipeline {
-                shader: self.shader.clone(),
+                shader: &self.shader,
                 vertex_buffer_layouts: &[
                     self.mesh.vertex_buffer_layout.clone(),
                     self.mesh.normal_buffer_layout.clone(),

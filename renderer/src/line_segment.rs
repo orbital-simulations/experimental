@@ -94,7 +94,7 @@ impl LineSegmentRenderer {
         );
 
         let pipeline_create_parameters = CreatePipeline {
-            shader,
+            shader: &shader,
             vertex_buffer_layouts: &[
                 Vec2::describe_vertex_buffer(VertexStepMode::Vertex),
                 LineSegment::describe_vertex_buffer(VertexStepMode::Instance),

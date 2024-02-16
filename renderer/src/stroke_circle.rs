@@ -8,7 +8,6 @@ use wgpu::{
 use crate::{
     buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    filled_circle::FilledCircle,
     pipeline::{CreatePipeline, Pipeline},
     raw::Gpu,
     render_pass::RenderTargetDescription,
@@ -96,7 +95,7 @@ impl StrokeCircleRenderer {
         );
 
         let pipeline_create_parameters = CreatePipeline {
-            shader,
+            shader: &shader,
             vertex_buffer_layouts: &[
                 Vec2::describe_vertex_buffer(VertexStepMode::Vertex),
                 StrokeCircle::describe_vertex_buffer(VertexStepMode::Instance),
