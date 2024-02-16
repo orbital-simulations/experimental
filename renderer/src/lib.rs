@@ -143,7 +143,7 @@ impl Renderer {
 
     pub fn render(&mut self, texture: &Texture) {
         info!("getting command encoder");
-        let depth_texture =  self.depth_texture.get_or_insert_with(|| {
+        let depth_texture = self.depth_texture.get_or_insert_with(|| {
             let depth_texture_size = wgpu::Extent3d {
                 width: self.size.x as u32,
                 height: self.size.y as u32,
@@ -156,10 +156,13 @@ impl Renderer {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: TextureFormat::Depth32Float,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
                 view_formats: &[TextureFormat::Depth32Float],
             };
-            self.context.device.create_texture(&depth_texture_description)
+            self.context
+                .device
+                .create_texture(&depth_texture_description)
         });
 
         let depth_texture_view = depth_texture.create_view(&TextureViewDescriptor::default());

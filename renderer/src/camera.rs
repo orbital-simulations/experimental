@@ -2,7 +2,7 @@ use std::slice::from_ref;
 
 use crate::buffers::{BindGroup, DescriptiveBindGroupEntry};
 use glam::{Mat4, Vec2};
-use wgpu::{BindGroupLayout, RenderPass, BufferUsages};
+use wgpu::{BindGroupLayout, BufferUsages, RenderPass};
 use wgpu::{BindGroupLayoutEntry, ShaderStages};
 
 use crate::{

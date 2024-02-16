@@ -68,12 +68,12 @@ impl Pipeline {
                 label: Some(&parameters.name),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &parameters.shader,
+                    module: parameters.shader,
                     entry_point: "vs_main",
                     buffers: parameters.vertex_buffer_layouts,
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module: &parameters.shader,
+                    module: parameters.shader,
                     entry_point: "fs_main",
                     targets: &targets,
                 }),

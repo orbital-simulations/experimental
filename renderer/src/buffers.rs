@@ -160,7 +160,12 @@ impl<T: IndexFormatTrait + Gpu> IndexBuffer<T> {
     pub fn new(context: &Context, base_name: &str, data: &[T]) -> Self {
         let mut name = base_name.to_string();
         name.push_str(" index buffer");
-        let buffer = WriteableBuffer::new(context, &name, data, BufferUsages::INDEX | BufferUsages::COPY_DST);
+        let buffer = WriteableBuffer::new(
+            context,
+            &name,
+            data,
+            BufferUsages::INDEX | BufferUsages::COPY_DST,
+        );
         Self { buffer }
     }
 
