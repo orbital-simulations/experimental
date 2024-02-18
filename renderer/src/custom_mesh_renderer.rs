@@ -1,10 +1,12 @@
 use std::rc::Rc;
 
-use wgpu::{vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode};
 use glam::Vec3;
+use wgpu::{vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode};
 
 use crate::{
-    context::{Context, RenderingContext}, mesh::GpuMesh, pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription}
+    context::{Context, RenderingContext},
+    mesh::GpuMesh,
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
 };
 
 #[derive(Debug)]
@@ -15,7 +17,10 @@ pub struct CustomMeshRenderer {
 }
 
 impl PipelineCreator for CustomMeshRenderer {
-    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+    fn create_pipeline<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -28,7 +33,7 @@ impl PipelineCreator for CustomMeshRenderer {
                     array_stride: std::mem::size_of::<Vec3>() as u64,
                     step_mode: VertexStepMode::Vertex,
                     attributes: &vertex_attr_array![1 => Float32x3],
-                }
+                },
             ],
             bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
             name: "custom mesh renderer".to_string(),
@@ -53,17 +58,16 @@ impl CustomMeshRenderer {
         render_target_description: &RenderTargetDescription,
     ) {
         if self.pipeline.is_none() {
-            let pipeline = Pipeline::new(
-                    context,
-                    self,
-                    render_target_description,
-                    rendering_context,
-                );
+            let pipeline =
+                Pipeline::new(context, self, render_target_description, rendering_context);
 
             self.pipeline = Some(pipeline);
         }
 
-        let pipeline = &self.pipeline.as_ref().expect("pipeline should be created by now");
+        let pipeline = &self
+            .pipeline
+            .as_ref()
+            .expect("pipeline should be created by now");
 
         render_pass.set_pipeline(pipeline.render_pipeline());
         rendering_context.camera().bind(render_pass, 0);

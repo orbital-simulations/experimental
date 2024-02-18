@@ -1,7 +1,6 @@
-
 use glam::{Vec2, Vec3};
 use wgpu::{
-    ShaderModule, include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode
+    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
@@ -53,11 +52,14 @@ pub struct LineSegmentRenderer {
     vertex_buffer: WriteableBuffer<Vec2>,
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<LineSegment>,
-    shader: ShaderModule
+    shader: ShaderModule,
 }
 
 impl PipelineCreator for LineSegmentRenderer {
-    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+    fn create_pipeline<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -70,7 +72,7 @@ impl PipelineCreator for LineSegmentRenderer {
                     array_stride: std::mem::size_of::<LineSegment>() as u64,
                     step_mode: VertexStepMode::Instance,
                     attributes: &LINE_SEGMENT_VERTEX_ATTRIBUTES,
-                }
+                },
             ],
             bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
             name: "line segment renderer".to_string(),
@@ -79,13 +81,10 @@ impl PipelineCreator for LineSegmentRenderer {
 }
 
 impl LineSegmentRenderer {
-    pub fn new(
-        context: &Context,
-    ) -> Self {
-        let shader =
-            context
-                .device
-                .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl"));
+    pub fn new(context: &Context) -> Self {
+        let shader = context
+            .device
+            .create_shader_module(include_wgsl!("../shaders/line_segment.wgsl"));
         let index_buffer = IndexBuffer::new(context, "circle index buffer", LINE_SEGMENT_INDICES);
         let vertex_buffer = WriteableBuffer::new(
             context,
@@ -120,24 +119,23 @@ impl LineSegmentRenderer {
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
-        render_target_description: &RenderTargetDescription
+        render_target_description: &RenderTargetDescription,
     ) {
         if !self.line_segments.is_empty() {
             self.instance_buffer
                 .write_data(context, &self.line_segments);
 
             if self.pipeline.is_none() {
-            let pipeline = Pipeline::new(
-                    context,
-                    self,
-                    render_target_description,
-                    rendering_context,
-                );
+                let pipeline =
+                    Pipeline::new(context, self, render_target_description, rendering_context);
 
-            self.pipeline = Some(pipeline);
-        }
+                self.pipeline = Some(pipeline);
+            }
 
-        let pipeline = &self.pipeline.as_ref().expect("pipeline should be created by now");
+            let pipeline = &self
+                .pipeline
+                .as_ref()
+                .expect("pipeline should be created by now");
 
             render_pass.set_pipeline(pipeline.render_pipeline());
             rendering_context.camera().bind(render_pass, 0);

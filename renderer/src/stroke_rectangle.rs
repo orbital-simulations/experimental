@@ -1,10 +1,13 @@
 use glam::{Vec2, Vec3};
 use wgpu::{
-    ShaderModule, include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode
+    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer}, context::{Context, RenderingContext}, pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription}, raw::Gpu
+    buffers::{IndexBuffer, WriteableBuffer},
+    context::{Context, RenderingContext},
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    raw::Gpu,
 };
 
 #[derive(Debug)]
@@ -54,7 +57,10 @@ pub struct StrokeRectangleRenderer {
 }
 
 impl PipelineCreator for StrokeRectangleRenderer {
-    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+    fn create_pipeline<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -67,7 +73,7 @@ impl PipelineCreator for StrokeRectangleRenderer {
                     array_stride: std::mem::size_of::<StrokeRectangle>() as u64,
                     step_mode: VertexStepMode::Instance,
                     attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
-                }
+                },
             ],
             bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
             name: "stroke rectangle renderer".to_string(),
@@ -76,13 +82,10 @@ impl PipelineCreator for StrokeRectangleRenderer {
 }
 
 impl StrokeRectangleRenderer {
-    pub fn new(
-        context: &Context,
-    ) -> Self {
-        let shader =
-            context
-                .device
-                .create_shader_module(include_wgsl!("../shaders/stroke_rectangle.wgsl"));
+    pub fn new(context: &Context) -> Self {
+        let shader = context
+            .device
+            .create_shader_module(include_wgsl!("../shaders/stroke_rectangle.wgsl"));
         let index_buffer =
             IndexBuffer::new(context, "circle index buffer", STROKE_RECTANGLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
@@ -124,17 +127,16 @@ impl StrokeRectangleRenderer {
             self.instance_buffer.write_data(context, &self.rectangles);
 
             if self.pipeline.is_none() {
-            let pipeline = Pipeline::new(
-                    context,
-                    self,
-                    render_target_description,
-                    rendering_context,
-                );
+                let pipeline =
+                    Pipeline::new(context, self, render_target_description, rendering_context);
 
-            self.pipeline = Some(pipeline);
-        }
+                self.pipeline = Some(pipeline);
+            }
 
-        let pipeline = &self.pipeline.as_ref().expect("pipeline should be created by now");
+            let pipeline = &self
+                .pipeline
+                .as_ref()
+                .expect("pipeline should be created by now");
 
             render_pass.set_pipeline(pipeline.render_pipeline());
             rendering_context.camera().bind(render_pass, 0);

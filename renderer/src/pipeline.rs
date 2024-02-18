@@ -1,5 +1,6 @@
 use wgpu::{
-    BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState, RenderPipeline, ShaderModule, StencilState, TextureFormat, VertexBufferLayout
+    BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState,
+    RenderPipeline, ShaderModule, StencilState, TextureFormat, VertexBufferLayout,
 };
 
 use crate::context::{Context, RenderingContext};
@@ -26,7 +27,8 @@ pub struct Pipeline {
 }
 
 pub trait PipelineCreator {
-    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a>;
+    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext)
+        -> CreatePipeline<'a>;
 }
 
 impl Pipeline {
@@ -36,7 +38,6 @@ impl Pipeline {
         render_target_description: &RenderTargetDescription,
         rendering_context: &RenderingContext,
     ) -> Self {
-
         let parameters = pipeline_creator.create_pipeline(rendering_context);
         let mut pipeline_layout_descriptor_name = parameters.name.clone();
         pipeline_layout_descriptor_name.push_str("layout descriptor");

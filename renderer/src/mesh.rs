@@ -1,6 +1,9 @@
 use glam::Vec3;
 
-use crate::{buffers::{IndexBuffer, WriteableBuffer}, context::Context};
+use crate::{
+    buffers::{IndexBuffer, WriteableBuffer},
+    context::Context,
+};
 
 #[derive(Debug)]
 pub struct GpuMesh {
@@ -11,8 +14,18 @@ pub struct GpuMesh {
 
 impl GpuMesh {
     pub fn new(context: &Context, vertices: &[Vec3], normals: &[Vec3], indices: &[u32]) -> GpuMesh {
-        let vertex_buffer = WriteableBuffer::new(context, "mesh vertex buffer", vertices, wgpu::BufferUsages::VERTEX);
-        let normal_buffer = WriteableBuffer::new(context, "mesh normals buffer", normals, wgpu::BufferUsages::VERTEX);
+        let vertex_buffer = WriteableBuffer::new(
+            context,
+            "mesh vertex buffer",
+            vertices,
+            wgpu::BufferUsages::VERTEX,
+        );
+        let normal_buffer = WriteableBuffer::new(
+            context,
+            "mesh normals buffer",
+            normals,
+            wgpu::BufferUsages::VERTEX,
+        );
 
         let index_buffer = IndexBuffer::new(context, "gpu mesh", indices);
         GpuMesh {

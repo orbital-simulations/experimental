@@ -1,6 +1,6 @@
 use glam::{Vec2, Vec3};
 use wgpu::{
-    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode
+    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
@@ -51,7 +51,10 @@ pub struct FilledRectangleRenderer {
 }
 
 impl PipelineCreator for FilledRectangleRenderer {
-    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+    fn create_pipeline<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -64,7 +67,7 @@ impl PipelineCreator for FilledRectangleRenderer {
                     array_stride: std::mem::size_of::<FilledRectangle>() as u64,
                     step_mode: VertexStepMode::Instance,
                     attributes: &RECTANGLE_VERTEX_ATTRIBUTES,
-                }
+                },
             ],
             bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
             name: "filled rectangle renderer".to_string(),
@@ -73,13 +76,10 @@ impl PipelineCreator for FilledRectangleRenderer {
 }
 
 impl FilledRectangleRenderer {
-    pub fn new(
-        context: &Context,
-    ) -> Self {
-        let shader =
-            context
-                .device
-                .create_shader_module(include_wgsl!("../shaders/filled_rectangle.wgsl"));
+    pub fn new(context: &Context) -> Self {
+        let shader = context
+            .device
+            .create_shader_module(include_wgsl!("../shaders/filled_rectangle.wgsl"));
         let index_buffer = IndexBuffer::new(context, "rectangle index buffer", RECTANGLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
             context,
@@ -94,7 +94,6 @@ impl FilledRectangleRenderer {
             &[],
             wgpu::BufferUsages::VERTEX,
         );
-
 
         Self {
             rectangles: vec![],
@@ -115,23 +114,22 @@ impl FilledRectangleRenderer {
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
-        render_target_description: &RenderTargetDescription
+        render_target_description: &RenderTargetDescription,
     ) {
         if !self.rectangles.is_empty() {
             self.instance_buffer.write_data(context, &self.rectangles);
 
             if self.pipeline.is_none() {
-            let pipeline = Pipeline::new(
-                    context,
-                    self,
-                    render_target_description,
-                    rendering_context,
-                );
+                let pipeline =
+                    Pipeline::new(context, self, render_target_description, rendering_context);
 
-            self.pipeline = Some(pipeline);
-        }
+                self.pipeline = Some(pipeline);
+            }
 
-        let pipeline = &self.pipeline.as_ref().expect("pipeline should be created by now");
+            let pipeline = &self
+                .pipeline
+                .as_ref()
+                .expect("pipeline should be created by now");
 
             render_pass.set_pipeline(pipeline.render_pipeline());
             rendering_context.camera().bind(render_pass, 0);

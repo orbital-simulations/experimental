@@ -1,10 +1,13 @@
 use glam::{Vec2, Vec3};
 use wgpu::{
-    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode
+    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer}, context::{Context, RenderingContext}, pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription}, raw::Gpu
+    buffers::{IndexBuffer, WriteableBuffer},
+    context::{Context, RenderingContext},
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    raw::Gpu,
 };
 
 #[derive(Debug)]
@@ -54,7 +57,10 @@ pub struct StrokeCircleRenderer {
 }
 
 impl PipelineCreator for StrokeCircleRenderer {
-    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+    fn create_pipeline<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -67,7 +73,7 @@ impl PipelineCreator for StrokeCircleRenderer {
                     array_stride: std::mem::size_of::<StrokeCircle>() as u64,
                     step_mode: VertexStepMode::Instance,
                     attributes: &STROKE_CIRCLE_VERTEX_ATTRIBUTES,
-                }
+                },
             ],
             bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
             name: "filled circle renderer".to_string(),
@@ -76,13 +82,10 @@ impl PipelineCreator for StrokeCircleRenderer {
 }
 
 impl StrokeCircleRenderer {
-    pub fn new(
-        context: &Context,
-    ) -> Self {
-        let shader =
-            context
-                .device
-                .create_shader_module(include_wgsl!("../shaders/stroke_circle.wgsl"));
+    pub fn new(context: &Context) -> Self {
+        let shader = context
+            .device
+            .create_shader_module(include_wgsl!("../shaders/stroke_circle.wgsl"));
         let index_buffer = IndexBuffer::new(context, "circle index buffer", STROKE_CIRCLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
             context,
@@ -117,24 +120,22 @@ impl StrokeCircleRenderer {
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
-        render_target_description: &RenderTargetDescription
+        render_target_description: &RenderTargetDescription,
     ) {
         if !self.circles.is_empty() {
             self.instance_buffer.write_data(context, &self.circles);
 
             if self.pipeline.is_none() {
-            let pipeline = Pipeline::new(
-                    context,
-                    self,
-                    render_target_description,
-                    rendering_context,
-                );
+                let pipeline =
+                    Pipeline::new(context, self, render_target_description, rendering_context);
 
-            self.pipeline = Some(pipeline);
-        }
+                self.pipeline = Some(pipeline);
+            }
 
-        let pipeline = &self.pipeline.as_ref().expect("pipeline should be created by now");
-
+            let pipeline = &self
+                .pipeline
+                .as_ref()
+                .expect("pipeline should be created by now");
 
             render_pass.set_pipeline(pipeline.render_pipeline());
             rendering_context.camera().bind(render_pass, 0);

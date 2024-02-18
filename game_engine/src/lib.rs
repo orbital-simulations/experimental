@@ -10,14 +10,14 @@ use glam::{vec2, vec3, Vec2};
 use inputs::Inputs;
 use renderer::projection::{OrtographicProjection, PerspectiveProjection, Projection};
 use renderer::Renderer;
-use wgpu::util::parse_backends_from_comma_list;
 use std::f32::consts::PI;
 use std::time::Instant;
 use tracing::{debug, info, warn};
+use wgpu::util::parse_backends_from_comma_list;
 use wgpu::{
-    DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor,
-    InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureUsages,
+    DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor, InstanceFlags,
+    Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface, SurfaceConfiguration,
+    TextureUsages,
 };
 
 use winit::event::WindowEvent::{
@@ -79,11 +79,12 @@ impl<'a> GameEngine<'a> {
         game_engine_parameters: MkGameEngine,
     ) -> eyre::Result<(Self, EventLoop<()>)> {
         let backends = std::env::var("WGPU_BACKEND")
-        .as_deref()
-        .map(str::to_lowercase)
-        .ok()
-        .as_deref()
-        .map(parse_backends_from_comma_list).unwrap_or_default();
+            .as_deref()
+            .map(str::to_lowercase)
+            .ok()
+            .as_deref()
+            .map(parse_backends_from_comma_list)
+            .unwrap_or_default();
         let instance = Instance::new(InstanceDescriptor {
             backends,
             dx12_shader_compiler: Default::default(),

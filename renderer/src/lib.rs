@@ -58,21 +58,11 @@ impl Renderer {
             depth_texture: Some(TextureFormat::Depth32Float),
             targets: vec![main_surface_format],
         };
-        let filled_circle_renderer = FilledCircleRenderer::new(
-            &context,
-        );
-        let stroke_circle_renderer = StrokeCircleRenderer::new(
-            &context,
-        );
-        let filled_rectangle_renderer = FilledRectangleRenderer::new(
-            &context,
-        );
-        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(
-            &context,
-        );
-        let line_segment_renderer = LineSegmentRenderer::new(
-            &context,
-        );
+        let filled_circle_renderer = FilledCircleRenderer::new(&context);
+        let stroke_circle_renderer = StrokeCircleRenderer::new(&context);
+        let filled_rectangle_renderer = FilledRectangleRenderer::new(&context);
+        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context);
+        let line_segment_renderer = LineSegmentRenderer::new(&context);
 
         Ok(Self {
             context,
