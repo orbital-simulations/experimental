@@ -9,6 +9,8 @@ use renderer::{
     projection::{OrtographicProjection, Projection},
     Renderer,
 };
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use wgpu::util::parse_backends_from_comma_list;
 
 const OUTPUT_HEIGH: u32 = 600;
 const OUTPUT_WIDTH: u32 = 600;
@@ -27,8 +29,22 @@ pub async fn run<FRender>(render: FRender) -> Result<()>
 where
     FRender: Fn(&mut Renderer),
 {
+    let fmt_layer = tracing_subscriber::fmt::layer().pretty();
+    let filter_layer = EnvFilter::from_default_env();
+    tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(filter_layer)
+        .init();
+    color_eyre::install()?;
+    let backends = std::env::var("WGPU_BACKEND")
+        .as_deref()
+        .map(str::to_lowercase)
+        .ok()
+        .as_deref()
+        .map(parse_backends_from_comma_list)
+        .unwrap_or_default();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::all(),
+        backends,
         ..Default::default()
     });
     let adapter = instance
@@ -85,7 +101,7 @@ where
     };
     let output_buffer = device.create_buffer(&output_buffer_descriptor);
 
-    let context = Context::new(device, queue, texture_format);
+    let context = Context::new(device, queue);
 
     let projection = Projection::Ortographic(OrtographicProjection::new(
         OUTPUT_WIDTH as f32,
@@ -98,6 +114,7 @@ where
         context,
         vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32),
         projection,
+        texture.format(),
     )?;
 
     render(&mut renderer);

@@ -1,4 +1,5 @@
 pub mod buffers;
+pub mod camera;
 pub mod colors;
 pub mod context;
 pub mod custom_mesh_renderer;
@@ -6,55 +7,64 @@ pub mod filled_circle;
 pub mod filled_rectangle;
 pub mod line_segment;
 pub mod mesh;
+pub mod pipeline;
 pub mod projection;
 pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
 
 use context::{Context, RenderingContext};
-use custom_mesh_renderer::CustomMashRenderer;
+use custom_mesh_renderer::CustomMeshRenderer;
 use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
 use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
-use projection::{Projection, ProjectionManipulation};
+use pipeline::RenderTargetDescription;
+use projection::Projection;
 
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
-use tracing::{info, warn};
-use wgpu::{StoreOp, Texture};
+use tracing::info;
+use wgpu::{
+    Color, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
+    StoreOp, Texture, TextureFormat, TextureViewDescriptor,
+};
 
 pub struct Renderer {
     pub context: Context,
-    pub renderer_context: RenderingContext,
-
+    pub rendering_context: RenderingContext,
     filled_circle_renderer: FilledCircleRenderer,
     stroke_circle_renderer: StrokeCircleRenderer,
     filled_rectangle_renderer: FilledRectangleRenderer,
     stroke_rectangle_renderer: StrokeRectangleRenderer,
     line_segment_renderer: LineSegmentRenderer,
-    custom_mesh_renderers: Vec<CustomMashRenderer>,
-    projection: Projection,
+    custom_mesh_renderers: Vec<CustomMeshRenderer>,
     size: Vec2,
+    depth_texture: Option<Texture>,
+    window_render_target_description: RenderTargetDescription,
 }
 
 impl Renderer {
-    pub fn new(context: Context, size: Vec2, projection: Projection) -> eyre::Result<Self> {
-        let renderer_context = RenderingContext::new(&context, &projection);
+    pub fn new(
+        context: Context,
+        size: Vec2,
+        projection: Projection,
+        main_surface_format: TextureFormat,
+    ) -> eyre::Result<Self> {
+        let rendering_context = RenderingContext::new(&context, projection);
 
-        let filled_circle_renderer =
-            FilledCircleRenderer::new(&context, &renderer_context.common_bind_group_layout);
-        let stroke_circle_renderer =
-            StrokeCircleRenderer::new(&context, &renderer_context.common_bind_group_layout);
-        let filled_rectangle_renderer =
-            FilledRectangleRenderer::new(&context, &renderer_context.common_bind_group_layout);
-        let stroke_rectangle_renderer =
-            StrokeRectangleRenderer::new(&context, &renderer_context.common_bind_group_layout);
-        let line_segment_renderer =
-            LineSegmentRenderer::new(&context, &renderer_context.common_bind_group_layout);
+        let window_render_target_description = RenderTargetDescription {
+            multisampling: 1,
+            depth_texture: Some(TextureFormat::Depth32Float),
+            targets: vec![main_surface_format],
+        };
+        let filled_circle_renderer = FilledCircleRenderer::new(&context);
+        let stroke_circle_renderer = StrokeCircleRenderer::new(&context);
+        let filled_rectangle_renderer = FilledRectangleRenderer::new(&context);
+        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context);
+        let line_segment_renderer = LineSegmentRenderer::new(&context);
 
         Ok(Self {
-            renderer_context,
             context,
             filled_circle_renderer,
             stroke_circle_renderer,
@@ -63,7 +73,9 @@ impl Renderer {
             line_segment_renderer,
             size,
             custom_mesh_renderers: vec![],
-            projection,
+            rendering_context,
+            depth_texture: None,
+            window_render_target_description,
         })
     }
 
@@ -88,31 +100,53 @@ impl Renderer {
         self.line_segment_renderer.add_line_segment(line_segment);
     }
 
-    pub fn add_custom_mesh_renderer(&mut self, custom_mesh_renderer: CustomMashRenderer) {
+    pub fn add_custom_mesh_renderer(&mut self, custom_mesh_renderer: CustomMeshRenderer) {
         self.custom_mesh_renderers.push(custom_mesh_renderer);
     }
 
     pub fn on_resize(&mut self, new_size: Vec2) {
         info!("on resize event received new_size: {:?}", new_size);
         self.size = new_size;
-        self.projection.resize(new_size.x, new_size.y);
-        self.renderer_context
-            .set_projection_matrix(&self.context, &self.projection.make_projection_matrix());
+        self.rendering_context
+            .camera_mut()
+            .on_resize(new_size, &self.context);
+        self.depth_texture = None;
     }
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
-        self.projection.scale(scale_factor as f32);
-        self.renderer_context
-            .set_projection_matrix(&self.context, &self.projection.make_projection_matrix());
+        self.rendering_context
+            .camera_mut()
+            .on_scale_factor_change(scale_factor, &self.context);
     }
 
     pub fn render(&mut self, texture: &Texture) {
-        warn!("projection: {:?}", self.projection);
-        info!("creating view from the texture");
-        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
         info!("getting command encoder");
+        let depth_texture = self.depth_texture.get_or_insert_with(|| {
+            let depth_texture_size = wgpu::Extent3d {
+                width: self.size.x as u32,
+                height: self.size.y as u32,
+                depth_or_array_layers: 1,
+            };
+            let depth_texture_description = wgpu::TextureDescriptor {
+                label: Some("depth texture"),
+                size: depth_texture_size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: TextureFormat::Depth32Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[TextureFormat::Depth32Float],
+            };
+            self.context
+                .device
+                .create_texture(&depth_texture_description)
+        });
+
+        let depth_texture_view = depth_texture.create_view(&TextureViewDescriptor::default());
+
+        let texture_view = texture.create_view(&TextureViewDescriptor::default());
         let mut encoder =
             self.context
                 .device
@@ -120,42 +154,73 @@ impl Renderer {
                     label: Some("GPU Encoder"),
                 });
         {
+            let color_attachments = [Some(RenderPassColorAttachment {
+                view: &texture_view,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Clear(Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    store: StoreOp::Store,
+                },
+            })];
+
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Shapes Renderer Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &texture_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
+                color_attachments: &color_attachments,
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &depth_texture_view,
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Clear(1.0),
                         store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
 
-            self.renderer_context.bind(&mut render_pass, 0);
-
-            self.filled_circle_renderer
-                .render(&self.context, &mut render_pass);
-            self.stroke_circle_renderer
-                .render(&self.context, &mut render_pass);
-            self.filled_rectangle_renderer
-                .render(&self.context, &mut render_pass);
-            self.line_segment_renderer
-                .render(&self.context, &mut render_pass);
-            self.stroke_rectangle_renderer
-                .render(&self.context, &mut render_pass);
+            self.filled_circle_renderer.render(
+                &self.context,
+                &self.rendering_context,
+                &mut render_pass,
+                &self.window_render_target_description,
+            );
+            self.stroke_circle_renderer.render(
+                &self.context,
+                &self.rendering_context,
+                &mut render_pass,
+                &self.window_render_target_description,
+            );
+            self.filled_rectangle_renderer.render(
+                &self.context,
+                &self.rendering_context,
+                &mut render_pass,
+                &self.window_render_target_description,
+            );
+            self.line_segment_renderer.render(
+                &self.context,
+                &self.rendering_context,
+                &mut render_pass,
+                &self.window_render_target_description,
+            );
+            self.stroke_rectangle_renderer.render(
+                &self.context,
+                &self.rendering_context,
+                &mut render_pass,
+                &self.window_render_target_description,
+            );
 
             for custom_mesh_renderer in self.custom_mesh_renderers.iter_mut() {
-                custom_mesh_renderer
-                    .render(&self.renderer_context.common_bind_group, &mut render_pass);
+                custom_mesh_renderer.render(
+                    &self.rendering_context,
+                    &self.context,
+                    &mut render_pass,
+                    &self.window_render_target_description,
+                );
             }
         }
 

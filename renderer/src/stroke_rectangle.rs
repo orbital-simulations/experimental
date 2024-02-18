@@ -1,17 +1,13 @@
-use std::mem::size_of;
-
 use glam::{Vec2, Vec3};
 use wgpu::{
-    include_wgsl,
-    util::{BufferInitDescriptor, DeviceExt},
-    vertex_attr_array, BindGroupLayout, Buffer, BufferAddress, BufferDescriptor, RenderPass,
-    RenderPipeline, VertexBufferLayout,
+    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode,
 };
 
 use crate::{
-    buffers::vec2_buffer_description,
-    context::Context,
-    raw::{Gpu, Raw},
+    buffers::{IndexBuffer, WriteableBuffer},
+    context::{Context, RenderingContext},
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    raw::Gpu,
 };
 
 #[derive(Debug)]
@@ -50,131 +46,69 @@ const STROKE_RECTANGLE_VERTICES: [Vec2; 4] = [
 
 const STROKE_RECTANGLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
-const INITIAL_BUFFER_CAPACITY: usize = 4;
-
-const INITIAL_BUFFER_SIZE: u64 = (INITIAL_BUFFER_CAPACITY * size_of::<StrokeRectangle>()) as u64;
-
-macro_rules! prefix_label {
-    () => {
-        "Stroke rectangle "
-    };
+#[derive(Debug)]
+pub struct StrokeRectangleRenderer {
+    rectangles: Vec<StrokeRectangle>,
+    vertex_buffer: WriteableBuffer<Vec2>,
+    index_buffer: IndexBuffer<u16>,
+    instance_buffer: WriteableBuffer<StrokeRectangle>,
+    pipeline: Option<Pipeline>,
+    shader: ShaderModule,
 }
 
-impl StrokeRectangle {
-    fn buffer_description<'a>() -> VertexBufferLayout<'a> {
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<StrokeRectangle>() as BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
+impl PipelineCreator for StrokeRectangleRenderer {
+    fn create_pipeline<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
+        CreatePipeline {
+            shader: &self.shader,
+            vertex_buffer_layouts: vec![
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vec2>() as u64,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &vertex_attr_array![0 => Float32x2],
+                },
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<StrokeRectangle>() as u64,
+                    step_mode: VertexStepMode::Instance,
+                    attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
+                },
+            ],
+            bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
+            name: "stroke rectangle renderer".to_string(),
         }
     }
 }
 
-#[derive(Debug)]
-pub struct StrokeRectangleRenderer {
-    rectangles: Vec<StrokeRectangle>,
-    rectangle_vertex_buffer: Buffer,
-    rectangle_index_buffer: Buffer,
-    rectangle_instance_buffer: Buffer,
-    rectangle_pipeline: RenderPipeline,
-    rectangle_instance_buffer_capacity: usize,
-}
-
 impl StrokeRectangleRenderer {
-    pub fn new(context: &Context, projection_bind_group_layout: &BindGroupLayout) -> Self {
-        let rectangle_shader = context
+    pub fn new(context: &Context) -> Self {
+        let shader = context
             .device
             .create_shader_module(include_wgsl!("../shaders/stroke_rectangle.wgsl"));
-        let render_pipeline_layout =
-            context
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some(concat!(prefix_label!(), "render pipeline layout")),
-                    bind_group_layouts: &[projection_bind_group_layout],
-                    push_constant_ranges: &[],
-                });
-        let rectangle_pipeline =
-            context
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some(concat!(prefix_label!(), "render pipeline")),
-                    layout: Some(&render_pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: &rectangle_shader,
-                        entry_point: "vs_main",
-                        buffers: &[
-                            vec2_buffer_description(),
-                            StrokeRectangle::buffer_description(),
-                        ],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &rectangle_shader,
-                        entry_point: "fs_main",
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: context.output_texture_format,
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent::REPLACE,
-                                alpha: wgpu::BlendComponent::REPLACE,
-                            }),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: Some(wgpu::Face::Back),
-                        // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                        // or Features::POLYGON_MODE_POINT
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        // Requires Features::DEPTH_CLIP_CONTROL
-                        unclipped_depth: false,
-                        // Requires Features::CONSERVATIVE_RASTERIZATION
-                        conservative: false,
-                    },
-                    depth_stencil: None,
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    // If the pipeline will be used with a multiview render pass, this
-                    // indicates how many array layers the attachments will have.
-                    multiview: None,
-                });
+        let index_buffer =
+            IndexBuffer::new(context, "circle index buffer", STROKE_RECTANGLE_INDICES);
+        let vertex_buffer = WriteableBuffer::new(
+            context,
+            "circle vertex buffer",
+            &STROKE_RECTANGLE_VERTICES,
+            wgpu::BufferUsages::VERTEX,
+        );
 
-        let rectangle_vertex_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "vertex buffer")),
-                    contents: STROKE_RECTANGLE_VERTICES.get_raw(),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
-        let rectangle_index_buffer =
-            context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "index buffer")),
-                    contents: STROKE_RECTANGLE_INDICES.get_raw(),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
-
-        let rectangle_instance_buffer = context.device.create_buffer(&BufferDescriptor {
-            label: Some(concat!(prefix_label!(), "instance buffer")),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: INITIAL_BUFFER_SIZE,
-            mapped_at_creation: false,
-        });
+        let instance_buffer = WriteableBuffer::new(
+            context,
+            "circle instance buffer",
+            &[],
+            wgpu::BufferUsages::VERTEX,
+        );
 
         Self {
             rectangles: vec![],
-            rectangle_vertex_buffer,
-            rectangle_index_buffer,
-            rectangle_instance_buffer,
-            rectangle_pipeline,
-            rectangle_instance_buffer_capacity: INITIAL_BUFFER_CAPACITY,
+            vertex_buffer,
+            index_buffer,
+            instance_buffer,
+            pipeline: None,
+            shader,
         }
     }
 
@@ -182,38 +116,42 @@ impl StrokeRectangleRenderer {
         self.rectangles.push(rectangle);
     }
 
-    pub fn render<'a>(&'a mut self, context: &Context, render_pass: &mut RenderPass<'a>) {
-        if self.rectangle_instance_buffer_capacity < self.rectangles.len() {
-            self.rectangle_instance_buffer_capacity = self.rectangles.len();
-            self.rectangle_instance_buffer =
-                context.device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some(concat!(prefix_label!(), "instance buffer")),
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    contents: self.rectangles.get_raw(),
-                });
-        } else {
-            context.queue.write_buffer(
-                &self.rectangle_instance_buffer,
+    pub fn render<'a>(
+        &'a mut self,
+        context: &Context,
+        rendering_context: &'a RenderingContext,
+        render_pass: &mut RenderPass<'a>,
+        render_target_description: &RenderTargetDescription,
+    ) {
+        if !self.rectangles.is_empty() {
+            self.instance_buffer.write_data(context, &self.rectangles);
+
+            if self.pipeline.is_none() {
+                let pipeline =
+                    Pipeline::new(context, self, render_target_description, rendering_context);
+
+                self.pipeline = Some(pipeline);
+            }
+
+            let pipeline = &self
+                .pipeline
+                .as_ref()
+                .expect("pipeline should be created by now");
+
+            render_pass.set_pipeline(pipeline.render_pipeline());
+            rendering_context.camera().bind(render_pass, 0);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            self.index_buffer.set_index_buffer(render_pass);
+            render_pass.draw_indexed(
+                0..self.index_buffer.draw_count(),
                 0,
-                self.rectangles.get_raw(),
+                0..(self.rectangles.len() as u32),
             );
+
+            // TODO: Think about some memory releasing strategy. Spike in number of
+            // circles will lead to space leak.
+            self.rectangles.clear();
         }
-
-        render_pass.set_pipeline(&self.rectangle_pipeline);
-        render_pass.set_vertex_buffer(0, self.rectangle_vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, self.rectangle_instance_buffer.slice(..));
-        render_pass.set_index_buffer(
-            self.rectangle_index_buffer.slice(..),
-            wgpu::IndexFormat::Uint16,
-        );
-        render_pass.draw_indexed(
-            0..(STROKE_RECTANGLE_INDICES.len() as u32),
-            0,
-            0..(self.rectangles.len() as u32),
-        );
-
-        // TODO: Think about some memory releasing strategy. Spike in number of
-        // rectangles will lead to space leak.
-        self.rectangles.clear();
     }
 }

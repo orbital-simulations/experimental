@@ -5,6 +5,7 @@ var<uniform> camera: mat4x4<f32>;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -17,9 +18,15 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
 
-    let world_position = vec4<f32>(model.position.xy, model.position.z, 1.0);
-    out.clip_position = projection * camera * world_position;
-    out.color = vec3(1., 0., 0.);
+    let world_position = vec4<f32>(model.position, 1.0);
+
+    let world_matrix = projection * camera;
+
+    let light_direction = normalize(vec3(0.3, -1.0, -1.0));
+    let stupid_diffuse_strength = max(dot(model.normal, light_direction), 0.);
+    let color = vec3(0., 1., 0.);
+    out.color = color * 0.1 + color * stupid_diffuse_strength;
+    out.clip_position = world_matrix * world_position;
 
     return out;
 }

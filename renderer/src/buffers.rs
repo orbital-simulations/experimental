@@ -1,9 +1,8 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::RangeBounds};
 
-use glam::{Vec2, Vec3};
 use wgpu::{
-    util::DeviceExt, BindGroupLayoutEntry, Buffer, BufferAddress, BufferUsages, IndexFormat,
-    RenderPass, VertexAttribute, VertexBufferLayout, VertexFormat,
+    util::DeviceExt, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingResource,
+    Buffer, BufferAddress, BufferSlice, BufferUsages, IndexFormat, RenderPass, ShaderStages,
 };
 
 use crate::{
@@ -11,45 +10,8 @@ use crate::{
     raw::{Gpu, Raw},
 };
 
-pub fn vec2_buffer_description<'a>() -> VertexBufferLayout<'a> {
-    VertexBufferLayout {
-        array_stride: std::mem::size_of::<Vec2>() as BufferAddress,
-        step_mode: wgpu::VertexStepMode::Vertex,
-        attributes: &[VertexAttribute {
-            format: VertexFormat::Float32x2,
-            offset: 0,
-            shader_location: 0,
-        }],
-    }
-}
-
-pub fn vec3_buffer_description() -> VertexBufferLayout<'static> {
-    VertexBufferLayout {
-        array_stride: std::mem::size_of::<Vec3>() as BufferAddress,
-        step_mode: wgpu::VertexStepMode::Vertex,
-        attributes: &[VertexAttribute {
-            format: VertexFormat::Float32x3,
-            offset: 0,
-            shader_location: 0,
-        }],
-    }
-}
-
-pub fn simple_vertex_uniform_layout_entry(binding: u32) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility: wgpu::ShaderStages::VERTEX,
-        ty: wgpu::BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Uniform,
-            has_dynamic_offset: false,
-            min_binding_size: None,
-        },
-        count: None,
-    }
-}
-
 #[derive(Debug)]
-struct WriteableBuffer<T: Gpu> {
+pub struct WriteableBuffer<T: Gpu> {
     buffer: Buffer,
     count: usize,
     name: String,
@@ -59,6 +21,7 @@ struct WriteableBuffer<T: Gpu> {
 
 impl<T: Gpu> WriteableBuffer<T> {
     pub fn new(context: &Context, name: &str, data: &[T], usage: BufferUsages) -> Self {
+        let usage = usage | BufferUsages::COPY_DST;
         let buffer = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -74,15 +37,7 @@ impl<T: Gpu> WriteableBuffer<T> {
             phantom_data: PhantomData,
         }
     }
-}
-
-pub trait BufferWritter<T> {
-    fn write_data(&mut self, context: &Context, new_data: &[T]);
-    fn write_data_shrinking(&mut self, context: &Context, new_data: &[T]);
-}
-
-impl<T: Gpu> BufferWritter<T> for WriteableBuffer<T> {
-    fn write_data(&mut self, context: &Context, new_data: &[T]) {
+    pub fn write_data(&mut self, context: &Context, new_data: &[T]) {
         let new_len = new_data.len();
         if self.count < new_len {
             let buffer = context
@@ -101,7 +56,7 @@ impl<T: Gpu> BufferWritter<T> for WriteableBuffer<T> {
         }
     }
 
-    fn write_data_shrinking(&mut self, context: &Context, new_data: &[T]) {
+    pub fn write_data_shrinking(&mut self, context: &Context, new_data: &[T]) {
         let new_len = new_data.len();
         if self.count != new_len {
             let buffer = context
@@ -119,10 +74,26 @@ impl<T: Gpu> BufferWritter<T> for WriteableBuffer<T> {
                 .write_buffer(&self.buffer, 0, new_data.get_raw());
         }
     }
+
+    pub fn slice<S: RangeBounds<BufferAddress>>(&self, bounds: S) -> BufferSlice<'_> {
+        self.buffer.slice(bounds)
+    }
+}
+
+pub trait BindableBuffer {
+    fn as_entire_binding(&self) -> BindingResource<'_>;
+}
+
+impl<T: Gpu> BindableBuffer for WriteableBuffer<T> {
+    fn as_entire_binding(&self) -> BindingResource<'_> {
+        self.buffer.as_entire_binding()
+    }
 }
 
 pub trait IndexFormatTrait {
-    fn index_format() -> wgpu::IndexFormat;
+    fn index_format() -> wgpu::IndexFormat
+    where
+        Self: Sized;
 }
 
 impl IndexFormatTrait for u32 {
@@ -143,11 +114,20 @@ pub struct IndexBuffer<T: IndexFormatTrait + Gpu> {
 }
 
 impl<T: IndexFormatTrait + Gpu> IndexBuffer<T> {
-    pub fn new(context: &Context, data: &[T], base_name: &str) -> Self {
+    pub fn new(context: &Context, base_name: &str, data: &[T]) -> Self {
         let mut name = base_name.to_string();
         name.push_str(" index buffer");
-        let buffer = WriteableBuffer::new(context, &name, data, BufferUsages::INDEX);
+        let buffer = WriteableBuffer::new(
+            context,
+            &name,
+            data,
+            BufferUsages::INDEX | BufferUsages::COPY_DST,
+        );
         Self { buffer }
+    }
+
+    pub fn buffer(&mut self) -> &mut WriteableBuffer<T> {
+        &mut self.buffer
     }
 
     pub fn set_index_buffer<'a>(&'a self, render_pass: &mut RenderPass<'a>) {
@@ -156,5 +136,91 @@ impl<T: IndexFormatTrait + Gpu> IndexBuffer<T> {
 
     pub fn draw_count(&self) -> u32 {
         self.buffer.count as u32
+    }
+}
+
+pub trait DescriptiveBindGroupEntry {
+    fn bind_group_entry_description(
+        &self,
+        binding: u32,
+        shader_stage: ShaderStages,
+    ) -> BindGroupLayoutEntry;
+}
+
+impl<T: Gpu> DescriptiveBindGroupEntry for WriteableBuffer<T> {
+    fn bind_group_entry_description(
+        &self,
+        binding: u32,
+        shader_stage: ShaderStages,
+    ) -> BindGroupLayoutEntry {
+        BindGroupLayoutEntry {
+            binding,
+            visibility: shader_stage,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }
+    }
+}
+
+pub struct BindGroup {
+    bind_group: wgpu::BindGroup,
+    bind_group_layout: BindGroupLayout,
+}
+
+pub trait DescriptiveBindableGroupEntry: DescriptiveBindGroupEntry + BindableBuffer {}
+impl<T: DescriptiveBindGroupEntry + BindableBuffer> DescriptiveBindableGroupEntry for T {}
+
+impl BindGroup {
+    pub fn new(
+        context: &Context,
+        name: &str,
+        buffers: &[(u32, wgpu::ShaderStages, &dyn DescriptiveBindableGroupEntry)],
+    ) -> Self {
+        let entires: Vec<BindGroupLayoutEntry> = buffers
+            .iter()
+            .map(|(binding, stage, buffer)| buffer.bind_group_entry_description(*binding, *stage))
+            .collect();
+        let mut layout_name: String = name.into();
+        layout_name.push_str(" layout");
+        let bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some(&layout_name),
+                    entries: &entires,
+                });
+
+        let entries: Vec<BindGroupEntry> = buffers
+            .iter()
+            .map(|(binding, _stage, buffer)| BindGroupEntry {
+                binding: *binding,
+                resource: buffer.as_entire_binding(),
+            })
+            .collect();
+
+        let bind_group = context
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout,
+                entries: &entries,
+                label: Some(name),
+            });
+
+        Self {
+            bind_group,
+            bind_group_layout,
+        }
+    }
+
+    pub fn layout(&self) -> &BindGroupLayout {
+        &self.bind_group_layout
+    }
+
+    pub fn bind<'a>(&'a self, render_pass: &mut RenderPass<'a>, slot: u32) {
+        render_pass.set_bind_group(slot, &self.bind_group, &[]);
     }
 }

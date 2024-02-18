@@ -1,45 +1,58 @@
+use std::rc::Rc;
+
 use game_engine::{
     game_engine_3d_parameters,
     mesh::{generate_mesh_normals, generate_mesh_plane},
+    obj_loader::load_model_static,
     GameEngine,
 };
-use noise::{NoiseFn, OpenSimplex};
-use renderer::{custom_mesh_renderer::CustomMashRenderer, mesh::GpuMesh, Renderer};
+use noise::{NoiseFn, Perlin};
+use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use wgpu::include_wgsl;
 use winit::{event_loop::EventLoop, window::Window};
 
 pub struct GameState();
 
+const CUBE: &str = include_str!("../assets/cube.obj");
+const CUBE_MATERIALS: [(&str, &str); 1] = [("cube.mtl", include_str!("../assets/cube.mtl"))];
+
 fn setup(game_engine: &mut GameEngine) -> GameState {
-    let mut vertices = generate_mesh_plane(200, 200, 1.);
+    let shader = game_engine
+        .renderer
+        .context
+        .device
+        .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
+    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
+    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Rc::new(shader));
+    game_engine
+        .renderer
+        .add_custom_mesh_renderer(custom_renderer);
+
+    let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
+    //let (mut vertices, indices) = generate_mesh_plane(1, 1, 1.);
 
     let shader = game_engine
         .renderer
         .context
         .device
         .create_shader_module(include_wgsl!("../shaders/terain.wgsl"));
-    let noise1 = OpenSimplex::new(0);
-    let noise2 = OpenSimplex::new(10);
-    let noise3 = OpenSimplex::new(100);
+    let noise1 = Perlin::new(0);
+    let noise2 = Perlin::new(10);
+    let noise3 = Perlin::new(100);
     for v in vertices.iter_mut() {
-        let mut z = noise1.get([(v.x / 50.) as f64, (v.y / 50.) as f64]) * 50.;
-        z += noise2.get([(v.x / 10.) as f64, (v.y / 10.) as f64]) * 10.;
-        z += noise3.get([v.x as f64, v.y as f64]);
+        let mut z = noise1.get([(v.x / 50.) as f64, (v.y / 50.) as f64]) * 25.;
+        z += noise2.get([(v.x / 10.) as f64, (v.y / 10.) as f64]) * 3.;
+        z += noise3.get([v.x as f64, v.y as f64]) * 0.1;
         v.z = z as f32;
     }
-    let normals = generate_mesh_normals(&vertices);
+    let normals = generate_mesh_normals(&vertices, &indices);
+    //dbg!(&indices);
+    //dbg!(&vertices);
+    //dbg!(&normals);
 
-    let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals);
-    let custom_renderer = CustomMashRenderer::new(
-        &game_engine.renderer.context,
-        &game_engine
-            .renderer
-            .renderer_context
-            .common_bind_group_layout,
-        gpu_mesh,
-        shader,
-    );
+    let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
+    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Rc::new(shader));
     game_engine
         .renderer
         .add_custom_mesh_renderer(custom_renderer);
@@ -55,31 +68,6 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     //    vec3(-10., 10., 10.),
     //];
 
-    //let indices = [
-    //    0, 1, 2, 2, 3, 0, // front
-    //    5, 4, 7, 7, 6, 5, // back
-    //    4, 0, 3, 3, 7, 4, // left
-    //    1, 5, 6, 6, 2, 1, // right
-    //    5, 1, 0, 0, 4, 5, // bottom
-    //    2, 6, 7, 7, 3, 2, // top
-    //];
-
-    //let cube_shader = game_engine
-    //    .renderer
-    //    .context
-    //    .device
-    //    .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
-    //let cube_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &indices);
-    //let cube_renderer = CustomMashRenderer::new(
-    //    &game_engine.renderer.context,
-    //    &game_engine
-    //        .renderer
-    //        .renderer_context
-    //        .common_bind_group_layout,
-    //    cube_mesh,
-    //    cube_shader,
-    //);
-    //game_engine.renderer.add_custom_mesh_renderer(cube_renderer);
     GameState()
 }
 

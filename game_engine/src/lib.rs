@@ -2,6 +2,7 @@ pub mod camera;
 mod egui_integration;
 pub mod inputs;
 pub mod mesh;
+pub mod obj_loader;
 
 use camera::{Camera, CameraController};
 use egui_integration::EguiIntegration;
@@ -12,10 +13,11 @@ use renderer::Renderer;
 use std::f32::consts::PI;
 use std::time::Instant;
 use tracing::{debug, info, warn};
+use wgpu::util::parse_backends_from_comma_list;
 use wgpu::{
-    Backends, DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor,
-    InstanceFlags, Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureUsages,
+    DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor, InstanceFlags,
+    Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface, SurfaceConfiguration,
+    TextureUsages,
 };
 
 use winit::event::WindowEvent::{
@@ -76,8 +78,15 @@ impl<'a> GameEngine<'a> {
         window: &'a Window,
         game_engine_parameters: MkGameEngine,
     ) -> eyre::Result<(Self, EventLoop<()>)> {
+        let backends = std::env::var("WGPU_BACKEND")
+            .as_deref()
+            .map(str::to_lowercase)
+            .ok()
+            .as_deref()
+            .map(parse_backends_from_comma_list)
+            .unwrap_or_default();
         let instance = Instance::new(InstanceDescriptor {
-            backends: Backends::all(),
+            backends,
             dx12_shader_compiler: Default::default(),
             flags: InstanceFlags::default(),
             gles_minor_version: Gles3MinorVersion::default(),
@@ -126,13 +135,13 @@ impl<'a> GameEngine<'a> {
             desired_maximum_frame_latency: 1,
         };
         surface.configure(&device, &surface_configuration);
-        let context = Context::new(device, queue, swapchain_format);
+        let context = Context::new(device, queue);
         let projection = match game_engine_parameters.projection {
             ProjectionInit::Perspective => Projection::Perspective(PerspectiveProjection::new(
                 size.width as f32,
                 size.height as f32,
-                45.,
-                0.01,
+                std::f32::consts::FRAC_PI_2,
+                1.00,
                 1000.,
                 scale_factor,
             )),
@@ -147,7 +156,13 @@ impl<'a> GameEngine<'a> {
         let egui_integration =
             EguiIntegration::new(window, &context.device, surface_configuration.format);
 
-        let renderer = Renderer::new(context, size_to_vec2(&size), projection)?;
+        let texture = surface.get_current_texture().unwrap();
+        let renderer = Renderer::new(
+            context,
+            size_to_vec2(&size),
+            projection,
+            texture.texture.format(),
+        )?;
 
         Ok((
             Self {
@@ -159,7 +174,7 @@ impl<'a> GameEngine<'a> {
                 surface,
                 size,
                 inputs: Inputs::new(),
-                camera_controler: CameraController::new(100., 1.),
+                camera_controler: CameraController::new(10., 1.),
                 camera: game_engine_parameters.camera,
                 egui_integration,
             },
@@ -291,7 +306,8 @@ impl<'a> GameEngine<'a> {
         self.camera_controler
             .update_camera(&mut self.camera, self.last_frame_delta, &self.inputs);
         self.renderer
-            .renderer_context
+            .rendering_context
+            .camera_mut()
             .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();

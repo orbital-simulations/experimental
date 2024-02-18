@@ -14,9 +14,11 @@ winit = { workspace = true }
 renderer = { path = "../renderer" }
 physics = { path = "../physics" }
 itertools = { workspace = true }
+tobj = "4.0"
 egui = { workspace = true }
 egui-winit = "0.26"
 egui-wgpu = "0.26"
+
 
 [dev-dependencies]
 color-eyre = { workspace = true }

@@ -12,20 +12,6 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec3<f32>,
 }
-
-//  MIT License. © Ian McEwan, Stefan Gustavson, Munrocket, Johan Helsing
-fn mod289(x: vec2f) -> vec2f {
-    return x - floor(x * (1. / 289.)) * 289.;
-}
-
-fn mod289_3(x: vec3f) -> vec3f {
-    return x - floor(x * (1. / 289.)) * 289.;
-}
-
-fn permute3(x: vec3f) -> vec3f {
-    return mod289_3(((x * 34.) + 1.) * x);
-}
-
 @vertex
 fn vs_main(
     model: VertexInput,
@@ -35,11 +21,12 @@ fn vs_main(
     let world_position = vec4<f32>(model.position, 1.0);
 
     let world_matrix = projection * camera;
-    out.clip_position = world_matrix * world_position;
 
-    let light_direction = vec3(0.0, 0.0, -1.0);
-    let stupid_diffuse_strength = dot(model.normal, light_direction);
-    out.color = vec3(0., 1., 0.) * stupid_diffuse_strength;
+    let light_direction = normalize(vec3(0.3, -1.0, -1.0));
+    let stupid_diffuse_strength = max(dot(model.normal, light_direction), 0.);
+    let color = vec3(0., 1., 0.);
+    out.color = color * 0.1 + color * stupid_diffuse_strength;
+    out.clip_position = world_matrix * world_position;
 
     return out;
 }
