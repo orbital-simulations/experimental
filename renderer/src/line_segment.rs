@@ -68,7 +68,7 @@ impl PipelineCreator for LineSegmentRenderer {
                 },
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<LineSegment>() as u64,
-                    step_mode: VertexStepMode::Vertex,
+                    step_mode: VertexStepMode::Instance,
                     attributes: &LINE_SEGMENT_VERTEX_ATTRIBUTES,
                 }
             ],

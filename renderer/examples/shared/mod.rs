@@ -10,6 +10,7 @@ use renderer::{
     Renderer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use wgpu::util::parse_backends_from_comma_list;
 
 const OUTPUT_HEIGH: u32 = 600;
 const OUTPUT_WIDTH: u32 = 600;

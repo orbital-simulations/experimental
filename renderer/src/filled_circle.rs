@@ -62,7 +62,7 @@ impl PipelineCreator for FilledCircleRenderer {
                 },
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<FilledCircle>() as u64,
-                    step_mode: VertexStepMode::Vertex,
+                    step_mode: VertexStepMode::Instance,
                     attributes: &CIRCLE_VERTEX_ATTRIBUTES,
                 }
             ],

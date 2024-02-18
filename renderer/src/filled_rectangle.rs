@@ -62,7 +62,7 @@ impl PipelineCreator for FilledRectangleRenderer {
                 },
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<FilledRectangle>() as u64,
-                    step_mode: VertexStepMode::Vertex,
+                    step_mode: VertexStepMode::Instance,
                     attributes: &RECTANGLE_VERTEX_ATTRIBUTES,
                 }
             ],

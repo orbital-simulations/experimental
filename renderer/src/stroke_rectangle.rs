@@ -65,7 +65,7 @@ impl PipelineCreator for StrokeRectangleRenderer {
                 },
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<StrokeRectangle>() as u64,
-                    step_mode: VertexStepMode::Vertex,
+                    step_mode: VertexStepMode::Instance,
                     attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
                 }
             ],

@@ -65,7 +65,7 @@ impl PipelineCreator for StrokeCircleRenderer {
                 },
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<StrokeCircle>() as u64,
-                    step_mode: VertexStepMode::Vertex,
+                    step_mode: VertexStepMode::Instance,
                     attributes: &STROKE_CIRCLE_VERTEX_ATTRIBUTES,
                 }
             ],
