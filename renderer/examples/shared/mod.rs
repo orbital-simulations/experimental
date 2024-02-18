@@ -35,8 +35,14 @@ where
         .with(filter_layer)
         .init();
     color_eyre::install()?;
+    let backends = std::env::var("WGPU_BACKEND")
+    .as_deref()
+    .map(str::to_lowercase)
+    .ok()
+    .as_deref()
+    .map(parse_backends_from_comma_list).unwrap_or_default();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::all(),
+        backends,
         ..Default::default()
     });
     let adapter = instance

@@ -1,16 +1,13 @@
-use std::rc::Rc;
-
 use glam::{Vec2, Vec3};
 use wgpu::{
-    include_wgsl, vertex_attr_array, BufferAddress, RenderPass, VertexBufferLayout, VertexStepMode,
+    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode
 };
 
 use crate::{
-    buffers::{DescriptiveBuffer, IndexBuffer, WriteableBuffer},
+    buffers::{IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    pipeline::{CreatePipeline, Pipeline},
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
     raw::Gpu,
-    render_pass::RenderTargetDescription,
 };
 
 #[derive(Debug)]
@@ -43,36 +40,47 @@ const CIRCLE_VERTICES: [Vec2; 4] = [
 
 const CIRCLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
-impl DescriptiveBuffer for FilledCircle {
-    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<FilledCircle>() as BufferAddress,
-            step_mode,
-            attributes: &CIRCLE_VERTEX_ATTRIBUTES,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct FilledCircleRenderer {
     circles: Vec<FilledCircle>,
     vertex_buffer: WriteableBuffer<Vec2>,
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<FilledCircle>,
-    pipeline: Pipeline,
+    pipeline: Option<Pipeline>,
+    shader: ShaderModule,
 }
+
+impl PipelineCreator for FilledCircleRenderer {
+    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+        CreatePipeline {
+            shader: &self.shader,
+            vertex_buffer_layouts: vec![
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vec2>() as u64,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &vertex_attr_array![0 => Float32x2],
+                },
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<FilledCircle>() as u64,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &CIRCLE_VERTEX_ATTRIBUTES,
+                }
+            ],
+            bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
+            name: "filled circle renderer".to_string(),
+        }
+    }
+}
+
 
 impl FilledCircleRenderer {
     pub fn new(
         context: &Context,
-        rendering_context: &RenderingContext,
-        render_target_description: &RenderTargetDescription,
     ) -> Self {
-        let shader = Rc::new(
+        let shader =
             context
                 .device
-                .create_shader_module(include_wgsl!("../shaders/filled_circle.wgsl")),
-        );
+                .create_shader_module(include_wgsl!("../shaders/filled_circle.wgsl")) ;
 
         let index_buffer = IndexBuffer::new(context, "circle index buffer", CIRCLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
@@ -89,27 +97,13 @@ impl FilledCircleRenderer {
             wgpu::BufferUsages::VERTEX,
         );
 
-        let pipeline_create_parameters = CreatePipeline {
-            shader: &shader,
-            vertex_buffer_layouts: &[
-                Vec2::describe_vertex_buffer(VertexStepMode::Vertex),
-                FilledCircle::describe_vertex_buffer(VertexStepMode::Instance),
-            ],
-            bind_group_layouts: &[rendering_context.camera().bind_group_layout()],
-            name: "filled circle renderer".to_string(),
-        };
-        let pipeline = Pipeline::new(
-            context,
-            &pipeline_create_parameters,
-            render_target_description,
-        );
-
         Self {
             circles: vec![],
             vertex_buffer,
             index_buffer,
             instance_buffer,
-            pipeline,
+            shader,
+            pipeline: None,
         }
     }
 
@@ -122,11 +116,25 @@ impl FilledCircleRenderer {
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
+        render_target_description: &RenderTargetDescription,
     ) {
         if !self.circles.is_empty() {
             self.instance_buffer.write_data(context, &self.circles);
 
-            render_pass.set_pipeline(self.pipeline.render_pipeline());
+            if self.pipeline.is_none() {
+            let pipeline = Pipeline::new(
+                    context,
+                    self,
+                    render_target_description,
+                    rendering_context,
+                );
+
+            self.pipeline = Some(pipeline);
+                    }
+
+        let pipeline = &self.pipeline.as_ref().expect("pipeline should be created by now");
+
+            render_pass.set_pipeline(pipeline.render_pipeline());
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

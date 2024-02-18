@@ -10,7 +10,6 @@ pub mod mesh;
 pub mod pipeline;
 pub mod projection;
 pub mod raw;
-pub mod render_pass;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
 
@@ -20,9 +19,9 @@ use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
 use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
+use pipeline::RenderTargetDescription;
 use projection::Projection;
 
-use render_pass::RenderTargetDescription;
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::info;
@@ -61,28 +60,18 @@ impl Renderer {
         };
         let filled_circle_renderer = FilledCircleRenderer::new(
             &context,
-            &rendering_context,
-            &window_render_target_description,
         );
         let stroke_circle_renderer = StrokeCircleRenderer::new(
             &context,
-            &rendering_context,
-            &window_render_target_description,
         );
         let filled_rectangle_renderer = FilledRectangleRenderer::new(
             &context,
-            &rendering_context,
-            &window_render_target_description,
         );
         let stroke_rectangle_renderer = StrokeRectangleRenderer::new(
             &context,
-            &rendering_context,
-            &window_render_target_description,
         );
         let line_segment_renderer = LineSegmentRenderer::new(
             &context,
-            &rendering_context,
-            &window_render_target_description,
         );
 
         Ok(Self {
@@ -183,7 +172,7 @@ impl Renderer {
                         r: 0.0,
                         g: 0.0,
                         b: 0.0,
-                        a: 0.0,
+                        a: 1.0,
                     }),
                     store: StoreOp::Store,
                 },
@@ -208,26 +197,31 @@ impl Renderer {
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
+                &self.window_render_target_description,
             );
             self.stroke_circle_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
+                &self.window_render_target_description,
             );
             self.filled_rectangle_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
+                &self.window_render_target_description,
             );
             self.line_segment_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
+                &self.window_render_target_description,
             );
             self.stroke_rectangle_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
+                &self.window_render_target_description,
             );
 
             for custom_mesh_renderer in self.custom_mesh_renderers.iter_mut() {

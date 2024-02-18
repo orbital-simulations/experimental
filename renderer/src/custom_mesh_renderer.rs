@@ -1,12 +1,10 @@
 use std::rc::Rc;
 
-use wgpu::{RenderPass, ShaderModule};
+use wgpu::{vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode};
+use glam::Vec3;
 
 use crate::{
-    context::{Context, RenderingContext},
-    mesh::GpuMesh,
-    pipeline::{CreatePipeline, Pipeline},
-    render_pass::RenderTargetDescription,
+    context::{Context, RenderingContext}, mesh::GpuMesh, pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription}
 };
 
 #[derive(Debug)]
@@ -14,6 +12,28 @@ pub struct CustomMeshRenderer {
     shader: Rc<ShaderModule>,
     pipeline: Option<Pipeline>,
     mesh: GpuMesh,
+}
+
+impl PipelineCreator for CustomMeshRenderer {
+    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+        CreatePipeline {
+            shader: &self.shader,
+            vertex_buffer_layouts: vec![
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vec3>() as u64,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &vertex_attr_array![0 => Float32x3],
+                },
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vec3>() as u64,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &vertex_attr_array![1 => Float32x3],
+                }
+            ],
+            bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
+            name: "custom mesh renderer".to_string(),
+        }
+    }
 }
 
 impl CustomMeshRenderer {
@@ -32,23 +52,18 @@ impl CustomMeshRenderer {
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
     ) {
-        let pipeline = self.pipeline.get_or_insert_with(|| {
-            let pipeline_create_parameters = CreatePipeline {
-                shader: &self.shader,
-                vertex_buffer_layouts: &[
-                    self.mesh.vertex_buffer_layout.clone(),
-                    self.mesh.normal_buffer_layout.clone(),
-                ],
-                bind_group_layouts: &[rendering_context.camera().bind_group_layout()],
-                name: "custom mesh renderer".to_string(),
-            };
+        if self.pipeline.is_none() {
+            let pipeline = Pipeline::new(
+                    context,
+                    self,
+                    render_target_description,
+                    rendering_context,
+                );
 
-            Pipeline::new(
-                context,
-                &pipeline_create_parameters,
-                render_target_description,
-            )
-        });
+            self.pipeline = Some(pipeline);
+        }
+
+        let pipeline = &self.pipeline.as_ref().expect("pipeline should be created by now");
 
         render_pass.set_pipeline(pipeline.render_pipeline());
         rendering_context.camera().bind(render_pass, 0);

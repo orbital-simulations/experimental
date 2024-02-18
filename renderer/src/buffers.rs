@@ -1,48 +1,14 @@
 use std::{marker::PhantomData, ops::RangeBounds};
 
-use glam::{Vec2, Vec3};
 use wgpu::{
     util::DeviceExt, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingResource,
     Buffer, BufferAddress, BufferSlice, BufferUsages, IndexFormat, RenderPass, ShaderStages,
-    VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode,
 };
 
 use crate::{
     context::Context,
     raw::{Gpu, Raw},
 };
-
-pub trait DescriptiveBuffer {
-    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static>;
-}
-
-impl DescriptiveBuffer for Vec2 {
-    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vec2>() as BufferAddress,
-            step_mode,
-            attributes: &[VertexAttribute {
-                format: VertexFormat::Float32x2,
-                offset: 0,
-                shader_location: 0,
-            }],
-        }
-    }
-}
-
-impl DescriptiveBuffer for Vec3 {
-    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vec3>() as BufferAddress,
-            step_mode,
-            attributes: &[VertexAttribute {
-                format: VertexFormat::Float32x3,
-                offset: 0,
-                shader_location: 0,
-            }],
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct WriteableBuffer<T: Gpu> {
@@ -111,15 +77,6 @@ impl<T: Gpu> WriteableBuffer<T> {
 
     pub fn slice<S: RangeBounds<BufferAddress>>(&self, bounds: S) -> BufferSlice<'_> {
         self.buffer.slice(bounds)
-    }
-}
-
-impl<T> DescriptiveBuffer for WriteableBuffer<T>
-where
-    T: DescriptiveBuffer + Gpu,
-{
-    fn describe_vertex_buffer(step_mode: VertexStepMode) -> VertexBufferLayout<'static> {
-        T::describe_vertex_buffer(step_mode)
     }
 }
 

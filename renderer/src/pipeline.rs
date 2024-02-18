@@ -1,14 +1,20 @@
 use wgpu::{
-    BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState,
-    RenderPipeline, ShaderModule, StencilState, VertexBufferLayout,
+    BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState, RenderPipeline, ShaderModule, StencilState, TextureFormat, VertexBufferLayout
 };
 
-use crate::{context::Context, render_pass::RenderTargetDescription};
+use crate::context::{Context, RenderingContext};
+
+#[derive(Debug, Clone)]
+pub struct RenderTargetDescription {
+    pub multisampling: u32,
+    pub depth_texture: Option<TextureFormat>,
+    pub targets: Vec<TextureFormat>,
+}
 
 pub struct CreatePipeline<'a> {
     pub shader: &'a ShaderModule,
-    pub vertex_buffer_layouts: &'a [VertexBufferLayout<'static>],
-    pub bind_group_layouts: &'a [&'a BindGroupLayout],
+    pub vertex_buffer_layouts: Vec<VertexBufferLayout<'static>>,
+    pub bind_group_layouts: Vec<&'a BindGroupLayout>,
     pub name: String,
 }
 
@@ -19,12 +25,19 @@ pub struct Pipeline {
     pipeline: RenderPipeline,
 }
 
+pub trait PipelineCreator {
+    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a>;
+}
+
 impl Pipeline {
     pub fn new(
         context: &Context,
-        parameters: &CreatePipeline,
+        pipeline_creator: &impl PipelineCreator,
         render_target_description: &RenderTargetDescription,
+        rendering_context: &RenderingContext,
     ) -> Self {
+
+        let parameters = pipeline_creator.create_pipeline(rendering_context);
         let mut pipeline_layout_descriptor_name = parameters.name.clone();
         pipeline_layout_descriptor_name.push_str("layout descriptor");
 
@@ -33,7 +46,7 @@ impl Pipeline {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some(pipeline_layout_descriptor_name.as_str()),
-                    bind_group_layouts: parameters.bind_group_layouts,
+                    bind_group_layouts: &parameters.bind_group_layouts,
                     push_constant_ranges: &[],
                 });
 
@@ -70,7 +83,7 @@ impl Pipeline {
                 vertex: wgpu::VertexState {
                     module: parameters.shader,
                     entry_point: "vs_main",
-                    buffers: parameters.vertex_buffer_layouts,
+                    buffers: &parameters.vertex_buffer_layouts,
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: parameters.shader,
