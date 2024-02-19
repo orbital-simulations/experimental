@@ -12,7 +12,7 @@ use renderer::projection::{OrtographicProjection, PerspectiveProjection, Project
 use renderer::Renderer;
 use std::f32::consts::PI;
 use std::time::Instant;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use wgpu::util::parse_backends_from_comma_list;
 use wgpu::{
     DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor, InstanceFlags,
@@ -309,7 +309,6 @@ impl<'a> GameEngine<'a> {
             .rendering_context
             .camera_mut()
             .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
-        warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
         self.egui_integration.prepare_frame(self.window);

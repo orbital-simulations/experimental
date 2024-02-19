@@ -1,17 +1,16 @@
-use std::rc::Rc;
+use std::any::Any;
 
 use glam::Vec3;
-use wgpu::{vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode};
+use wgpu::{vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
 
 use crate::{
     context::{Context, RenderingContext},
     mesh::GpuMesh,
-    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription}, shader_store::{Shader, ShaderDescriptable, ShaderStore},
 };
 
-#[derive(Debug)]
 pub struct CustomMeshRenderer {
-    shader: Rc<ShaderModule>,
+    shader: Shader,
     pipeline: Option<Pipeline>,
     mesh: GpuMesh,
 }
@@ -42,7 +41,8 @@ impl PipelineCreator for CustomMeshRenderer {
 }
 
 impl CustomMeshRenderer {
-    pub fn new(mesh: GpuMesh, shader: Rc<ShaderModule>) -> Self {
+    pub fn new<T>(mesh: GpuMesh, context: &Context, shader_store: &mut ShaderStore, shader_label: &T) -> Self where T: ShaderDescriptable + Any {
+        let shader = shader_store.get_shader(context, shader_label);
         Self {
             shader,
             pipeline: None,

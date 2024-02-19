@@ -1,5 +1,4 @@
 use glam::Mat4;
-use tracing::warn;
 
 #[derive(Debug)]
 pub enum Projection {
@@ -68,10 +67,7 @@ pub struct PerspectiveProjection {
 
 impl PerspectiveProjection {
     pub fn new(width: f32, height: f32, fovy: f32, znear: f32, zfar: f32, scale: f32) -> Self {
-        warn!("width: {}", width);
-        warn!("height: {}", height);
         let aspect = width / height;
-        warn!("acpect: {}", aspect);
         Self {
             aspect,
             fovy,

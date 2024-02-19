@@ -40,6 +40,7 @@ use wgpu::{
 pub struct Renderer {
     pub context: Context,
     pub rendering_context: RenderingContext,
+    pub shader_store: ShaderStore,
     filled_circle_renderer: FilledCircleRenderer,
     stroke_circle_renderer: StrokeCircleRenderer,
     filled_rectangle_renderer: FilledRectangleRenderer,
@@ -86,6 +87,7 @@ impl Renderer {
             rendering_context,
             depth_texture: None,
             window_render_target_description,
+            shader_store,
         })
     }
 

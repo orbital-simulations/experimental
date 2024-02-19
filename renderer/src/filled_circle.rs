@@ -76,14 +76,14 @@ impl PipelineCreator for FilledCircleRenderer {
 struct FilledCircleShaderLabel;
 
 impl ShaderDescriptable for FilledCircleShaderLabel {
-    fn shader_description() -> crate::shader_store::ShaderCreator {
+    fn shader_description() -> ShaderCreator {
         ShaderCreator::ShaderStatic(include_wgsl!("../shaders/filled_circle.wgsl"))
     }
 }
 
 impl FilledCircleRenderer {
     pub fn new(context: &Context, shader_store: &mut ShaderStore) -> Self {
-        let shader = shader_store.get_shader(context, FilledCircleShaderLabel);
+        let shader = shader_store.get_shader(context, &FilledCircleShaderLabel);
 
         let index_buffer = IndexBuffer::new(context, "circle index buffer", CIRCLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
