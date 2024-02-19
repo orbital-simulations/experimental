@@ -12,6 +12,7 @@ pub mod projection;
 pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
+pub mod shader_store;
 
 use std::{
     any::{Any, TypeId},
