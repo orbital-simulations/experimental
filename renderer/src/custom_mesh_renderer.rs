@@ -6,7 +6,8 @@ use wgpu::{vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
 use crate::{
     context::{Context, RenderingContext},
     mesh::GpuMesh,
-    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription}, shader_store::{Shader, ShaderDescriptable, ShaderStore},
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    shader_store::{Shader, ShaderDescriptable, ShaderStore},
 };
 
 pub struct CustomMeshRenderer {
@@ -41,7 +42,15 @@ impl PipelineCreator for CustomMeshRenderer {
 }
 
 impl CustomMeshRenderer {
-    pub fn new<T>(mesh: GpuMesh, context: &Context, shader_store: &mut ShaderStore, shader_label: &T) -> Self where T: ShaderDescriptable + Any {
+    pub fn new<T>(
+        mesh: GpuMesh,
+        context: &Context,
+        shader_store: &mut ShaderStore,
+        shader_label: &T,
+    ) -> Self
+    where
+        T: ShaderDescriptable + Any,
+    {
         let shader = shader_store.get_shader(context, shader_label);
         Self {
             shader,

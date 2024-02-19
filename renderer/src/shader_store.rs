@@ -1,5 +1,11 @@
 use std::{
-    any::{Any, TypeId}, borrow::Cow, cell::RefCell, collections::HashMap, io::Read, ops::Deref, rc::{Rc, Weak}
+    any::{Any, TypeId},
+    borrow::Cow,
+    cell::RefCell,
+    collections::HashMap,
+    io::Read,
+    ops::Deref,
+    rc::{Rc, Weak},
 };
 
 use wgpu::{ShaderModule, ShaderModuleDescriptor, ShaderSource};
@@ -47,7 +53,7 @@ impl Deref for ShaderStoreEntryWrapper {
 
 impl Drop for ShaderStoreEntryWrapper {
     fn drop(&mut self) {
-        let shader_store =  Weak::upgrade(&self.shader_store);
+        let shader_store = Weak::upgrade(&self.shader_store);
         if let Some(shader_store) = shader_store {
             (*shader_store).borrow_mut().remove(&self.type_label);
         }
@@ -74,7 +80,8 @@ impl ShaderStore {
         }
     }
 
-    fn create_shader<T>(&self,
+    fn create_shader<T>(
+        &self,
         context: &Context,
         shader_label: &T,
     ) -> (Rc<ShaderStoreEntryWrapper>, Weak<ShaderStoreEntryWrapper>)
@@ -120,8 +127,7 @@ impl ShaderStore {
         match possible_shader.as_ref() {
             Some(weak_shader) => match weak_shader.upgrade() {
                 None => {
-                    let (strong_shader, weak_shader) =
-                        self.create_shader(context, shader_label);
+                    let (strong_shader, weak_shader) = self.create_shader(context, shader_label);
                     borrowed.insert(shader_label.type_id(), weak_shader);
                     Shader {
                         shader_ref: strong_shader,
@@ -132,8 +138,7 @@ impl ShaderStore {
                 },
             },
             None => {
-                let (strong_shader, weak_shader) =
-                    self.create_shader(context, shader_label);
+                let (strong_shader, weak_shader) = self.create_shader(context, shader_label);
                 borrowed.insert(shader_label.type_id(), weak_shader);
                 Shader {
                     shader_ref: strong_shader,

@@ -44,7 +44,12 @@ impl ShaderDescriptable for TerainShader {
 
 fn setup(game_engine: &mut GameEngine) -> GameState {
     let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
-    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, &game_engine.renderer.context, &mut game_engine.renderer.shader_store, &CubeShader);
+    let custom_renderer = CustomMeshRenderer::new(
+        gpu_mesh,
+        &game_engine.renderer.context,
+        &mut game_engine.renderer.shader_store,
+        &CubeShader,
+    );
     game_engine
         .renderer
         .add_custom_mesh_renderer(&CubeRenderer, custom_renderer);
@@ -63,7 +68,12 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     let normals = generate_mesh_normals(&vertices, &indices);
 
     let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
-    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, &game_engine.renderer.context, &mut game_engine.renderer.shader_store, &TerainShader);
+    let custom_renderer = CustomMeshRenderer::new(
+        gpu_mesh,
+        &game_engine.renderer.context,
+        &mut game_engine.renderer.shader_store,
+        &TerainShader,
+    );
     game_engine
         .renderer
         .add_custom_mesh_renderer(&TerrainRenderer,custom_renderer);
