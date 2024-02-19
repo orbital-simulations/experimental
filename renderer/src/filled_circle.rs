@@ -1,13 +1,12 @@
 use glam::{Vec2, Vec3};
-use wgpu::{
-    include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode,
-};
+use wgpu::{include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
 
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
     pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
-    raw::Gpu, shader_store::{ShaderDescriptable, ShaderCreator, ShaderStore, Shader},
+    raw::Gpu,
+    shader_store::{Shader, ShaderCreator, ShaderDescriptable, ShaderStore},
 };
 
 #[derive(Debug)]
@@ -76,7 +75,7 @@ impl PipelineCreator for FilledCircleRenderer {
 
 struct FilledCircleShaderLabel;
 
-impl ShaderDescriptable for FilledCircleShaderLabel  {
+impl ShaderDescriptable for FilledCircleShaderLabel {
     fn shader_description() -> crate::shader_store::ShaderCreator {
         ShaderCreator::ShaderStatic(include_wgsl!("../shaders/filled_circle.wgsl"))
     }
@@ -84,7 +83,6 @@ impl ShaderDescriptable for FilledCircleShaderLabel  {
 
 impl FilledCircleRenderer {
     pub fn new(context: &Context, shader_store: &mut ShaderStore) -> Self {
-
         let shader = shader_store.get_shader(context, FilledCircleShaderLabel);
 
         let index_buffer = IndexBuffer::new(context, "circle index buffer", CIRCLE_INDICES);
