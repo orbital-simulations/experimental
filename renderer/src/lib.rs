@@ -28,6 +28,7 @@ use line_segment::{LineSegment, LineSegmentRenderer};
 use pipeline::RenderTargetDescription;
 use projection::Projection;
 
+use shader_store::ShaderStore;
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::info;
@@ -66,7 +67,8 @@ impl Renderer {
             depth_texture: Some(TextureFormat::Depth32Float),
             targets: vec![main_surface_format],
         };
-        let filled_circle_renderer = FilledCircleRenderer::new(&context);
+        let mut shader_store = ShaderStore::new();
+        let filled_circle_renderer = FilledCircleRenderer::new(&context, &mut shader_store);
         let stroke_circle_renderer = StrokeCircleRenderer::new(&context);
         let filled_rectangle_renderer = FilledRectangleRenderer::new(&context);
         let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context);
