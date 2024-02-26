@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui = "0.24"
+egui = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 # comfy 0.3 uses glam 0.24

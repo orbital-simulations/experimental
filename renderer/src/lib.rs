@@ -13,6 +13,11 @@ pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
 
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+};
+
 use context::{Context, RenderingContext};
 use custom_mesh_renderer::CustomMeshRenderer;
 use filled_circle::{FilledCircle, FilledCircleRenderer};
@@ -38,11 +43,13 @@ pub struct Renderer {
     filled_rectangle_renderer: FilledRectangleRenderer,
     stroke_rectangle_renderer: StrokeRectangleRenderer,
     line_segment_renderer: LineSegmentRenderer,
-    custom_mesh_renderers: Vec<CustomMeshRenderer>,
+    custom_mesh_renderers: HashMap<TypeId, CustomMeshRenderer>,
     size: Vec2,
     depth_texture: Option<Texture>,
     window_render_target_description: RenderTargetDescription,
 }
+
+pub trait CustomRenderer {}
 
 impl Renderer {
     pub fn new(
@@ -72,7 +79,7 @@ impl Renderer {
             stroke_rectangle_renderer,
             line_segment_renderer,
             size,
-            custom_mesh_renderers: vec![],
+            custom_mesh_renderers: HashMap::new(),
             rendering_context,
             depth_texture: None,
             window_render_target_description,
@@ -100,8 +107,22 @@ impl Renderer {
         self.line_segment_renderer.add_line_segment(line_segment);
     }
 
-    pub fn add_custom_mesh_renderer(&mut self, custom_mesh_renderer: CustomMeshRenderer) {
-        self.custom_mesh_renderers.push(custom_mesh_renderer);
+    pub fn add_custom_mesh_renderer<K>(
+        &mut self,
+        renderer_id: &K,
+        custom_mesh_renderer: CustomMeshRenderer,
+    ) where
+        K: CustomRenderer + Any,
+    {
+        self.custom_mesh_renderers
+            .insert(renderer_id.type_id(), custom_mesh_renderer);
+    }
+
+    pub fn remove_custom_mesh_renderer<K>(&mut self, renderer_id: &K)
+    where
+        K: CustomRenderer + Any,
+    {
+        self.custom_mesh_renderers.remove(&renderer_id.type_id());
     }
 
     pub fn on_resize(&mut self, new_size: Vec2) {
@@ -214,7 +235,7 @@ impl Renderer {
                 &self.window_render_target_description,
             );
 
-            for custom_mesh_renderer in self.custom_mesh_renderers.iter_mut() {
+            for custom_mesh_renderer in self.custom_mesh_renderers.values_mut() {
                 custom_mesh_renderer.render(
                     &self.rendering_context,
                     &self.context,
