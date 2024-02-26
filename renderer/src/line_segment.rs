@@ -6,7 +6,7 @@ use wgpu::{
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    pipeline::{CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription},
     raw::Gpu,
 };
 
@@ -55,11 +55,8 @@ pub struct LineSegmentRenderer {
     shader: ShaderModule,
 }
 
-impl PipelineCreator for LineSegmentRenderer {
-    fn create_pipeline<'a>(
-        &'a self,
-        rendering_context: &'a RenderingContext,
-    ) -> CreatePipeline<'a> {
+impl PipelineDescriptable for LineSegmentRenderer {
+    fn pipeline_description<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -120,6 +117,7 @@ impl LineSegmentRenderer {
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        pipeline_store: &mut PipelineStore,
     ) {
         if !self.line_segments.is_empty() {
             self.instance_buffer
@@ -127,7 +125,7 @@ impl LineSegmentRenderer {
 
             if self.pipeline.is_none() {
                 let pipeline =
-                    Pipeline::new(context, self, render_target_description, rendering_context);
+                    pipeline_store.get_pipeline(context, self, render_target_description, rendering_context);
 
                 self.pipeline = Some(pipeline);
             }
@@ -137,7 +135,7 @@ impl LineSegmentRenderer {
                 .as_ref()
                 .expect("pipeline should be created by now");
 
-            render_pass.set_pipeline(pipeline.render_pipeline());
+            render_pass.set_pipeline(pipeline);
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

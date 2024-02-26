@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 eyre = { workspace = true }
 glam = { workspace = true }
+notify = "6.1.1"
 tracing = { workspace = true }
 wgpu = { workspace = true }
 

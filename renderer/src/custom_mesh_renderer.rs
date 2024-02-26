@@ -6,7 +6,7 @@ use wgpu::{vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
 use crate::{
     context::{Context, RenderingContext},
     mesh::GpuMesh,
-    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    pipeline::{CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription},
     shader_store::{Shader, ShaderDescriptable, ShaderStore},
 };
 
@@ -16,11 +16,8 @@ pub struct CustomMeshRenderer {
     mesh: GpuMesh,
 }
 
-impl PipelineCreator for CustomMeshRenderer {
-    fn create_pipeline<'a>(
-        &'a self,
-        rendering_context: &'a RenderingContext,
-    ) -> CreatePipeline<'a> {
+impl PipelineDescriptable for CustomMeshRenderer {
+    fn pipeline_description<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -65,12 +62,10 @@ impl CustomMeshRenderer {
         context: &Context,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        pipeline_store: &mut PipelineStore,
     ) {
         if self.pipeline.is_none() {
-            let pipeline =
-                Pipeline::new(context, self, render_target_description, rendering_context);
-
-            self.pipeline = Some(pipeline);
+            self.pipeline = Some(pipeline_store.get_pipeline(context, self, render_target_description, rendering_context));
         }
 
         let pipeline = &self
@@ -78,7 +73,7 @@ impl CustomMeshRenderer {
             .as_ref()
             .expect("pipeline should be created by now");
 
-        render_pass.set_pipeline(pipeline.render_pipeline());
+        render_pass.set_pipeline(pipeline);
         rendering_context.camera().bind(render_pass, 0);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.mesh.normal_buffer.slice(..));

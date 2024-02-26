@@ -4,7 +4,7 @@ use wgpu::{include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, Vert
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
+    pipeline::{CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription},
     raw::Gpu,
     shader_store::{Shader, ShaderCreator, ShaderDescriptable, ShaderStore},
 };
@@ -48,11 +48,8 @@ pub struct FilledCircleRenderer {
     shader: Shader,
 }
 
-impl PipelineCreator for FilledCircleRenderer {
-    fn create_pipeline<'a>(
-        &'a self,
-        rendering_context: &'a RenderingContext,
-    ) -> CreatePipeline<'a> {
+impl PipelineDescriptable for FilledCircleRenderer {
+    fn pipeline_description<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -120,15 +117,13 @@ impl FilledCircleRenderer {
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        pipeline_store: &mut PipelineStore
     ) {
         if !self.circles.is_empty() {
             self.instance_buffer.write_data(context, &self.circles);
 
             if self.pipeline.is_none() {
-                let pipeline =
-                    Pipeline::new(context, self, render_target_description, rendering_context);
-
-                self.pipeline = Some(pipeline);
+                self.pipeline = Some(pipeline_store.get_pipeline(context, self, render_target_description, rendering_context));
             }
 
             let pipeline = &self
@@ -136,7 +131,7 @@ impl FilledCircleRenderer {
                 .as_ref()
                 .expect("pipeline should be created by now");
 
-            render_pass.set_pipeline(pipeline.render_pipeline());
+            render_pass.set_pipeline(pipeline);
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
