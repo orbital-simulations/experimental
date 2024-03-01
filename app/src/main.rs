@@ -6,8 +6,8 @@ use game_engine::{
 };
 use glam::Vec3;
 use noise::{NoiseFn, SuperSimplex};
-use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, CustomRenderer, Renderer};
 use renderer::shader_store::{ShaderCreator, ShaderDescriptable};
+use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, CustomRenderer, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use wgpu::include_wgsl;
 use winit::{event_loop::EventLoop, window::Window};
@@ -76,7 +76,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     );
     game_engine
         .renderer
-        .add_custom_mesh_renderer(&TerrainRenderer,custom_renderer);
+        .add_custom_mesh_renderer(&TerrainRenderer, custom_renderer);
     GameState {
         noises: vec![(0, 50., 25.), (10, 10., 3.), (100, 1., 0.1)],
         vertices,
@@ -126,7 +126,12 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
             &normals,
             &state.indices,
         );
-        let custom_renderer = CustomMeshRenderer::new(gpu_mesh, &game_engine.renderer.context, &mut game_engine.renderer.shader_store, &TerainShader);
+        let custom_renderer = CustomMeshRenderer::new(
+            gpu_mesh,
+            &game_engine.renderer.context,
+            &mut game_engine.renderer.shader_store,
+            &TerainShader,
+        );
         game_engine
             .renderer
             .add_custom_mesh_renderer(&TerrainRenderer, custom_renderer);

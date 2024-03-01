@@ -10,10 +10,10 @@ pub mod mesh;
 pub mod pipeline;
 pub mod projection;
 pub mod raw;
+pub mod resource_watcher;
 pub mod shader_store;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
-pub mod resource_watcher;
 
 use std::{
     any::{Any, TypeId},

@@ -10,4 +10,3 @@ struct ResourceWatcher {
     watcher: INotifyWatcher,
     watched_files: Vec<Weak<dyn WatchedResource>>,
 }
-

@@ -6,7 +6,9 @@ use wgpu::{
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    pipeline::{CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription},
+    pipeline::{
+        CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription,
+    },
     raw::Gpu,
 };
 
@@ -50,7 +52,10 @@ pub struct FilledRectangleRenderer {
 }
 
 impl PipelineDescriptable for FilledRectangleRenderer {
-    fn pipeline_description<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+    fn pipeline_description<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -117,7 +122,12 @@ impl FilledRectangleRenderer {
             self.instance_buffer.write_data(context, &self.rectangles);
 
             if self.pipeline.is_none() {
-                self.pipeline = Some(pipeline_store.get_pipeline(context, self, render_target_description, rendering_context));
+                self.pipeline = Some(pipeline_store.get_pipeline(
+                    context,
+                    self,
+                    render_target_description,
+                    rendering_context,
+                ));
             }
 
             let pipeline = &self

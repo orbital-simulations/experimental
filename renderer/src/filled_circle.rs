@@ -4,7 +4,9 @@ use wgpu::{include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, Vert
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
-    pipeline::{CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription},
+    pipeline::{
+        CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription,
+    },
     raw::Gpu,
     shader_store::{Shader, ShaderCreator, ShaderDescriptable, ShaderStore},
 };
@@ -49,7 +51,10 @@ pub struct FilledCircleRenderer {
 }
 
 impl PipelineDescriptable for FilledCircleRenderer {
-    fn pipeline_description<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a> {
+    fn pipeline_description<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
         CreatePipeline {
             shader: &self.shader,
             vertex_buffer_layouts: vec![
@@ -117,13 +122,18 @@ impl FilledCircleRenderer {
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
-        pipeline_store: &mut PipelineStore
+        pipeline_store: &mut PipelineStore,
     ) {
         if !self.circles.is_empty() {
             self.instance_buffer.write_data(context, &self.circles);
 
             if self.pipeline.is_none() {
-                self.pipeline = Some(pipeline_store.get_pipeline(context, self, render_target_description, rendering_context));
+                self.pipeline = Some(pipeline_store.get_pipeline(
+                    context,
+                    self,
+                    render_target_description,
+                    rendering_context,
+                ));
             }
 
             let pipeline = &self

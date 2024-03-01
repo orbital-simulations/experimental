@@ -1,4 +1,10 @@
-use std::{any::{Any, TypeId}, cell::RefCell, collections::HashMap, ops::Deref, rc::{Rc, Weak}};
+use std::{
+    any::{Any, TypeId},
+    cell::RefCell,
+    collections::HashMap,
+    ops::Deref,
+    rc::{Rc, Weak},
+};
 
 use wgpu::{
     BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState,
@@ -36,7 +42,10 @@ impl Deref for Pipeline {
 }
 
 pub trait PipelineDescriptable {
-    fn pipeline_description<'a>(&'a self, rendering_context: &'a RenderingContext) -> CreatePipeline<'a>;
+    fn pipeline_description<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a>;
 }
 
 struct PipelineStoreEntryWrapper {
@@ -89,7 +98,10 @@ impl PipelineStore {
         pipeline_label: &T,
         render_target_description: &RenderTargetDescription,
         rendering_context: &RenderingContext,
-    ) -> (Rc<PipelineStoreEntryWrapper>, Weak<PipelineStoreEntryWrapper>)
+    ) -> (
+        Rc<PipelineStoreEntryWrapper>,
+        Weak<PipelineStoreEntryWrapper>,
+    )
     where
         T: PipelineDescriptable + Any,
     {
@@ -179,7 +191,10 @@ impl PipelineStore {
         (strong_pipeline, weak_pipeline)
     }
 
-    pub fn get_pipeline<T>(&mut self, context: &Context, pipeline_label: &T,
+    pub fn get_pipeline<T>(
+        &mut self,
+        context: &Context,
+        pipeline_label: &T,
         render_target_description: &RenderTargetDescription,
         rendering_context: &RenderingContext,
     ) -> Pipeline
@@ -191,7 +206,12 @@ impl PipelineStore {
         match possible_shader.as_ref() {
             Some(weak_shader) => match weak_shader.upgrade() {
                 None => {
-                    let (strong_pipeline, weak_pipeline) = self.create_pipeline(context, pipeline_label, render_target_description, rendering_context);
+                    let (strong_pipeline, weak_pipeline) = self.create_pipeline(
+                        context,
+                        pipeline_label,
+                        render_target_description,
+                        rendering_context,
+                    );
                     borrowed.insert(pipeline_label.type_id(), weak_pipeline);
                     Pipeline {
                         value_rc: strong_pipeline,
@@ -202,7 +222,12 @@ impl PipelineStore {
                 },
             },
             None => {
-                    let (strong_pipeline, weak_pipeline) = self.create_pipeline(context, pipeline_label, render_target_description, rendering_context);
+                let (strong_pipeline, weak_pipeline) = self.create_pipeline(
+                    context,
+                    pipeline_label,
+                    render_target_description,
+                    rendering_context,
+                );
                 borrowed.insert(pipeline_label.type_id(), weak_pipeline);
                 Pipeline {
                     value_rc: strong_pipeline,
