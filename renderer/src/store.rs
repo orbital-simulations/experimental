@@ -132,7 +132,6 @@ impl<C, T> Drop for EntryWrapper<C, T> {
 struct InternalStore<C, T> {
     store: HashMap<(TypeId, u64), WeakReference<C, T>>,
     store_context: C,
-    name: String,
 }
 
 pub struct Store<C, T> {
@@ -146,12 +145,11 @@ pub trait EntryLabel {
 }
 
 impl<C, T> Store<C, T> {
-    pub fn new(store_context: C, name: String) -> Self {
+    pub fn new(store_context: C) -> Self {
         Self {
             reference: Rc::new(RefCell::new(InternalStore {
                 store_context,
                 store: HashMap::new(),
-                name,
             })),
         }
     }
@@ -177,11 +175,6 @@ impl<C, T> Store<C, T> {
         F2: FnOnce(&mut C, &Entry<C, T>, M),
     {
         let mut internal_store = self.reference.deref().borrow_mut();
-        println!(
-            "store size for storer: {}, len: {}",
-            internal_store.name,
-            internal_store.store.len()
-        );
         let possible_ref = internal_store.store.get(&label.unique_label());
         let hash = label.unique_label();
         match possible_ref.as_ref() {

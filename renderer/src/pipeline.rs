@@ -143,13 +143,10 @@ pub struct PipelineStore {
 impl PipelineStore {
     pub fn new(context: Rc<Context>, rendering_context: Rc<RefCell<RenderingContext>>) -> Self {
         Self {
-            pipeline_store: Store::new(
-                PipelineContext {
-                    context,
-                    rendering_context,
-                },
-                "pipeline store".to_string(),
-            ),
+            pipeline_store: Store::new(PipelineContext {
+                context,
+                rendering_context,
+            }),
         }
     }
 

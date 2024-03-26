@@ -92,13 +92,10 @@ impl WatchedResource for WeakEntry<ShaderStoreContext, InternalShaderModule> {
 impl ShaderStore {
     pub fn new(context: Rc<Context>, resource_watcher: Rc<RefCell<ResourceWatcher>>) -> Self {
         Self {
-            shader_store: Store::new(
-                ShaderStoreContext {
-                    context,
-                    resource_watcher,
-                },
-                "shader store".to_string(),
-            ),
+            shader_store: Store::new(ShaderStoreContext {
+                context,
+                resource_watcher,
+            }),
         }
     }
 
