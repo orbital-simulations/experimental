@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use game_engine::{
     game_engine_3d_parameters,
     mesh::{generate_mesh_normals, generate_mesh_plane},
@@ -6,8 +8,11 @@ use game_engine::{
 };
 use glam::Vec3;
 use noise::{NoiseFn, SuperSimplex};
-use renderer::shader_store::{ShaderCreator, ShaderDescriptable};
 use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, CustomRenderer, Renderer};
+use renderer::{
+    shader_store::{ShaderCreator, ShaderDescriptable},
+    store::EntryLabel,
+};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use wgpu::include_wgsl;
 use winit::{event_loop::EventLoop, window::Window};
@@ -22,31 +27,67 @@ pub struct GameState {
 const CUBE: &str = include_str!("../assets/cube.obj");
 const CUBE_MATERIALS: [(&str, &str); 1] = [("cube.mtl", include_str!("../assets/cube.mtl"))];
 
+#[derive(Clone)]
 struct CubeRenderer;
 impl CustomRenderer for CubeRenderer {}
+#[derive(Clone)]
 struct TerrainRenderer;
 impl CustomRenderer for TerrainRenderer {}
+#[derive(Clone)]
 struct CubeShader;
 
+impl EntryLabel for CubeShader {
+    fn unique_label(&self) -> (std::any::TypeId, u64) {
+        (self.type_id(), 0)
+    }
+}
+
 impl ShaderDescriptable for CubeShader {
-    fn shader_description() -> ShaderCreator {
+    fn shader_description(&self) -> ShaderCreator {
         ShaderCreator::ShaderStatic(include_wgsl!("../shaders/cube.wgsl"))
     }
 }
 
+#[derive(Clone)]
+struct WatchedCubeRenderer;
+impl CustomRenderer for WatchedCubeRenderer {}
+impl EntryLabel for WatchedCubeRenderer {
+    fn unique_label(&self) -> (std::any::TypeId, u64) {
+        (self.type_id(), 0)
+    }
+}
+
+impl ShaderDescriptable for WatchedCubeRenderer {
+    fn shader_description(&self) -> ShaderCreator {
+        ShaderCreator::ShaderFromFile("./app/shaders/test_watched_shader.wgsl".to_string())
+    }
+}
+
+#[derive(Clone)]
 struct TerainShader;
 
+impl EntryLabel for TerainShader {
+    fn unique_label(&self) -> (std::any::TypeId, u64) {
+        (self.type_id(), 0)
+    }
+}
+
 impl ShaderDescriptable for TerainShader {
-    fn shader_description() -> ShaderCreator {
+    fn shader_description(&self) -> ShaderCreator {
         ShaderCreator::ShaderStatic(include_wgsl!("../shaders/terain.wgsl"))
     }
 }
 
 fn setup(game_engine: &mut GameEngine) -> GameState {
-    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
+    let gpu_mesh = load_model_static(
+        &game_engine.renderer.context,
+        CUBE,
+        &CUBE_MATERIALS,
+        &Vec3::new(0., 0., 0.),
+    )
+    .unwrap();
     let custom_renderer = CustomMeshRenderer::new(
         gpu_mesh,
-        &game_engine.renderer.context,
         &mut game_engine.renderer.shader_store,
         &CubeShader,
     );
@@ -70,13 +111,29 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
     let custom_renderer = CustomMeshRenderer::new(
         gpu_mesh,
-        &game_engine.renderer.context,
         &mut game_engine.renderer.shader_store,
         &TerainShader,
     );
     game_engine
         .renderer
         .add_custom_mesh_renderer(&TerrainRenderer, custom_renderer);
+
+    let gpu_mesh = load_model_static(
+        &game_engine.renderer.context,
+        CUBE,
+        &CUBE_MATERIALS,
+        &Vec3::new(10.0, 0., 0.),
+    )
+    .unwrap();
+    let custom_renderer = CustomMeshRenderer::new(
+        gpu_mesh,
+        &mut game_engine.renderer.shader_store,
+        &WatchedCubeRenderer,
+    );
+    game_engine
+        .renderer
+        .add_custom_mesh_renderer(&WatchedCubeRenderer, custom_renderer);
+
     GameState {
         noises: vec![(0, 50., 25.), (10, 10., 3.), (100, 1., 0.1)],
         vertices,
@@ -103,7 +160,7 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
         }
     });
     if state.noises_detection != state.noises {
-        state.noises_detection = state.noises.clone();
+        state.noises_detection.clone_from(&state.noises);
 
         let simplexes: Vec<SuperSimplex> = state
             .noises
@@ -128,7 +185,6 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
         );
         let custom_renderer = CustomMeshRenderer::new(
             gpu_mesh,
-            &game_engine.renderer.context,
             &mut game_engine.renderer.shader_store,
             &TerainShader,
         );

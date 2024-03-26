@@ -11,6 +11,7 @@ use inputs::Inputs;
 use renderer::projection::{OrtographicProjection, PerspectiveProjection, Projection};
 use renderer::Renderer;
 use std::f32::consts::PI;
+use std::rc::Rc;
 use std::time::Instant;
 use tracing::{debug, info};
 use wgpu::util::parse_backends_from_comma_list;
@@ -135,7 +136,7 @@ impl<'a> GameEngine<'a> {
             desired_maximum_frame_latency: 1,
         };
         surface.configure(&device, &surface_configuration);
-        let context = Context::new(device, queue);
+        let context = Rc::new(Context::new(device, queue));
         let projection = match game_engine_parameters.projection {
             ProjectionInit::Perspective => Projection::Perspective(PerspectiveProjection::new(
                 size.width as f32,
@@ -307,6 +308,7 @@ impl<'a> GameEngine<'a> {
             .update_camera(&mut self.camera, self.last_frame_delta, &self.inputs);
         self.renderer
             .rendering_context
+            .borrow_mut()
             .camera_mut()
             .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
         self.timer = Instant::now();

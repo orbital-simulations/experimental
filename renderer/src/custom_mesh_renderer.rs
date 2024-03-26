@@ -1,4 +1,8 @@
-use std::any::Any;
+use std::{
+    any::Any,
+    hash::{DefaultHasher, Hash, Hasher},
+    ops::Deref,
+};
 
 use glam::Vec3;
 use wgpu::{vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
@@ -10,6 +14,7 @@ use crate::{
         CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription,
     },
     shader_store::{Shader, ShaderDescriptable, ShaderStore},
+    store::EntryLabel,
 };
 
 pub struct CustomMeshRenderer {
@@ -19,12 +24,9 @@ pub struct CustomMeshRenderer {
 }
 
 impl PipelineDescriptable for CustomMeshRenderer {
-    fn pipeline_description<'a>(
-        &'a self,
-        rendering_context: &'a RenderingContext,
-    ) -> CreatePipeline<'a> {
+    fn pipeline_description(&self, rendering_context: &RenderingContext) -> CreatePipeline {
         CreatePipeline {
-            shader: &self.shader,
+            shader: self.shader.clone(),
             vertex_buffer_layouts: vec![
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<Vec3>() as u64,
@@ -43,17 +45,20 @@ impl PipelineDescriptable for CustomMeshRenderer {
     }
 }
 
+impl EntryLabel for CustomMeshRenderer {
+    fn unique_label(&self) -> (std::any::TypeId, u64) {
+        let mut s = DefaultHasher::new();
+        self.shader.hash(&mut s);
+        (self.type_id(), s.finish())
+    }
+}
+
 impl CustomMeshRenderer {
-    pub fn new<T>(
-        mesh: GpuMesh,
-        context: &Context,
-        shader_store: &mut ShaderStore,
-        shader_label: &T,
-    ) -> Self
+    pub fn new<L>(mesh: GpuMesh, shader_store: &mut ShaderStore, shader_label: &L) -> Self
     where
-        T: ShaderDescriptable + Any,
+        L: EntryLabel + ShaderDescriptable + Clone,
     {
-        let shader = shader_store.get_shader(context, shader_label);
+        let shader = shader_store.get_entry(shader_label);
         Self {
             shader,
             pipeline: None,
@@ -64,26 +69,21 @@ impl CustomMeshRenderer {
     pub fn render<'a>(
         &'a mut self,
         rendering_context: &'a RenderingContext,
-        context: &Context,
+        _context: &Context,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
         pipeline_store: &mut PipelineStore,
     ) {
         if self.pipeline.is_none() {
-            self.pipeline = Some(pipeline_store.get_pipeline(
-                context,
-                self,
-                render_target_description,
-                rendering_context,
-            ));
+            self.pipeline = Some(pipeline_store.get_entry(self, render_target_description));
         }
 
-        let pipeline = &self
+        let pipeline = self
             .pipeline
             .as_ref()
             .expect("pipeline should be created by now");
 
-        render_pass.set_pipeline(pipeline);
+        render_pass.set_pipeline(&pipeline.deref().pipeline);
         rendering_context.camera().bind(render_pass, 0);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.mesh.normal_buffer.slice(..));

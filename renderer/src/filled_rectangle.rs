@@ -1,7 +1,7 @@
+use std::{any::Any, ops::Deref};
+
 use glam::{Vec2, Vec3};
-use wgpu::{
-    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode,
-};
+use wgpu::{include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
 
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
@@ -10,6 +10,8 @@ use crate::{
         CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription,
     },
     raw::Gpu,
+    shader_store::{Shader, ShaderCreator, ShaderDescriptable, ShaderStore},
+    store::EntryLabel,
 };
 
 #[derive(Debug)]
@@ -48,16 +50,13 @@ pub struct FilledRectangleRenderer {
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<FilledRectangle>,
     pipeline: Option<Pipeline>,
-    shader: ShaderModule,
+    shader: Shader,
 }
 
 impl PipelineDescriptable for FilledRectangleRenderer {
-    fn pipeline_description<'a>(
-        &'a self,
-        rendering_context: &'a RenderingContext,
-    ) -> CreatePipeline<'a> {
+    fn pipeline_description(&self, rendering_context: &RenderingContext) -> CreatePipeline {
         CreatePipeline {
-            shader: &self.shader,
+            shader: self.shader.clone(),
             vertex_buffer_layouts: vec![
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<Vec2>() as u64,
@@ -76,11 +75,28 @@ impl PipelineDescriptable for FilledRectangleRenderer {
     }
 }
 
+struct FilledRectangleShaderLabel;
+
+impl EntryLabel for FilledRectangleShaderLabel {
+    fn unique_label(&self) -> (std::any::TypeId, u64) {
+        (self.type_id(), 0)
+    }
+}
+
+impl ShaderDescriptable for FilledRectangleShaderLabel {
+    fn shader_description(&self) -> ShaderCreator {
+        ShaderCreator::ShaderStatic(include_wgsl!("../shaders/filled_rectangle.wgsl"))
+    }
+}
+impl EntryLabel for FilledRectangleRenderer {
+    fn unique_label(&self) -> (std::any::TypeId, u64) {
+        (self.type_id(), 0)
+    }
+}
+
 impl FilledRectangleRenderer {
-    pub fn new(context: &Context) -> Self {
-        let shader = context
-            .device
-            .create_shader_module(include_wgsl!("../shaders/filled_rectangle.wgsl"));
+    pub fn new(context: &Context, shader_store: &mut ShaderStore) -> Self {
+        let shader = shader_store.get_entry(&FilledRectangleShaderLabel);
         let index_buffer = IndexBuffer::new(context, "rectangle index buffer", RECTANGLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
             context,
@@ -122,20 +138,15 @@ impl FilledRectangleRenderer {
             self.instance_buffer.write_data(context, &self.rectangles);
 
             if self.pipeline.is_none() {
-                self.pipeline = Some(pipeline_store.get_pipeline(
-                    context,
-                    self,
-                    render_target_description,
-                    rendering_context,
-                ));
+                self.pipeline = Some(pipeline_store.get_entry(self, render_target_description));
             }
 
-            let pipeline = &self
+            let pipeline = self
                 .pipeline
                 .as_ref()
                 .expect("pipeline should be created by now");
 
-            render_pass.set_pipeline(pipeline);
+            render_pass.set_pipeline(&pipeline.deref().pipeline);
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

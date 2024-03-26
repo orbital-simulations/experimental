@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::RangeBounds};
+use std::{marker::PhantomData, ops::RangeBounds, rc::Rc};
 
 use wgpu::{
     util::DeviceExt, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingResource,
@@ -167,8 +167,8 @@ impl<T: Gpu> DescriptiveBindGroupEntry for WriteableBuffer<T> {
 }
 
 pub struct BindGroup {
-    bind_group: wgpu::BindGroup,
-    bind_group_layout: BindGroupLayout,
+    bind_group: Rc<wgpu::BindGroup>,
+    bind_group_layout: Rc<BindGroupLayout>,
 }
 
 pub trait DescriptiveBindableGroupEntry: DescriptiveBindGroupEntry + BindableBuffer {}
@@ -211,13 +211,13 @@ impl BindGroup {
             });
 
         Self {
-            bind_group,
-            bind_group_layout,
+            bind_group: Rc::new(bind_group),
+            bind_group_layout: Rc::new(bind_group_layout),
         }
     }
 
-    pub fn layout(&self) -> &BindGroupLayout {
-        &self.bind_group_layout
+    pub fn layout(&self) -> Rc<BindGroupLayout> {
+        self.bind_group_layout.clone()
     }
 
     pub fn bind<'a>(&'a self, render_pass: &mut RenderPass<'a>, slot: u32) {

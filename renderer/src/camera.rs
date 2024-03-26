@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::slice::from_ref;
 
 use crate::buffers::{BindGroup, DescriptiveBindGroupEntry};
@@ -74,7 +75,7 @@ impl Camera {
             .write_data(context, from_ref(camera_matrix));
     }
 
-    pub fn bind_group_layout(&self) -> &BindGroupLayout {
+    pub fn bind_group_layout(&self) -> Rc<BindGroupLayout> {
         self.bind_group.layout()
     }
 }

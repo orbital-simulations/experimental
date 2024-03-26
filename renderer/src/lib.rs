@@ -12,12 +12,16 @@ pub mod projection;
 pub mod raw;
 pub mod resource_watcher;
 pub mod shader_store;
+pub mod store;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
 
 use std::{
     any::{Any, TypeId},
+    cell::RefCell,
     collections::HashMap,
+    env,
+    rc::Rc,
 };
 
 use context::{Context, RenderingContext};
@@ -29,6 +33,7 @@ use line_segment::{LineSegment, LineSegmentRenderer};
 use pipeline::{PipelineStore, RenderTargetDescription};
 use projection::Projection;
 
+use resource_watcher::ResourceWatcher;
 use shader_store::ShaderStore;
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
@@ -39,8 +44,8 @@ use wgpu::{
 };
 
 pub struct Renderer {
-    pub context: Context,
-    pub rendering_context: RenderingContext,
+    pub context: Rc<Context>,
+    pub rendering_context: Rc<RefCell<RenderingContext>>,
     pub shader_store: ShaderStore,
     pipeline_store: PipelineStore,
     filled_circle_renderer: FilledCircleRenderer,
@@ -52,31 +57,35 @@ pub struct Renderer {
     size: Vec2,
     depth_texture: Option<Texture>,
     window_render_target_description: RenderTargetDescription,
+    #[allow(dead_code)]
+    resource_watcher: Rc<RefCell<ResourceWatcher>>,
 }
 
 pub trait CustomRenderer {}
 
 impl Renderer {
     pub fn new(
-        context: Context,
+        context: Rc<Context>,
         size: Vec2,
         projection: Projection,
         main_surface_format: TextureFormat,
     ) -> eyre::Result<Self> {
-        let rendering_context = RenderingContext::new(&context, projection);
+        let rendering_context = Rc::new(RefCell::new(RenderingContext::new(&context, projection)));
 
         let window_render_target_description = RenderTargetDescription {
             multisampling: 1,
             depth_texture: Some(TextureFormat::Depth32Float),
             targets: vec![main_surface_format],
         };
-        let mut shader_store = ShaderStore::new();
-        let pipeline_store = PipelineStore::new();
+        let pwd = env::current_dir()?;
+        let resource_watcher = Rc::new(RefCell::new(ResourceWatcher::new(pwd)?));
+        let mut shader_store = ShaderStore::new(context.clone(), resource_watcher.clone());
+        let pipeline_store = PipelineStore::new(context.clone(), rendering_context.clone());
         let filled_circle_renderer = FilledCircleRenderer::new(&context, &mut shader_store);
-        let stroke_circle_renderer = StrokeCircleRenderer::new(&context);
-        let filled_rectangle_renderer = FilledRectangleRenderer::new(&context);
-        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context);
-        let line_segment_renderer = LineSegmentRenderer::new(&context);
+        let stroke_circle_renderer = StrokeCircleRenderer::new(&context, &mut shader_store);
+        let filled_rectangle_renderer = FilledRectangleRenderer::new(&context, &mut shader_store);
+        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context, &mut shader_store);
+        let line_segment_renderer = LineSegmentRenderer::new(&context, &mut shader_store);
 
         Ok(Self {
             context,
@@ -92,6 +101,7 @@ impl Renderer {
             window_render_target_description,
             shader_store,
             pipeline_store,
+            resource_watcher,
         })
     }
 
@@ -125,6 +135,7 @@ impl Renderer {
     {
         self.custom_mesh_renderers
             .insert(renderer_id.type_id(), custom_mesh_renderer);
+        println!("size: {}", self.custom_mesh_renderers.len());
     }
 
     pub fn remove_custom_mesh_renderer<K>(&mut self, renderer_id: &K)
@@ -137,7 +148,7 @@ impl Renderer {
     pub fn on_resize(&mut self, new_size: Vec2) {
         info!("on resize event received new_size: {:?}", new_size);
         self.size = new_size;
-        self.rendering_context
+        RefCell::borrow_mut(&*self.rendering_context)
             .camera_mut()
             .on_resize(new_size, &self.context);
         self.depth_texture = None;
@@ -145,7 +156,7 @@ impl Renderer {
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
-        self.rendering_context
+        RefCell::borrow_mut(&*self.rendering_context)
             .camera_mut()
             .on_scale_factor_change(scale_factor, &self.context);
     }
@@ -197,6 +208,7 @@ impl Renderer {
                     store: StoreOp::Store,
                 },
             })];
+            let rendering_context = (*self.rendering_context).borrow();
 
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Shapes Renderer Pass"),
@@ -215,35 +227,35 @@ impl Renderer {
 
             self.filled_circle_renderer.render(
                 &self.context,
-                &self.rendering_context,
+                &rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
                 &mut self.pipeline_store,
             );
             self.stroke_circle_renderer.render(
                 &self.context,
-                &self.rendering_context,
+                &rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
                 &mut self.pipeline_store,
             );
             self.filled_rectangle_renderer.render(
                 &self.context,
-                &self.rendering_context,
+                &rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
                 &mut self.pipeline_store,
             );
             self.line_segment_renderer.render(
                 &self.context,
-                &self.rendering_context,
+                &rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
                 &mut self.pipeline_store,
             );
             self.stroke_rectangle_renderer.render(
                 &self.context,
-                &self.rendering_context,
+                &rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
                 &mut self.pipeline_store,
@@ -251,7 +263,7 @@ impl Renderer {
 
             for custom_mesh_renderer in self.custom_mesh_renderers.values_mut() {
                 custom_mesh_renderer.render(
-                    &self.rendering_context,
+                    &rendering_context,
                     &self.context,
                     &mut render_pass,
                     &self.window_render_target_description,
@@ -261,5 +273,9 @@ impl Renderer {
         }
 
         self.context.queue.submit(std::iter::once(encoder.finish()));
+        self.resource_watcher
+            .as_ref()
+            .borrow_mut()
+            .process_updates();
     }
 }
