@@ -1,7 +1,8 @@
 use std::{
     any::Any,
     hash::{DefaultHasher, Hash, Hasher},
-    ops::Deref, rc::Rc,
+    ops::Deref,
+    rc::Rc,
 };
 
 use glam::Vec3;
