@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     hash::{DefaultHasher, Hash, Hasher},
-    ops::Deref,
+    ops::Deref, rc::Rc,
 };
 
 use glam::Vec3;
@@ -39,7 +39,7 @@ impl PipelineDescriptable for CustomMeshRenderer {
                     attributes: &vertex_attr_array![1 => Float32x3],
                 },
             ],
-            bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
+            bind_group_layouts: vec![Rc::clone(rendering_context.camera().bind_group_layout())],
             name: "custom mesh renderer".to_string(),
         }
     }

@@ -216,8 +216,8 @@ impl BindGroup {
         }
     }
 
-    pub fn layout(&self) -> Rc<BindGroupLayout> {
-        self.bind_group_layout.clone()
+    pub fn layout(&self) -> &Rc<BindGroupLayout> {
+        &self.bind_group_layout
     }
 
     pub fn bind<'a>(&'a self, render_pass: &mut RenderPass<'a>, slot: u32) {

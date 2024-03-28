@@ -1,4 +1,4 @@
-use std::{any::Any, ops::Deref};
+use std::{any::Any, ops::Deref, rc::Rc};
 
 use glam::{Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
@@ -75,7 +75,7 @@ impl PipelineDescriptable for LineSegmentRenderer {
                     attributes: &LINE_SEGMENT_VERTEX_ATTRIBUTES,
                 },
             ],
-            bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
+            bind_group_layouts: vec![Rc::clone(rendering_context.camera().bind_group_layout())],
             name: "line segment renderer".to_string(),
         }
     }

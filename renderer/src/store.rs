@@ -63,7 +63,7 @@ impl<C, T> Deref for Entry<C, T> {
 impl<C, T> Clone for Entry<C, T> {
     fn clone(&self) -> Self {
         Entry {
-            entry_ref: self.entry_ref.clone(),
+            entry_ref: Rc::clone(&self.entry_ref),
             hash: self.hash,
         }
     }
@@ -159,7 +159,7 @@ impl<C, T> Store<C, T> {
         L: EntryLabel,
     {
         let strong_ref = Rc::new(RefCell::new(EntryWrapper {
-            internal_store: self.reference.clone(),
+            internal_store: Rc::clone(&self.reference),
             label: label.unique_label(),
             data,
             dependant_refs: vec![],
