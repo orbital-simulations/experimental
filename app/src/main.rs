@@ -4,11 +4,11 @@ use game_engine::{
     game_engine_3d_parameters,
     mesh::{generate_mesh_normals, generate_mesh_plane},
     obj_loader::load_model_static,
-    GameEngine,
+    GameEngine, Scene,
 };
 use glam::Vec3;
 use noise::{NoiseFn, SuperSimplex};
-use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, CustomRenderer, Renderer};
+use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, CustomRenderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use wgpu::{include_wgsl, ShaderModule};
 use winit::{event_loop::EventLoop, window::Window};
@@ -31,11 +31,10 @@ impl CustomRenderer for TerrainRenderer {}
 
 fn setup(game_engine: &mut GameEngine) -> GameState {
     let shader = game_engine
-        .renderer
         .context
         .device
         .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
-    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
+    let gpu_mesh = load_model_static(&game_engine.context, CUBE, &CUBE_MATERIALS).unwrap();
     let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Rc::new(shader));
     game_engine
         .renderer
@@ -43,7 +42,6 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
 
     let shader = Rc::new(
         game_engine
-            .renderer
             .context
             .device
             .create_shader_module(include_wgsl!("../shaders/terain.wgsl")),
@@ -62,7 +60,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
 
     let normals = generate_mesh_normals(&vertices, &indices);
 
-    let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
+    let gpu_mesh = GpuMesh::new(&game_engine.context, &vertices, &normals, &indices);
     let custom_renderer = CustomMeshRenderer::new(gpu_mesh, shader.clone());
     game_engine
         .renderer
@@ -94,7 +92,7 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
         }
     });
     if state.noises_detection != state.noises {
-        state.noises_detection = state.noises.clone();
+        state.noises_detection.clone_from(&state.noises);
 
         let simplexes: Vec<SuperSimplex> = state
             .noises
@@ -112,7 +110,7 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
         let normals = generate_mesh_normals(&state.vertices, &state.indices);
 
         let gpu_mesh = GpuMesh::new(
-            &game_engine.renderer.context,
+            &game_engine.context,
             &state.vertices,
             &normals,
             &state.indices,
@@ -124,7 +122,7 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     }
 }
 
-fn render(_state: &GameState, _renderer: &mut Renderer) {}
+fn render(_state: &GameState, _scene: &mut Scene) {}
 
 fn main() -> color_eyre::eyre::Result<()> {
     let fmt_layer = fmt::layer().pretty();

@@ -47,7 +47,6 @@ const LINE_SEGMENT_VERTICES: [Vec2; 4] = [
 const LINE_SEGMENT_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
 pub struct LineSegmentRenderer {
-    line_segments: Vec<LineSegment>,
     pipeline: Option<Pipeline>,
     vertex_buffer: WriteableBuffer<Vec2>,
     index_buffer: IndexBuffer<u16>,
@@ -101,7 +100,6 @@ impl LineSegmentRenderer {
         );
 
         Self {
-            line_segments: vec![],
             vertex_buffer,
             index_buffer,
             instance_buffer,
@@ -110,20 +108,16 @@ impl LineSegmentRenderer {
         }
     }
 
-    pub fn add_line_segment(&mut self, line_segment: LineSegment) {
-        self.line_segments.push(line_segment);
-    }
-
     pub fn render<'a>(
         &'a mut self,
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        line_segments: &[LineSegment],
     ) {
-        if !self.line_segments.is_empty() {
-            self.instance_buffer
-                .write_data(context, &self.line_segments);
+        if !line_segments.is_empty() {
+            self.instance_buffer.write_data(context, line_segments);
 
             if self.pipeline.is_none() {
                 let pipeline =
@@ -145,12 +139,8 @@ impl LineSegmentRenderer {
             render_pass.draw_indexed(
                 0..self.index_buffer.draw_count(),
                 0,
-                0..(self.line_segments.len() as u32),
+                0..(line_segments.len() as u32),
             );
-
-            // TODO: Think about some memory releasing strategy. Spike in number of
-            // circles will lead to space leak.
-            self.line_segments.clear();
         }
     }
 }

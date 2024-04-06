@@ -42,7 +42,6 @@ const RECTANGLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
 #[derive(Debug)]
 pub struct FilledRectangleRenderer {
-    rectangles: Vec<FilledRectangle>,
     vertex_buffer: WriteableBuffer<Vec2>,
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<FilledRectangle>,
@@ -96,7 +95,6 @@ impl FilledRectangleRenderer {
         );
 
         Self {
-            rectangles: vec![],
             vertex_buffer,
             index_buffer,
             instance_buffer,
@@ -105,19 +103,16 @@ impl FilledRectangleRenderer {
         }
     }
 
-    pub fn add_rectangle(&mut self, rectangle: FilledRectangle) {
-        self.rectangles.push(rectangle);
-    }
-
     pub fn render<'a>(
         &'a mut self,
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        rectangles: &[FilledRectangle],
     ) {
-        if !self.rectangles.is_empty() {
-            self.instance_buffer.write_data(context, &self.rectangles);
+        if !rectangles.is_empty() {
+            self.instance_buffer.write_data(context, rectangles);
 
             if self.pipeline.is_none() {
                 let pipeline =
@@ -139,12 +134,8 @@ impl FilledRectangleRenderer {
             render_pass.draw_indexed(
                 0..self.index_buffer.draw_count(),
                 0,
-                0..(self.rectangles.len() as u32),
+                0..(rectangles.len() as u32),
             );
-
-            // TODO: Think about some memory releasing strategy. Spike in number of
-            // circles will lead to space leak.
-            self.rectangles.clear();
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::{f64::consts::PI, iter::repeat_with};
 
-use game_engine::{game_engine_2_5d_parameters, GameEngine};
+use game_engine::{game_engine_2_5d_parameters, GameEngine, RenderingBackend, Scene};
 use glam::{dvec2, DVec2};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
@@ -8,7 +8,6 @@ use renderer::{
     colors::{RED, YELLOW},
     filled_circle::FilledCircle,
     line_segment::LineSegment,
-    Renderer,
 };
 use tracing::debug;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -96,19 +95,22 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     state.engine.step(dt as f64);
 }
 
-fn render(state: &GameState, renderer: &mut Renderer) {
+fn render(state: &GameState, scene: &mut Scene) {
     debug!("main render");
+    let Scene::Native(scene) = scene else {
+        panic!("Expected a native scene");
+    };
     for p in &state.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
+                scene.draw_filled_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
             }
             Shape::HalfPlane { normal_angle } => {
                 let extent = 10000.0;
                 let tangent = DVec2::from_angle(normal_angle).perp();
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line_segment(LineSegment {
+                scene.draw_line_segment(LineSegment {
                     from: from.as_vec2(),
                     to: to.as_vec2(),
                     color: YELLOW,
@@ -135,7 +137,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(
         event_loop,
         &window,
-        game_engine_2_5d_parameters(),
+        game_engine_2_5d_parameters(RenderingBackend::Native),
     ))?;
     game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())

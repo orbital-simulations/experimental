@@ -1,4 +1,4 @@
-use game_engine::{game_engine_2_5d_parameters, GameEngine};
+use game_engine::{game_engine_2_5d_parameters, GameEngine, RenderingBackend, Scene};
 use glam::{DMat2, DVec2};
 use physics::{
     scenarios::{Collision, Scenario},
@@ -8,7 +8,6 @@ use renderer::{
     colors::{RED, YELLOW},
     line_segment::LineSegment,
     stroke_circle::StrokeCircle,
-    Renderer,
 };
 use tracing::debug;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -142,12 +141,15 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     }
 }
 
-fn render(state: &GameState, renderer: &mut Renderer) {
+fn render(state: &GameState, scene: &mut Scene) {
     debug!("main render");
+    let Scene::Native(scene) = scene else {
+        panic!("Expected a native scene")
+    };
     for p in &state.history.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                renderer.draw_stroke_circle(StrokeCircle::new(
+                scene.draw_stroke_circle(StrokeCircle::new(
                     p.pos.as_vec2(),
                     radius as f32,
                     3.0,
@@ -155,14 +157,14 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 ));
                 let direction = DMat2::from_angle(p.angle) * DVec2::X;
                 let to = (p.pos + direction * radius).as_vec2();
-                renderer.draw_line_segment(LineSegment::new(p.pos.as_vec2(), to, RED, 1.0));
+                scene.draw_line_segment(LineSegment::new(p.pos.as_vec2(), to, RED, 1.0));
             }
             Shape::HalfPlane { normal_angle } => {
                 let extent = 10000.0;
                 let tangent = DVec2::from_angle(normal_angle).perp();
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line_segment(LineSegment {
+                scene.draw_line_segment(LineSegment {
                     from: from.as_vec2(),
                     to: to.as_vec2(),
                     color: YELLOW,
@@ -189,7 +191,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(
         event_loop,
         &window,
-        game_engine_2_5d_parameters(),
+        game_engine_2_5d_parameters(RenderingBackend::Native),
     ))?;
     game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())

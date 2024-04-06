@@ -48,7 +48,6 @@ const STROKE_RECTANGLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
 #[derive(Debug)]
 pub struct StrokeRectangleRenderer {
-    rectangles: Vec<StrokeRectangle>,
     vertex_buffer: WriteableBuffer<Vec2>,
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<StrokeRectangle>,
@@ -103,7 +102,6 @@ impl StrokeRectangleRenderer {
         );
 
         Self {
-            rectangles: vec![],
             vertex_buffer,
             index_buffer,
             instance_buffer,
@@ -112,19 +110,16 @@ impl StrokeRectangleRenderer {
         }
     }
 
-    pub fn add_rectangle(&mut self, rectangle: StrokeRectangle) {
-        self.rectangles.push(rectangle);
-    }
-
     pub fn render<'a>(
         &'a mut self,
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        rectangles: &[StrokeRectangle],
     ) {
-        if !self.rectangles.is_empty() {
-            self.instance_buffer.write_data(context, &self.rectangles);
+        if !rectangles.is_empty() {
+            self.instance_buffer.write_data(context, rectangles);
 
             if self.pipeline.is_none() {
                 let pipeline =
@@ -146,12 +141,8 @@ impl StrokeRectangleRenderer {
             render_pass.draw_indexed(
                 0..self.index_buffer.draw_count(),
                 0,
-                0..(self.rectangles.len() as u32),
+                0..(rectangles.len() as u32),
             );
-
-            // TODO: Think about some memory releasing strategy. Spike in number of
-            // circles will lead to space leak.
-            self.rectangles.clear();
         }
     }
 }

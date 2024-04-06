@@ -17,3 +17,4 @@ wgpu = "0.19"
 noise = "0.8"
 itertools = "0.12"
 egui = { version = "0.26", features = ["color-hex", "default_fonts", "log", "mint"] }
+vello = "0.1"

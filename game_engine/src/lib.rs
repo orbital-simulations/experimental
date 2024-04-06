@@ -11,8 +11,10 @@ use inputs::Inputs;
 use renderer::projection::{OrtographicProjection, PerspectiveProjection, Projection};
 use renderer::Renderer;
 use std::f32::consts::PI;
+use std::num::NonZeroUsize;
 use std::time::Instant;
 use tracing::{debug, info, warn};
+use vello::{AaConfig, RenderParams, RendererOptions};
 use wgpu::util::parse_backends_from_comma_list;
 use wgpu::{
     DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor, InstanceFlags,
@@ -30,11 +32,31 @@ use winit::{dpi::PhysicalSize, event::Event, event_loop::EventLoop};
 
 use renderer::context::Context;
 
+// NOTE(mbernat): This can be made much nicer once TAIT is stabilized
+// see https://rust-lang.github.io/rfcs/2515-type_alias_impl_trait.html
+pub trait FSetup<State>: FnOnce(&mut GameEngine) -> State {}
+impl<T, State> FSetup<State> for T where T: FnOnce(&mut GameEngine) -> State {}
+pub trait FUpdate<State>: Fn(&mut State, &mut GameEngine) {}
+impl<T, State> FUpdate<State> for T where T: Fn(&mut State, &mut GameEngine) {}
+pub trait FRender<State>: Fn(&State, &mut Scene) {}
+impl<T, State> FRender<State> for T where T: Fn(&State, &mut Scene) {}
+
+pub enum Scene {
+    Native(renderer::Scene),
+    Vello(vello::Scene),
+}
+
+// NOTE(mbernat): It should be possible to use multiple renderers at the same time
+// but by default both of these seem to clear the background, so cannot be combined.
+pub enum RenderingBackend {
+    Native,
+    Vello,
+}
+
 pub struct GameEngine<'a> {
     window: &'a Window,
     pub last_frame_delta: f32,
     timer: Instant,
-    pub renderer: Renderer,
     surface_configuration: SurfaceConfiguration,
     surface: Surface<'a>,
     size: PhysicalSize<u32>,
@@ -42,6 +64,10 @@ pub struct GameEngine<'a> {
     camera_controler: CameraController,
     camera: Camera,
     egui_integration: EguiIntegration,
+    pub renderer: Renderer,
+    vello_renderer: vello::Renderer,
+    rendering_backend: RenderingBackend,
+    pub context: Context,
 }
 
 fn size_to_vec2(size: &PhysicalSize<u32>) -> Vec2 {
@@ -51,19 +77,22 @@ fn size_to_vec2(size: &PhysicalSize<u32>) -> Vec2 {
 pub struct MkGameEngine {
     projection: ProjectionInit,
     camera: Camera,
+    rendering_backend: RenderingBackend,
 }
 
 pub fn game_engine_3d_parameters() -> MkGameEngine {
     MkGameEngine {
         projection: ProjectionInit::Perspective,
         camera: Camera::new(vec3(0., 10., 0.), 0., 0.),
+        rendering_backend: RenderingBackend::Native,
     }
 }
 
-pub fn game_engine_2_5d_parameters() -> MkGameEngine {
+pub fn game_engine_2_5d_parameters(rendering_backend: RenderingBackend) -> MkGameEngine {
     MkGameEngine {
         projection: ProjectionInit::Ortographic,
         camera: Camera::new(vec3(0., 0., 10.), 0., -PI / 2.),
+        rendering_backend,
     }
 }
 
@@ -153,16 +182,24 @@ impl<'a> GameEngine<'a> {
             )),
         };
 
+        let texture = surface.get_current_texture().unwrap();
+        let texture_format = texture.texture.format();
+
         let egui_integration =
             EguiIntegration::new(window, &context.device, surface_configuration.format);
 
-        let texture = surface.get_current_texture().unwrap();
-        let renderer = Renderer::new(
-            context,
-            size_to_vec2(&size),
-            projection,
-            texture.texture.format(),
-        )?;
+        let vello_renderer = vello::Renderer::new(
+            &context.device,
+            RendererOptions {
+                surface_format: Some(texture_format),
+                use_cpu: false,
+                antialiasing_support: vello::AaSupport::all(),
+                num_init_threads: NonZeroUsize::new(1),
+            },
+        )
+        .expect("Failed to create vello renderer");
+
+        let renderer = Renderer::new(&context, projection, texture_format)?;
 
         Ok((
             Self {
@@ -177,28 +214,36 @@ impl<'a> GameEngine<'a> {
                 camera_controler: CameraController::new(10., 1.),
                 camera: game_engine_parameters.camera,
                 egui_integration,
+                vello_renderer,
+                rendering_backend: game_engine_parameters.rendering_backend,
+                context,
             },
             event_loop,
         ))
     }
 
-    pub fn run<State, FSetup, FUpdate, FRender>(
+    pub fn run<State>(
         &mut self,
         event_loop: EventLoop<()>,
-        setup: FSetup,
-        update: &FUpdate,
-        render: &FRender,
-    ) -> eyre::Result<()>
-    where
-        FSetup: FnOnce(&mut GameEngine) -> State,
-        FUpdate: Fn(&mut State, &mut GameEngine),
-        FRender: Fn(&State, &mut Renderer),
-    {
+        setup: impl FSetup<State>,
+        update: &impl FUpdate<State>,
+        render: &impl FRender<State>,
+    ) -> eyre::Result<()> {
         let mut state = setup(self);
         // Restart timer just in case the setup takes forever.
         self.timer = Instant::now();
-        info!("rendering firs frame with initial state");
-        render(&mut state, &mut self.renderer);
+        info!("rendering first frame with initial state");
+        let mut scene = match self.rendering_backend {
+            RenderingBackend::Native => {
+                let scene = renderer::Scene::default();
+                Scene::Native(scene)
+            }
+            RenderingBackend::Vello => {
+                let scene = vello::Scene::new();
+                Scene::Vello(scene)
+            }
+        };
+        render(&mut state, &mut scene);
         event_loop.run(move |event, elwt| match event {
             Event::WindowEvent { event, .. } => {
                 let res = self.egui_integration.on_window_event(self.window, &event);
@@ -291,15 +336,12 @@ impl<'a> GameEngine<'a> {
         Ok(())
     }
 
-    fn redraw_requested<State, FUpdate, FRender>(
+    fn redraw_requested<State>(
         &mut self,
         state: &mut State,
-        update: FUpdate,
-        render: FRender,
-    ) where
-        FUpdate: Fn(&mut State, &mut GameEngine),
-        FRender: Fn(&State, &mut Renderer),
-    {
+        update: &impl FUpdate<State>,
+        render: &impl FRender<State>,
+    ) {
         info!("rendering as per the RedrawRequested was received");
 
         self.last_frame_delta = self.timer.elapsed().as_secs_f32();
@@ -308,22 +350,65 @@ impl<'a> GameEngine<'a> {
         self.renderer
             .rendering_context
             .camera_mut()
-            .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
+            .set_camera_matrix(&self.context, &self.camera.calc_matrix());
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
         self.egui_integration.prepare_frame(self.window);
         update(state, self);
-        render(state, &mut self.renderer);
+
+        let mut scene = match self.rendering_backend {
+            RenderingBackend::Native => {
+                let scene = renderer::Scene::default();
+                Scene::Native(scene)
+            }
+            RenderingBackend::Vello => {
+                let mut scene = vello::Scene::new();
+                // vello 0.1 renderer crashes on an empty scene, so add a dummy object
+                scene.fill(
+                    vello::peniko::Fill::NonZero,
+                    Default::default(),
+                    vello::peniko::Color::rgb8(0, 0, 0),
+                    None,
+                    &vello::kurbo::Circle::new((10000.0, 10000.0), 1.0),
+                );
+                Scene::Vello(scene)
+            }
+        };
+
+        render(state, &mut scene);
 
         match self.surface.get_current_texture() {
             Ok(output) => {
-                self.renderer.render(&output.texture);
-                self.egui_integration.render(
-                    &self.renderer.context.device,
-                    &self.renderer.context.queue,
-                    &output,
-                );
+                match scene {
+                    Scene::Native(scene) => {
+                        self.renderer.render(
+                            &self.context,
+                            &output.texture,
+                            size_to_vec2(&self.size),
+                            &scene,
+                        );
+                    }
+                    Scene::Vello(scene) => {
+                        self.vello_renderer
+                            .render_to_surface(
+                                &self.context.device,
+                                &self.context.queue,
+                                &scene,
+                                &output,
+                                &RenderParams {
+                                    base_color: Default::default(),
+                                    width: self.size.width,
+                                    height: self.size.height,
+                                    antialiasing_method: AaConfig::Area,
+                                },
+                            )
+                            .expect("Failed to render vello to surface");
+                    }
+                };
+
+                self.egui_integration
+                    .render(&self.context.device, &self.context.queue, &output);
 
                 output.present();
             }
@@ -346,13 +431,15 @@ impl<'a> GameEngine<'a> {
         self.surface_configuration.width = new_size.width;
         self.surface_configuration.height = new_size.height;
         self.surface
-            .configure(&self.renderer.context.device, &self.surface_configuration);
-        self.renderer.on_resize(size_to_vec2(&new_size));
+            .configure(&self.context.device, &self.surface_configuration);
+        self.renderer
+            .on_resize(&self.context, size_to_vec2(&new_size));
     }
 
     fn on_scale_factor_change(&mut self, scale_factor: f64) {
         info!("on scale factor change scale_factor: {}", scale_factor);
-        self.renderer.on_scale_factor_change(scale_factor);
+        self.renderer
+            .on_scale_factor_change(&self.context, scale_factor);
     }
 
     pub fn egui(&self) -> &egui::Context {

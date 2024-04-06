@@ -21,3 +21,4 @@ color-eyre = { workspace = true }
 rand = { workspace = true }
 wgpu = { workspace = true }
 noise = { workspace = true }
+vello.workspace = true

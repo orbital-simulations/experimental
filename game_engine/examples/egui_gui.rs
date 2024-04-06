@@ -1,5 +1,4 @@
-use game_engine::{game_engine_2_5d_parameters, GameEngine};
-use renderer::Renderer;
+use game_engine::{game_engine_2_5d_parameters, GameEngine, RenderingBackend, Scene};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
 
@@ -39,7 +38,7 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
     });
 }
 
-fn render(_state: &GameState, _renderer: &mut Renderer) {}
+fn render(_state: &GameState, _scene: &mut Scene) {}
 
 fn main() -> color_eyre::eyre::Result<()> {
     let fmt_layer = fmt::layer().pretty();
@@ -54,7 +53,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(
         event_loop,
         &window,
-        game_engine_2_5d_parameters(),
+        game_engine_2_5d_parameters(RenderingBackend::Native),
     ))?;
     game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())

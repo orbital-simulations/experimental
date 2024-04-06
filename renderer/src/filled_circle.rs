@@ -42,7 +42,6 @@ const CIRCLE_INDICES: &[u16] = &[0, 1, 3, 3, 2, 0];
 
 #[derive(Debug)]
 pub struct FilledCircleRenderer {
-    circles: Vec<FilledCircle>,
     vertex_buffer: WriteableBuffer<Vec2>,
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<FilledCircle>,
@@ -97,7 +96,6 @@ impl FilledCircleRenderer {
         );
 
         Self {
-            circles: vec![],
             vertex_buffer,
             index_buffer,
             instance_buffer,
@@ -106,19 +104,16 @@ impl FilledCircleRenderer {
         }
     }
 
-    pub fn add_circle(&mut self, circle: FilledCircle) {
-        self.circles.push(circle);
-    }
-
     pub fn render<'a>(
         &'a mut self,
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        circles: &[FilledCircle],
     ) {
-        if !self.circles.is_empty() {
-            self.instance_buffer.write_data(context, &self.circles);
+        if !circles.is_empty() {
+            self.instance_buffer.write_data(context, circles);
 
             if self.pipeline.is_none() {
                 let pipeline =
@@ -140,12 +135,8 @@ impl FilledCircleRenderer {
             render_pass.draw_indexed(
                 0..self.index_buffer.draw_count(),
                 0,
-                0..(self.circles.len() as u32),
+                0..(circles.len() as u32),
             );
-
-            // TODO: Think about some memory releasing strategy. Spike in number of
-            // circles will lead to space leak.
-            self.circles.clear();
         }
     }
 }

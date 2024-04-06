@@ -7,12 +7,12 @@ use image::{ImageBuffer, Rgba};
 use renderer::{
     context::Context,
     projection::{OrtographicProjection, Projection},
-    Renderer,
+    Renderer, Scene,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use wgpu::util::parse_backends_from_comma_list;
 
-const OUTPUT_HEIGH: u32 = 600;
+const OUTPUT_HEIGHT: u32 = 600;
 const OUTPUT_WIDTH: u32 = 600;
 
 fn get_program_stem() -> Result<String> {
@@ -27,7 +27,7 @@ fn get_program_stem() -> Result<String> {
 
 pub async fn run<FRender>(render: FRender) -> Result<()>
 where
-    FRender: Fn(&mut Renderer),
+    FRender: Fn(&mut Scene),
 {
     let fmt_layer = tracing_subscriber::fmt::layer().pretty();
     let filter_layer = EnvFilter::from_default_env();
@@ -67,7 +67,7 @@ where
     let texture_descriptor = wgpu::TextureDescriptor {
         size: wgpu::Extent3d {
             width: OUTPUT_WIDTH,
-            height: OUTPUT_HEIGH,
+            height: OUTPUT_HEIGHT,
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
@@ -92,7 +92,7 @@ where
     let padded_bytes_per_row = unpadded_bytes_per_row + padding;
 
     // Create a buffer to copy the texture to so we can get the data.
-    let buffer_size = (padded_bytes_per_row * OUTPUT_HEIGH) as wgpu::BufferAddress;
+    let buffer_size = (padded_bytes_per_row * OUTPUT_HEIGHT) as wgpu::BufferAddress;
     let output_buffer_descriptor = wgpu::BufferDescriptor {
         size: buffer_size,
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
@@ -105,24 +105,19 @@ where
 
     let projection = Projection::Ortographic(OrtographicProjection::new(
         OUTPUT_WIDTH as f32,
-        OUTPUT_HEIGH as f32,
+        OUTPUT_HEIGHT as f32,
         2.,
         1.,
     ));
 
-    let mut renderer = Renderer::new(
-        context,
-        vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32),
-        projection,
-        texture.format(),
-    )?;
+    let mut renderer = Renderer::new(&context, projection, texture.format())?;
 
-    render(&mut renderer);
+    let mut scene = Scene::default();
+    render(&mut scene);
+    let size = vec2(OUTPUT_WIDTH as f32, OUTPUT_HEIGHT as f32);
+    renderer.render(&context, &texture, size, &scene);
 
-    renderer.render(&texture);
-
-    let mut encoder = renderer
-        .context
+    let mut encoder = context
         .device
         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
@@ -138,12 +133,12 @@ where
             layout: wgpu::ImageDataLayout {
                 offset: 0,
                 bytes_per_row: Some(padded_bytes_per_row),
-                rows_per_image: Some(OUTPUT_HEIGH),
+                rows_per_image: Some(OUTPUT_HEIGHT),
             },
         },
         texture_descriptor.size,
     );
-    renderer.context.queue.submit(iter::once(encoder.finish()));
+    context.queue.submit(iter::once(encoder.finish()));
 
     let buffer_slice = output_buffer.slice(..);
 
@@ -151,7 +146,7 @@ where
         result.expect("GPU didn't copy data to output buffer");
     });
 
-    renderer.context.device.poll(wgpu::Maintain::Wait);
+    context.device.poll(wgpu::Maintain::Wait);
 
     let padded_data = buffer_slice.get_mapped_range();
     let data = padded_data
