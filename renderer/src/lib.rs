@@ -22,6 +22,7 @@ use std::{
     collections::HashMap,
     env,
     rc::Rc,
+    sync::{Arc, Mutex},
 };
 
 use context::{Context, RenderingContext};
@@ -30,21 +31,24 @@ use filled_circle::{FilledCircle, FilledCircleRenderer};
 use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
 use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
-use pipeline::{PipelineStore, RenderTargetDescription};
+use pipeline::{
+    BindGroupLayoutContext, BindGroupLayoutStore, PipelineContext, PipelineStore,
+    RenderTargetDescription,
+};
 use projection::Projection;
 
 use resource_watcher::ResourceWatcher;
-use shader_store::ShaderStore;
+use shader_store::{ShaderStore, ShaderStoreContext};
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::info;
 use wgpu::{
-    Color, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-    StoreOp, Texture, TextureFormat, TextureViewDescriptor,
+    Color, LoadOp, Operations, RenderPassColorAttachment, StoreOp, Texture, TextureFormat,
+    TextureViewDescriptor,
 };
 
 pub struct Renderer {
-    pub context: Rc<Context>,
+    pub context: Arc<Context>,
     pub rendering_context: Rc<RefCell<RenderingContext>>,
     pub shader_store: ShaderStore,
     pipeline_store: PipelineStore,
@@ -58,14 +62,14 @@ pub struct Renderer {
     depth_texture: Option<Texture>,
     window_render_target_description: RenderTargetDescription,
     #[allow(dead_code)]
-    resource_watcher: Rc<RefCell<ResourceWatcher>>,
+    resource_watcher: Arc<Mutex<ResourceWatcher>>,
 }
 
 pub trait CustomRenderer {}
 
 impl Renderer {
     pub fn new(
-        context: Rc<Context>,
+        context: Arc<Context>,
         size: Vec2,
         projection: Projection,
         main_surface_format: TextureFormat,
@@ -78,14 +82,48 @@ impl Renderer {
             targets: vec![main_surface_format],
         };
         let pwd = env::current_dir()?;
-        let resource_watcher = Rc::new(RefCell::new(ResourceWatcher::new(pwd)?));
-        let mut shader_store = ShaderStore::new(context.clone(), resource_watcher.clone());
-        let pipeline_store = PipelineStore::new(context.clone(), rendering_context.clone());
-        let filled_circle_renderer = FilledCircleRenderer::new(&context, &mut shader_store);
-        let stroke_circle_renderer = StrokeCircleRenderer::new(&context, &mut shader_store);
-        let filled_rectangle_renderer = FilledRectangleRenderer::new(&context, &mut shader_store);
-        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context, &mut shader_store);
-        let line_segment_renderer = LineSegmentRenderer::new(&context, &mut shader_store);
+        let resource_watcher = Arc::new(Mutex::new(ResourceWatcher::new(pwd)?));
+        let shader_store = ShaderStore::new(ShaderStoreContext {
+            gpu_context: context.clone(), resource_watcher: Arc::clone(&resource_watcher)
+        });
+        let bind_group_layout_store = BindGroupLayoutStore::new(BindGroupLayoutContext {
+            gpu_context: context.clone(),
+        });
+        let pipeline_store = PipelineStore::new(PipelineContext {
+            gpu_context: context.clone(),
+            shader_store: shader_store.clone(),
+            bind_group_layout_store,
+        });
+        let filled_circle_renderer = FilledCircleRenderer::new(
+            &context,
+            &shader_store,
+            &pipeline_store,
+            &main_surface_format,
+        );
+        let stroke_circle_renderer = StrokeCircleRenderer::new(
+            &context,
+            &shader_store,
+            &pipeline_store,
+            &main_surface_format,
+        );
+        let filled_rectangle_renderer = FilledRectangleRenderer::new(
+            &context,
+            &shader_store,
+            &pipeline_store,
+            &main_surface_format,
+        );
+        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(
+            &context,
+            &shader_store,
+            &pipeline_store,
+            &main_surface_format,
+        );
+        let line_segment_renderer = LineSegmentRenderer::new(
+            &context,
+            &shader_store,
+            &pipeline_store,
+            &main_surface_format,
+        );
 
         Ok(Self {
             context,
@@ -135,7 +173,6 @@ impl Renderer {
     {
         self.custom_mesh_renderers
             .insert(renderer_id.type_id(), custom_mesh_renderer);
-        println!("size: {}", self.custom_mesh_renderers.len());
     }
 
     pub fn remove_custom_mesh_renderer<K>(&mut self, renderer_id: &K)
@@ -185,97 +222,99 @@ impl Renderer {
                 .create_texture(&depth_texture_description)
         });
 
-        let depth_texture_view = depth_texture.create_view(&TextureViewDescriptor::default());
-
-        let texture_view = texture.create_view(&TextureViewDescriptor::default());
-        let mut encoder =
-            self.context
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("GPU Encoder"),
-                });
-        {
-            let color_attachments = [Some(RenderPassColorAttachment {
-                view: &texture_view,
-                resolve_target: None,
-                ops: Operations {
-                    load: LoadOp::Clear(Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    }),
-                    store: StoreOp::Store,
-                },
-            })];
-            let rendering_context = (*self.rendering_context).borrow();
-
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Shapes Renderer Pass"),
-                color_attachments: &color_attachments,
-                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                    view: &depth_texture_view,
-                    depth_ops: Some(Operations {
-                        load: LoadOp::Clear(1.0),
-                        store: StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-            self.filled_circle_renderer.render(
-                &self.context,
-                &rendering_context,
-                &mut render_pass,
-                &self.window_render_target_description,
-                &mut self.pipeline_store,
+        for mesh_renderer in self.custom_mesh_renderers.values_mut() {
+            mesh_renderer.build_pipeline(
+                &self.shader_store,
+                &self.pipeline_store,
+                &self.window_render_target_description.targets[0],
             );
-            self.stroke_circle_renderer.render(
-                &self.context,
-                &rendering_context,
-                &mut render_pass,
-                &self.window_render_target_description,
-                &mut self.pipeline_store,
-            );
-            self.filled_rectangle_renderer.render(
-                &self.context,
-                &rendering_context,
-                &mut render_pass,
-                &self.window_render_target_description,
-                &mut self.pipeline_store,
-            );
-            self.line_segment_renderer.render(
-                &self.context,
-                &rendering_context,
-                &mut render_pass,
-                &self.window_render_target_description,
-                &mut self.pipeline_store,
-            );
-            self.stroke_rectangle_renderer.render(
-                &self.context,
-                &rendering_context,
-                &mut render_pass,
-                &self.window_render_target_description,
-                &mut self.pipeline_store,
-            );
-
-            for custom_mesh_renderer in self.custom_mesh_renderers.values_mut() {
-                custom_mesh_renderer.render(
-                    &rendering_context,
-                    &self.context,
-                    &mut render_pass,
-                    &self.window_render_target_description,
-                    &mut self.pipeline_store,
-                );
-            }
         }
 
-        self.context.queue.submit(std::iter::once(encoder.finish()));
+        {
+            let pipeline_store = self.pipeline_store.lock();
+
+            let depth_texture_view = depth_texture.create_view(&TextureViewDescriptor::default());
+
+            let texture_view = texture.create_view(&TextureViewDescriptor::default());
+            let mut encoder =
+                self.context
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("GPU Encoder"),
+                    });
+            {
+                let color_attachments = [Some(RenderPassColorAttachment {
+                    view: &texture_view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 1.0,
+                        }),
+                        store: StoreOp::Store,
+                    },
+                })];
+                let rendering_context = (*self.rendering_context).borrow();
+
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Shapes Renderer Pass"),
+                    color_attachments: &color_attachments,
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+
+                self.filled_circle_renderer.render(
+                    &self.context,
+                    &rendering_context,
+                    &mut render_pass,
+                    &pipeline_store,
+                );
+                self.stroke_circle_renderer.render(
+                    &self.context,
+                    &rendering_context,
+                    &mut render_pass,
+                    &pipeline_store,
+                );
+                self.filled_rectangle_renderer.render(
+                    &self.context,
+                    &rendering_context,
+                    &mut render_pass,
+                    //                           &self.window_render_target_description,
+                    &pipeline_store,
+                );
+                self.line_segment_renderer.render(
+                    &self.context,
+                    &rendering_context,
+                    &mut render_pass,
+                    &pipeline_store,
+                );
+                self.stroke_rectangle_renderer.render(
+                    &self.context,
+                    &rendering_context,
+                    &mut render_pass,
+                    //                &self.window_render_target_description,
+                    &pipeline_store,
+                );
+
+                for custom_mesh_renderer in self.custom_mesh_renderers.values_mut() {
+                    custom_mesh_renderer.render(
+                        &rendering_context,
+                        &self.context,
+                        &mut render_pass,
+                        //                                &self.window_render_target_description,
+                        &pipeline_store,
+                    );
+                }
+            }
+            self.context.queue.submit(std::iter::once(encoder.finish()));
+        }
+
         self.resource_watcher
             .as_ref()
-            .borrow_mut()
+            .lock().unwrap()
             .process_updates();
     }
 }

@@ -1,5 +1,7 @@
 @group(0) @binding(0)
 var<uniform> projection: mat4x4<f32>;
+@group(0) @binding(1)
+var<uniform> camera: mat4x4<f32>;
 
 struct VertexInput {
     @location(0) position: vec2<f32>,
@@ -45,9 +47,10 @@ fn vs_main(
         vec4(0.0, 0.0, 0.0, 1.0)
     );
 
-    let world_position = translation_matrix * scale_matrix * vec4<f32>(model.position, -0.5, 1.0);
+    let world_position = translation_matrix * scale_matrix * vec4<f32>(model.position, 0.0, 1.0);
 
-    out.clip_position = projection * world_position;
+    let world_matrix = projection * camera;
+    out.clip_position = world_matrix * world_position;
     out.color = instance.color;
 
     return out;

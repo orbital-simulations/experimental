@@ -1,17 +1,17 @@
-use std::{any::Any, ops::Deref, rc::Rc};
-
 use glam::{Vec2, Vec3};
-use wgpu::{include_wgsl, vertex_attr_array, RenderPass, VertexBufferLayout, VertexStepMode};
+use wgpu::{
+    include_wgsl, vertex_attr_array, BindGroupLayoutEntry, FrontFace, MultisampleState,
+    PrimitiveState, PrimitiveTopology, RenderPass, ShaderStages, TextureFormat, VertexStepMode,
+};
 
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
     context::{Context, RenderingContext},
     pipeline::{
-        CreatePipeline, Pipeline, PipelineDescriptable, PipelineStore, RenderTargetDescription,
+        BindGroupLayoutDescription, FragmentStateDescription, PipelineDescription, PipelineID, PipelineLayoutDescription, PipelineStore, UnlockedPipelineStore, VertexBufferLayoutDescriptor, VertexStateDescription
     },
     raw::Gpu,
-    shader_store::{Shader, ShaderCreator, ShaderDescriptable, ShaderStore},
-    store::EntryLabel,
+    shader_store::{ShaderDescription, ShaderStatic, ShaderStore},
 };
 
 #[derive(Debug)]
@@ -55,55 +55,105 @@ pub struct StrokeRectangleRenderer {
     vertex_buffer: WriteableBuffer<Vec2>,
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<StrokeRectangle>,
-    pipeline: Option<Pipeline>,
-    shader: Shader,
-}
-
-impl PipelineDescriptable for StrokeRectangleRenderer {
-    fn pipeline_description(&self, rendering_context: &RenderingContext) -> CreatePipeline {
-        CreatePipeline {
-            shader: self.shader.clone(),
-            vertex_buffer_layouts: vec![
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<Vec2>() as u64,
-                    step_mode: VertexStepMode::Vertex,
-                    attributes: &vertex_attr_array![0 => Float32x2],
-                },
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<StrokeRectangle>() as u64,
-                    step_mode: VertexStepMode::Instance,
-                    attributes: &STROKE_RECTANGLE_VERTEX_ATTRIBUTES,
-                },
-            ],
-            bind_group_layouts: vec![Rc::clone(rendering_context.camera().bind_group_layout())],
-            name: "stroke rectangle renderer".to_string(),
-        }
-    }
-}
-
-struct StrokeRectangleShaderLabel;
-
-impl EntryLabel for StrokeRectangleShaderLabel {
-    fn unique_label(&self) -> (std::any::TypeId, u64) {
-        (self.type_id(), 0)
-    }
-}
-
-impl ShaderDescriptable for StrokeRectangleShaderLabel {
-    fn shader_description(&self) -> ShaderCreator {
-        ShaderCreator::ShaderStatic(include_wgsl!("../shaders/stroke_rectangle.wgsl"))
-    }
-}
-
-impl EntryLabel for StrokeRectangleRenderer {
-    fn unique_label(&self) -> (std::any::TypeId, u64) {
-        (self.type_id(), 0)
-    }
+    pipeline: Option<PipelineID>,
 }
 
 impl StrokeRectangleRenderer {
-    pub fn new(context: &Context, shader_store: &mut ShaderStore) -> Self {
-        let shader = shader_store.get_entry(&StrokeRectangleShaderLabel);
+    pub fn new(
+        context: &Context,
+        shader_store: &ShaderStore,
+        pipeline_store: &PipelineStore,
+        target_texture_format: &TextureFormat,
+    ) -> Self {
+        let shader_description = ShaderDescription::ShaderStatic(ShaderStatic {
+            unique_shader_name: "stroke_rectangle".to_string(),
+            static_shader_module_descriptor: include_wgsl!("../shaders/stroke_rectangle.wgsl"),
+        });
+        let shader = {
+            let mut shader_store = shader_store.lock();
+            shader_store.get_or_create(&shader_description)
+        };
+
+        let pipeline_layout_description = PipelineLayoutDescription {
+            label: "stroke rectangle renderer layout".to_string(),
+            // TODO: Camera bind broup description should be taken from camera
+            bind_group_layouts: vec![BindGroupLayoutDescription {
+                label: "camera bind group layout description".to_string(),
+                entries: vec![
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            }],
+            push_constant_ranges: vec![],
+        };
+        let pipeline_description = PipelineDescription {
+            label: "stroke rectangle renderer pipeline".to_string(),
+            layout: Some(pipeline_layout_description),
+            vertex: VertexStateDescription {
+                buffers: vec![
+                    VertexBufferLayoutDescriptor {
+                        array_stride: std::mem::size_of::<Vec2>() as u64,
+                        step_mode: VertexStepMode::Vertex,
+                        attributes: vertex_attr_array![0 => Float32x2].to_vec(),
+                    },
+                    VertexBufferLayoutDescriptor {
+                        array_stride: std::mem::size_of::<StrokeRectangle>() as u64,
+                        step_mode: VertexStepMode::Instance,
+                        attributes: STROKE_RECTANGLE_VERTEX_ATTRIBUTES.to_vec(),
+                    },
+                ],
+                module: shader.clone(),
+            },
+            // TODO: This should be generated from target...
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                conservative: false,
+            },
+            // TODO: This should be part of the target as well...
+            depth_stencil: None,
+            multisample: MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(FragmentStateDescription {
+                module: shader,
+                targets: vec![Some(wgpu::ColorTargetState {
+                    format: *target_texture_format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview: None,
+        };
+
+        let mut pipeline_store = pipeline_store.lock();
+
+        let pipeline = pipeline_store.get_or_create(&pipeline_description);
+
         let index_buffer =
             IndexBuffer::new(context, "circle index buffer", STROKE_RECTANGLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
@@ -125,8 +175,7 @@ impl StrokeRectangleRenderer {
             vertex_buffer,
             index_buffer,
             instance_buffer,
-            pipeline: None,
-            shader,
+            pipeline: Some(pipeline),
         }
     }
 
@@ -139,22 +188,23 @@ impl StrokeRectangleRenderer {
         context: &Context,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
-        render_target_description: &RenderTargetDescription,
-        pipeline_store: &mut PipelineStore,
+        //        render_target_description: &RenderTargetDescription,
+        pipeline_store: &'a UnlockedPipelineStore<'a>,
     ) {
         if !self.rectangles.is_empty() {
             self.instance_buffer.write_data(context, &self.rectangles);
 
             if self.pipeline.is_none() {
-                self.pipeline = Some(pipeline_store.get_entry(self, render_target_description));
+                //                self.pipeline = Some(pipeline_store.get_entry(self, render_target_description));
             }
 
             let pipeline = self
                 .pipeline
                 .as_ref()
                 .expect("pipeline should be created by now");
+            let pipeline = pipeline_store.get_ref(pipeline);
 
-            render_pass.set_pipeline(&pipeline.deref().pipeline);
+            render_pass.set_pipeline(pipeline);
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

@@ -2,9 +2,10 @@ use std::rc::Rc;
 use std::slice::from_ref;
 
 use crate::buffers::{BindGroup, DescriptiveBindGroupEntry};
+use crate::pipeline::BindGroupLayoutDescription;
 use glam::{Mat4, Vec2};
-use wgpu::{BindGroupLayout, BufferUsages, RenderPass};
 use wgpu::{BindGroupLayoutEntry, ShaderStages};
+use wgpu::{BufferUsages, RenderPass};
 
 use crate::{
     buffers::WriteableBuffer,
@@ -75,8 +76,9 @@ impl Camera {
             .write_data(context, from_ref(camera_matrix));
     }
 
-    pub fn bind_group_layout(&self) -> &Rc<BindGroupLayout> {
-        self.bind_group.layout()
+    pub fn bind_group_layout(&self) -> &Rc<BindGroupLayoutDescription> {
+        //self.bind_group.layout()
+        todo!()
     }
 }
 

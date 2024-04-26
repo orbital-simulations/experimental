@@ -1,4 +1,4 @@
-use std::{env::args, iter, path::Path, rc::Rc};
+use std::{env::args, iter, path::Path, rc::Rc, sync::Arc};
 
 use color_eyre::eyre::Result;
 use eyre::OptionExt;
@@ -101,7 +101,7 @@ where
     };
     let output_buffer = device.create_buffer(&output_buffer_descriptor);
 
-    let context = Rc::new(Context::new(device, queue));
+    let context = Arc::new(Context::new(device, queue));
 
     let projection = Projection::Ortographic(OrtographicProjection::new(
         OUTPUT_WIDTH as f32,
