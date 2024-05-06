@@ -1,4 +1,3 @@
-#![feature(get_many_mut)]
 use constraint::{CollisionConstraint, Constraint, ConstraintEnum};
 use geometry::{Circle, HalfPlane};
 use glam::DVec2;

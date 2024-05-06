@@ -99,6 +99,14 @@ impl SequentialImpulseSolver {
     }
 }
 
+fn get_pair_mut<T>(v: &mut [T], index1: usize, index2: usize) -> (&mut T, &mut T) {
+    assert_ne!(index1, index2, "Cannot get two mutable references to the same index");
+    let first = index1.min(index2);
+    let second = index1.max(index2);
+    let (a, b) = v.split_at_mut(second);
+    return (&mut a[first], &mut b[0])
+}
+
 impl Solver for SequentialImpulseSolver {
     #[instrument(level = "trace", skip_all)]
     fn solve(&self, particles: &mut [Particle], constraints: &mut [ConstraintData]) {
@@ -114,9 +122,7 @@ impl Solver for SequentialImpulseSolver {
                 let a = &particles[id_a];
                 let b = &particles[id_b];
                 let impulse = self.find_impulse(a, b, c);
-                let [a, b] = particles
-                    .get_many_mut([id_a, id_b])
-                    .expect("Invalid indices");
+                let (a, b) = get_pair_mut(particles, id_a, id_b);
                 self.apply(a, b, c, impulse);
             }
         }
