@@ -94,7 +94,7 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
         }
     });
     if state.noises_detection != state.noises {
-        state.noises_detection = state.noises.clone();
+        state.noises_detection.clone_from(&state.noises);
 
         let simplexes: Vec<SuperSimplex> = state
             .noises

@@ -100,11 +100,14 @@ impl SequentialImpulseSolver {
 }
 
 fn get_pair_mut<T>(v: &mut [T], index1: usize, index2: usize) -> (&mut T, &mut T) {
-    assert_ne!(index1, index2, "Cannot get two mutable references to the same index");
+    assert_ne!(
+        index1, index2,
+        "Cannot get two mutable references to the same index"
+    );
     let first = index1.min(index2);
     let second = index1.max(index2);
     let (a, b) = v.split_at_mut(second);
-    return (&mut a[first], &mut b[0])
+    (&mut a[first], &mut b[0])
 }
 
 impl Solver for SequentialImpulseSolver {
