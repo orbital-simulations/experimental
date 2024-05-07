@@ -1,14 +1,14 @@
 use glam::Vec3;
 use wgpu::{
-    vertex_attr_array, BindGroupLayoutEntry, FrontFace, MultisampleState, PrimitiveState,
-    PrimitiveTopology, RenderPass, ShaderStages, TextureFormat, VertexStepMode,
+    vertex_attr_array, BindGroupLayoutEntry, FrontFace, PrimitiveState,
+    PrimitiveTopology, RenderPass, ShaderStages, VertexStepMode,
 };
 
 use crate::{
     context::{Context, RenderingContext},
     mesh::GpuMesh,
     pipeline::{
-        BindGroupLayoutDescription, FragmentStateDescription, PipelineDescription, PipelineID, PipelineLayoutDescription, PipelineStore, UnlockedPipelineStore, VertexBufferLayoutDescriptor, VertexStateDescription
+        BindGroupLayoutDescription, ColorTargetState, FragmentStateDescription, MultisampleStatePick, PipelineDescription, PipelineID, PipelineLayoutDescription, PipelineStore, UnlockedPipelineStore, VertexBufferLayoutDescriptor, VertexStateDescription
     },
     shader_store::{ShaderDescription, ShaderStore},
 };
@@ -33,7 +33,6 @@ where {
         &mut self,
         shader_store: &ShaderStore,
         pipeline_store: &PipelineStore,
-        target_texture_format: &TextureFormat,
     ) {
         if self.pipeline.is_none() {
             let shader = {
@@ -99,15 +98,11 @@ where {
                 },
                 // TODO: This should be part of the target as well...
                 depth_stencil: None,
-                multisample: MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
+                multisample: MultisampleStatePick::Output,
                 fragment: Some(FragmentStateDescription {
                     module: shader,
-                    targets: vec![Some(wgpu::ColorTargetState {
-                        format: *target_texture_format,
+                    targets: vec![Some(ColorTargetState {
+                        format: crate::pipeline::TextureFormatPicker::Output,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],

@@ -33,7 +33,6 @@ use glam::Vec2;
 use line_segment::{LineSegment, LineSegmentRenderer};
 use pipeline::{
     BindGroupLayoutContext, BindGroupLayoutStore, PipelineContext, PipelineStore,
-    RenderTargetDescription,
 };
 use projection::Projection;
 
@@ -60,7 +59,6 @@ pub struct Renderer {
     custom_mesh_renderers: HashMap<TypeId, CustomMeshRenderer>,
     size: Vec2,
     depth_texture: Option<Texture>,
-    window_render_target_description: RenderTargetDescription,
     #[allow(dead_code)]
     resource_watcher: Arc<Mutex<ResourceWatcher>>,
 }
@@ -76,15 +74,11 @@ impl Renderer {
     ) -> eyre::Result<Self> {
         let rendering_context = Rc::new(RefCell::new(RenderingContext::new(&context, projection)));
 
-        let window_render_target_description = RenderTargetDescription {
-            multisampling: 1,
-            depth_texture: Some(TextureFormat::Depth32Float),
-            targets: vec![main_surface_format],
-        };
         let pwd = env::current_dir()?;
         let resource_watcher = Arc::new(Mutex::new(ResourceWatcher::new(pwd)?));
         let shader_store = ShaderStore::new(ShaderStoreContext {
-            gpu_context: context.clone(), resource_watcher: Arc::clone(&resource_watcher)
+            gpu_context: context.clone(),
+            resource_watcher: Arc::clone(&resource_watcher),
         });
         let bind_group_layout_store = BindGroupLayoutStore::new(BindGroupLayoutContext {
             gpu_context: context.clone(),
@@ -93,36 +87,33 @@ impl Renderer {
             gpu_context: context.clone(),
             shader_store: shader_store.clone(),
             bind_group_layout_store,
+            output_texture_format: main_surface_format,
+            output_multisampling: 1,
         });
         let filled_circle_renderer = FilledCircleRenderer::new(
             &context,
             &shader_store,
             &pipeline_store,
-            &main_surface_format,
         );
         let stroke_circle_renderer = StrokeCircleRenderer::new(
             &context,
             &shader_store,
             &pipeline_store,
-            &main_surface_format,
         );
         let filled_rectangle_renderer = FilledRectangleRenderer::new(
             &context,
             &shader_store,
             &pipeline_store,
-            &main_surface_format,
         );
         let stroke_rectangle_renderer = StrokeRectangleRenderer::new(
             &context,
             &shader_store,
             &pipeline_store,
-            &main_surface_format,
         );
         let line_segment_renderer = LineSegmentRenderer::new(
             &context,
             &shader_store,
             &pipeline_store,
-            &main_surface_format,
         );
 
         Ok(Self {
@@ -136,7 +127,6 @@ impl Renderer {
             custom_mesh_renderers: HashMap::new(),
             rendering_context,
             depth_texture: None,
-            window_render_target_description,
             shader_store,
             pipeline_store,
             resource_watcher,
@@ -226,7 +216,6 @@ impl Renderer {
             mesh_renderer.build_pipeline(
                 &self.shader_store,
                 &self.pipeline_store,
-                &self.window_render_target_description.targets[0],
             );
         }
 
@@ -314,7 +303,8 @@ impl Renderer {
 
         self.resource_watcher
             .as_ref()
-            .lock().unwrap()
+            .lock()
+            .unwrap()
             .process_updates();
     }
 }

@@ -1,8 +1,8 @@
 use std::{num::NonZeroU32, rc::Rc, sync::Arc};
 
 use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BufferAddress,
-    ColorTargetState, DepthStencilState, FragmentState, MultisampleState, PipelineLayout,
+    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BlendState, BufferAddress,
+    ColorWrites, DepthStencilState, FragmentState, MultisampleState, PipelineLayout,
     PipelineLayoutDescriptor, PrimitiveState, PushConstantRange, RenderPipeline, TextureFormat,
     VertexAttribute, VertexStepMode,
 };
@@ -10,15 +10,8 @@ use wgpu::{
 use crate::{
     context::Context,
     shader_store::{ShaderID, ShaderStore},
-    store::{FatStoreID, UnlockedStore, StorableResource, Store, StoreID},
+    store::{FatStoreID, StorableResource, Store, StoreID, UnlockedStore},
 };
-
-#[derive(Debug, Clone)]
-pub struct RenderTargetDescription {
-    pub multisampling: u32,
-    pub depth_texture: Option<TextureFormat>,
-    pub targets: Vec<TextureFormat>,
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BindGroupLayoutDescription {
@@ -52,11 +45,40 @@ pub struct VertexStateDescription {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum TextureFormatPicker {
+    Output,
+    Standard(TextureFormat),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ColorTargetState {
+    /// The [`TextureFormat`] of the image that this pipeline will render to. Must match the format
+    /// of the corresponding color attachment in [`CommandEncoder::begin_render_pass`][CEbrp]
+    ///
+    /// [CEbrp]: ../wgpu/struct.CommandEncoder.html#method.begin_render_pass
+    pub format: TextureFormatPicker,
+    /// The blending that is used for this pipeline.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub blend: Option<BlendState>,
+    /// Mask which enables/disables writes to different color/alpha channel.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub write_mask: ColorWrites,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FragmentStateDescription {
     /// The compiled shader module for this stage.
     pub module: ShaderID,
     /// The color state of the render targets.
     pub targets: Vec<Option<ColorTargetState>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum MultisampleStatePick {
+    /// Coresponds to the multisampling set on the output texture as set in
+    /// `PipelineContext.output_multisampling`.
+    Output,
+    Standard(MultisampleState),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -71,7 +93,7 @@ pub struct PipelineDescription {
     /// The effect of draw calls on the depth and stencil aspects of the output target, if any.
     pub depth_stencil: Option<DepthStencilState>,
     /// The multi-sampling properties of the pipeline.
-    pub multisample: MultisampleState,
+    pub multisample: MultisampleStatePick,
     /// The compiled fragment stage, its entry point, and the color targets.
     pub fragment: Option<FragmentStateDescription>,
     /// If the pipeline will be used with a multiview render pass, this indicates how many array
@@ -116,6 +138,8 @@ pub struct PipelineContext {
     pub gpu_context: Arc<Context>,
     pub shader_store: ShaderStore,
     pub bind_group_layout_store: BindGroupLayoutStore,
+    pub output_texture_format: TextureFormat,
+    pub output_multisampling: u32,
 }
 
 pub type PipelineStore = Store<RenderPipeline>;
@@ -153,16 +177,6 @@ impl StorableResource for RenderPipeline {
             });
         let shader_store = context.shader_store.lock();
 
-        let fragment: Option<FragmentState> =
-            description
-                .fragment
-                .as_ref()
-                .map(|fragment_description| FragmentState {
-                    module: shader_store.get_ref(&fragment_description.module),
-                    entry_point: "fs_main",
-                    targets: &fragment_description.targets,
-                });
-
         let bind_group_layout_refs: Vec<wgpu::VertexBufferLayout> = description
             .vertex
             .buffers
@@ -181,21 +195,68 @@ impl StorableResource for RenderPipeline {
             }
         };
 
-        context
-            .gpu_context
-            .device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some(&description.label),
-                layout: layout.as_ref(),
-                vertex,
-                fragment,
-                primitive: description.primitive,
-                depth_stencil: description.depth_stencil.clone(),
-                multisample: description.multisample,
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: description.multiview,
-            })
+        let multisample = match description.multisample {
+            MultisampleStatePick::Output => MultisampleState {
+                count: context.output_multisampling,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            MultisampleStatePick::Standard(multisample) => multisample,
+        };
+
+        if let Some(fragment_description) = description.fragment.as_ref() {
+            let targets: Vec<Option<wgpu::ColorTargetState>> = fragment_description
+                .targets
+                .iter()
+                .map(|v| {
+                    let kwa: Option<wgpu::ColorTargetState> =
+                        v.as_ref().map(|vv| wgpu::ColorTargetState {
+                            format: match vv.format {
+                                TextureFormatPicker::Output => context.output_texture_format,
+                                TextureFormatPicker::Standard(v) => v,
+                            },
+                            blend: vv.blend,
+                            write_mask: vv.write_mask,
+                        });
+                    kwa
+                })
+                .collect();
+            context
+                .gpu_context
+                .device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some(&description.label),
+                    layout: layout.as_ref(),
+                    vertex,
+                    fragment: Some(FragmentState {
+                        module: shader_store.get_ref(&fragment_description.module),
+                        entry_point: "fs_main",
+                        targets: &targets,
+                    }),
+                    primitive: description.primitive,
+                    depth_stencil: description.depth_stencil.clone(),
+                    multisample,
+                    // If the pipeline will be used with a multiview render pass, this
+                    // indicates how many array layers the attachments will have.
+                    multiview: description.multiview,
+                })
+        } else {
+            context
+                .gpu_context
+                .device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some(&description.label),
+                    layout: layout.as_ref(),
+                    vertex,
+                    fragment: None,
+                    primitive: description.primitive,
+                    depth_stencil: description.depth_stencil.clone(),
+                    multisample,
+                    // If the pipeline will be used with a multiview render pass, this
+                    // indicates how many array layers the attachments will have.
+                    multiview: description.multiview,
+                })
+        }
     }
 
     fn register_dependences(

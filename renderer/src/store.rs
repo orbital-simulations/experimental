@@ -1,5 +1,11 @@
 use std::{
-    any::Any, collections::{HashMap, HashSet}, hash::Hash, marker::PhantomData, ptr, rc::Rc, sync::{Arc, Mutex, MutexGuard}
+    any::Any,
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    marker::PhantomData,
+    ptr,
+    rc::Rc,
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 #[derive(Debug)]
@@ -141,7 +147,6 @@ where
             let data = T::build(&self.inner.context, description);
             self.inner.store[id.index] = data;
         }
-
     }
 
     pub fn get_fat_id(&self, id: StoreID<T>) -> FatStoreID<T> {

@@ -11,7 +11,7 @@ use crate::store::{FatStoreID, RebuildableEntry, StorableResource, Store, StoreI
 
 pub struct ShaderStoreContext {
     pub gpu_context: Arc<Context>,
-    pub resource_watcher: Arc<Mutex<ResourceWatcher>>
+    pub resource_watcher: Arc<Mutex<ResourceWatcher>>,
 }
 
 pub type ShaderID = StoreID<ShaderModule>;
@@ -116,11 +116,14 @@ impl StorableResource for ShaderModule {
                 let pwd = env::current_dir()
                     .unwrap_or_else(|_| panic!("can't get current working directory"));
                 let file_path = pwd.join(file_name).canonicalize().unwrap();
-                context.resource_watcher.lock().unwrap().watch_file(file_path, Box::new(fat_id))
-            },
-            ShaderDescription::ShaderStatic(_) => {},
+                context
+                    .resource_watcher
+                    .lock()
+                    .unwrap()
+                    .watch_file(file_path, Box::new(fat_id))
+            }
+            ShaderDescription::ShaderStatic(_) => {}
         }
-
     }
 }
 
