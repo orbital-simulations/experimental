@@ -2,22 +2,22 @@
 
 ## Objects
 
-- [x] bodies
+- [x] bodies 
 - [ ] sensors https://github.com/orbital-simulations/experimental/issues/69
 
 ## Shapes
 
 - [x] circle
 - [x] half-plane
-- [ ] convex polygon
+- [ ] convex polygon https://github.com/orbital-simulations/experimental/issues/77
 - [ ] capsule https://github.com/orbital-simulations/experimental/issues/60
-- [ ] composite
+- [ ] composite https://github.com/orbital-simulations/experimental/issues/78
 
 ## Properties
 
 ### General properties
 
-- [ ] type (dynamic / kinematic / static)
+- [ ] type (dynamic / kinematic / static) https://github.com/orbital-simulations/experimental/issues/79
 
 ### Static properties
 
@@ -35,12 +35,12 @@
 - [x] inertia
 - [x] force
 - [x] torque
-- [ ] damping
+- [ ] damping https://github.com/orbital-simulations/experimental/issues/80
 
 ### Pair properties
 
-- [ ] restitution (collision elasticity)
-- [ ] friction
+- [ ] restitution (collision elasticity) https://github.com/orbital-simulations/experimental/issues/81
+- [ ] friction https://github.com/orbital-simulations/experimental/issues/82
 
 ## Constraints
 
@@ -49,12 +49,12 @@ https://github.com/orbital-simulations/experimental/issues/31
 - [x] contact
 - [x] collision
 - [x] distance
-- [ ] angle
-- [ ] translation
-- [ ] position
-- [ ] velocity
-- [ ] limits
-- [ ] motors
+- [ ] angle https://github.com/orbital-simulations/experimental/issues/31
+- [ ] translation https://github.com/orbital-simulations/experimental/issues/31
+- [ ] position https://github.com/orbital-simulations/experimental/issues/31
+- [ ] velocity https://github.com/orbital-simulations/experimental/issues/31
+- [ ] limits https://github.com/orbital-simulations/experimental/issues/83
+- [ ] motors https://github.com/orbital-simulations/experimental/issues/84
 - [ ] ragdoll https://github.com/orbital-simulations/experimental/issues/1
 
 # Simulation
@@ -65,29 +65,29 @@ https://github.com/orbital-simulations/experimental/issues/31
 - [x] discrete collision detection
 - [x] constraint solving
 - [ ] inelastic collisions https://github.com/orbital-simulations/experimental/issues/53
-- [ ] damping
-- [ ] sleeping
+- [ ] damping https://github.com/orbital-simulations/experimental/issues/80
+- [ ] sleeping https://github.com/orbital-simulations/experimental/issues/85
 - [ ] friction https://github.com/orbital-simulations/experimental/issues/11
-- [ ] stable stacking
-- [ ] continuous collision detection
+- [ ] stable stacking https://github.com/orbital-simulations/experimental/issues/86
+- [ ] continuous collision detection https://github.com/orbital-simulations/experimental/issues/87
 
 # API
 
 ## Object management
 
 - [x] direct data manipulation
-- [ ] handle-based CRUD
-- [ ] impulse / force registration (should this be a separate API from CRUD?)
+- [ ] handle-based CRUD https://github.com/orbital-simulations/experimental/issues/88
+- [ ] impulse / force registration (should this be a separate API from CRUD?) https://github.com/orbital-simulations/experimental/issues/89
 
 ## Simulation management
 
 - [x] delta time step
 - [x] basic configuration
-- [ ] sub-stepping
+- [ ] sub-stepping https://github.com/orbital-simulations/experimental/issues/90
 
 ## Events
 
-- [ ] contact 
+- [ ] contact
 - [ ] collision 
 - [ ] sensor 
 
@@ -127,8 +127,8 @@ https://github.com/orbital-simulations/experimental/issues/31
 ### Broad phase
 
 - [ ] research acceleration structures https://github.com/orbital-simulations/experimental/issues/24
-- [ ] bounding-box-based tree
-- [ ] spatial hashing
+- [ ] bounding-box-based tree https://github.com/orbital-simulations/experimental/issues/91
+- [ ] spatial hashing https://github.com/orbital-simulations/experimental/issues/92
 
 ### Narrow phase
 
@@ -142,10 +142,10 @@ https://github.com/orbital-simulations/experimental/issues/31
 
 ## Continuous collision detection
 
-- [ ] time of impact calculation 
+- [ ] time of impact calculation https://github.com/orbital-simulations/experimental/issues/93
 
 ## Constraint solving
 
 - [x] sequential impulse solver
-- [ ] projected Gauss--Seidel
-- [ ] linear complementarity problem (LCP) solvers
+- [ ] projected Gauss--Seidel https://github.com/orbital-simulations/experimental/issues/94
+- [ ] linear complementarity problem (LCP) solvers https://github.com/orbital-simulations/experimental/issues/95
