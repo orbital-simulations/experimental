@@ -87,40 +87,40 @@ https://github.com/orbital-simulations/experimental/issues/31
 
 ## Events
 
-- [ ] contact
-- [ ] collision 
-- [ ] sensor 
+- [ ] contact https://github.com/orbital-simulations/experimental/issues/106
+- [ ] collision https://github.com/orbital-simulations/experimental/issues/106
+- [ ] sensor https://github.com/orbital-simulations/experimental/issues/106
 
 ## Queries
 
-- [ ] ray casts
-- [ ] shape overlap
+- [ ] ray casts https://github.com/orbital-simulations/experimental/issues/96
+- [ ] shape overlap https://github.com/orbital-simulations/experimental/issues/97
 
 # Tools
 
 ## Inspector
 
 - [x] basic playground with examples
-- [ ] save & load scenes
-- [ ] edit scenes
+- [ ] save & load scenes https://github.com/orbital-simulations/experimental/issues/98
+- [ ] edit scenes https://github.com/orbital-simulations/experimental/issues/99
 
 ## Record & replay
 
-- [ ] record
-- [ ] replay (in the inspector?)
+- [ ] record https://github.com/orbital-simulations/experimental/issues/100
+- [ ] replay (in the inspector?) https://github.com/orbital-simulations/experimental/issues/101
 
 ## Profiling
 
-- [ ] gather stats
-- [ ] visualizing slow objects
+- [ ] gather stats https://github.com/orbital-simulations/experimental/issues/102
+- [ ] visualizing slow objects https://github.com/orbital-simulations/experimental/issues/103
 
 # Implementation
 
 ## Integration
 
 - [x] semi-implicit Euler
-- [ ] Verlet
-- [ ] Runge--Kutta
+- [ ] Verlet https://github.com/orbital-simulations/experimental/issues/104
+- [ ] Runge--Kutta https://github.com/orbital-simulations/experimental/issues/105
 
 ## Discrete collision detection
 
