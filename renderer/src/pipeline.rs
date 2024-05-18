@@ -1,9 +1,10 @@
-use wgpu::{
-    BindGroupLayout, ColorTargetState, CompareFunction, DepthBiasState, DepthStencilState,
-    RenderPipeline, ShaderModule, StencilState, TextureFormat, VertexBufferLayout,
-};
+use std::{cell::RefCell, fs::File, io::Read, rc::Rc, sync::{RwLock, RwLockReadGuard}};
 
-use crate::context::{Context, RenderingContext};
+use wgpu::{ShaderModuleDescriptor, TextureFormat};
+
+use crate::{
+    context::Context, resource_watcher::{Reloadable, ResourceWatcher}, web_gpu::{RenderPipelineDescription, VertexBufferLayout}
+};
 
 #[derive(Debug, Clone)]
 pub struct RenderTargetDescription {
@@ -12,115 +13,145 @@ pub struct RenderTargetDescription {
     pub targets: Vec<TextureFormat>,
 }
 
-pub struct CreatePipeline<'a> {
-    pub shader: &'a ShaderModule,
-    pub vertex_buffer_layouts: Vec<VertexBufferLayout<'static>>,
-    pub bind_group_layouts: Vec<&'a BindGroupLayout>,
-    pub name: String,
-}
-
 #[derive(Debug)]
-pub struct Pipeline {
+struct PipelineInner {
     #[allow(dead_code)]
     name: String,
-    pipeline: RenderPipeline,
+    pipeline: RwLock<wgpu::RenderPipeline>,
+    pipeline_description: RenderPipelineDescription,
 }
 
-pub trait PipelineCreator {
-    fn create_pipeline<'a>(&'a self, rendering_context: &'a RenderingContext)
-        -> CreatePipeline<'a>;
-}
+impl PipelineInner {
+    fn new(context: &Context, render_pipeline_description: &RenderPipelineDescription) -> Self {
+        let pipeline = Self::build_pipeline(context, render_pipeline_description);
+        Self {
+            name: render_pipeline_description.label.clone(),
+            pipeline: RwLock::new(pipeline),
+            pipeline_description: render_pipeline_description.clone(),
+        }
+    }
 
-impl Pipeline {
-    pub fn new(
+    fn build_pipeline(
         context: &Context,
-        pipeline_creator: &impl PipelineCreator,
-        render_target_description: &RenderTargetDescription,
-        rendering_context: &RenderingContext,
-    ) -> Self {
-        let parameters = pipeline_creator.create_pipeline(rendering_context);
-        let mut pipeline_layout_descriptor_name = parameters.name.clone();
-        pipeline_layout_descriptor_name.push_str("layout descriptor");
+        render_pipeline_description: &RenderPipelineDescription,
+    ) -> wgpu::RenderPipeline {
+        println!("building pipeline!");
+        let (shader_code, label) = match &render_pipeline_description.shader {
+            crate::web_gpu::Shader::CompiledIn(module, label) => (module.clone(), label.clone()),
+            crate::web_gpu::Shader::Path(path) => {
+                let mut file = File::open(path.clone()).unwrap(); // FIXME: This unwrap...
+                let mut shader_code = String::new();
+                file.read_to_string(&mut shader_code).unwrap();
+                (shader_code, path.clone().to_str().unwrap().into()) // FIXME: This unwrap...
+            }
+        };
+        let shader_module = context.device.create_shader_module(ShaderModuleDescriptor {
+            label: Some(&label),
+            source: wgpu::ShaderSource::Wgsl(shader_code.into()),
+        });
+        let fragment =
+            render_pipeline_description.fragment.as_ref().map(|fragment_description| wgpu::FragmentState {
+                    module: &shader_module,
+                    entry_point: "fs_main",
+                    targets: &fragment_description.targets,
+                });
+        let vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout> = render_pipeline_description
+            .vertex
+            .buffers
+            .iter()
+            .map(
+                |vertex_buffer_layout: &VertexBufferLayout| wgpu::VertexBufferLayout {
+                    array_stride: vertex_buffer_layout.array_stride,
+                    step_mode: vertex_buffer_layout.step_mode,
+                    attributes: &vertex_buffer_layout.attributes,
+                },
+            )
+            .collect();
 
-        let pipeline_layout =
+        let vertex = wgpu::VertexState {
+            module: &shader_module,
+            entry_point: "vs_main",
+            buffers: &vertex_buffer_layouts,
+        };
+
+        let pipeline_layout = render_pipeline_description.layout.as_ref().map(|layout| {
+            let mut pipeline_layout_descriptor_name = render_pipeline_description.label.clone();
+            pipeline_layout_descriptor_name.push_str("layout descriptor");
+            let bind_group_layouts: Vec<wgpu::BindGroupLayout> = layout
+                .bind_group_layouts
+                .iter()
+                .map(|bind_group_layout| {
+                    context
+                        .device
+                        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                            label: Some(&bind_group_layout.label),
+                            entries: &bind_group_layout.entries,
+                        })
+                })
+                .collect();
+            let mut pipeline_layout_descriptor_name = render_pipeline_description.label.clone();
+            pipeline_layout_descriptor_name.push_str("layout descriptor");
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some(pipeline_layout_descriptor_name.as_str()),
-                    bind_group_layouts: &parameters.bind_group_layouts,
+                    bind_group_layouts: &bind_group_layouts
+                        .iter()
+                        .collect::<Vec<&wgpu::BindGroupLayout>>(),
                     push_constant_ranges: &[],
-                });
-
-        let targets: Vec<Option<ColorTargetState>> = render_target_description
-            .targets
-            .iter()
-            .map(|target_texture_format| {
-                Some(wgpu::ColorTargetState {
-                    format: *target_texture_format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent::REPLACE,
-                        alpha: wgpu::BlendComponent::REPLACE,
-                    }),
-                    write_mask: wgpu::ColorWrites::ALL,
                 })
-            })
-            .collect();
+        });
 
-        let depth_stencil =
-            render_target_description
-                .depth_texture
-                .map(|format| DepthStencilState {
-                    format,
-                    depth_write_enabled: true,
-                    depth_compare: CompareFunction::Less,
-                    stencil: StencilState::default(),
-                    bias: DepthBiasState::default(),
-                });
-        let pipeline = context
+        context
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some(&parameters.name),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: parameters.shader,
-                    entry_point: "vs_main",
-                    buffers: &parameters.vertex_buffer_layouts,
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: parameters.shader,
-                    entry_point: "fs_main",
-                    targets: &targets,
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                    // or Features::POLYGON_MODE_POINT
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil,
-                multisample: wgpu::MultisampleState {
-                    count: render_target_description.multisampling,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
+                label: Some(&render_pipeline_description.label),
+                layout: pipeline_layout.as_ref(),
+                vertex,
+                fragment,
+                primitive: render_pipeline_description.primitive,
+                depth_stencil: render_pipeline_description.depth_stencil.clone(),
+                multisample: render_pipeline_description.multisample,
                 // If the pipeline will be used with a multiview render pass, this
                 // indicates how many array layers the attachments will have.
-                multiview: None,
-            });
-        Self {
-            name: parameters.name.to_string(),
-            pipeline,
-        }
+                multiview: render_pipeline_description.multiview,
+            })
     }
 
-    pub fn render_pipeline(&self) -> &RenderPipeline {
-        &self.pipeline
+    fn rebuild(&self, context: &Context) {
+        println!("asdfasdf");
+        let mut read_guard = self.pipeline.write().unwrap();
+        *read_guard = PipelineInner::build_pipeline(context, &self.pipeline_description);
+        println!("asdfasdf2");
+    }
+
+    fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline>{
+        self.pipeline.read().unwrap()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Pipeline {
+    pipeline: Rc<PipelineInner>
+}
+
+impl Pipeline {
+    pub fn new(context: &Context, render_pipeline_description: &RenderPipelineDescription, resource_watcher: &mut ResourceWatcher) -> Self {
+
+        let pipeline = Pipeline { pipeline:  Rc::new(PipelineInner::new(context, render_pipeline_description))};
+        if let crate::web_gpu::Shader::Path(path) = &render_pipeline_description.shader {
+            resource_watcher.watch_resource(path, Box::new(pipeline.clone()))
+        }
+        pipeline
+    }
+    pub fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline>{
+        self.pipeline.render_pipeline()
+    }
+}
+
+impl Reloadable for Pipeline {
+    fn reload(&mut self, context: &Context) {
+        println!("asdfasdf");
+        self.pipeline.rebuild(context)
     }
 }

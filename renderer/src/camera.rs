@@ -1,8 +1,9 @@
 use std::slice::from_ref;
 
 use crate::buffers::{BindGroup, DescriptiveBindGroupEntry};
+use crate::web_gpu::BindGroupLayoutDescription;
 use glam::{Mat4, Vec2};
-use wgpu::{BindGroupLayout, BufferUsages, RenderPass};
+use wgpu::{BufferUsages, RenderPass};
 use wgpu::{BindGroupLayoutEntry, ShaderStages};
 
 use crate::{
@@ -74,8 +75,14 @@ impl Camera {
             .write_data(context, from_ref(camera_matrix));
     }
 
-    pub fn bind_group_layout(&self) -> &BindGroupLayout {
-        self.bind_group.layout()
+    pub fn bind_group_layout(&self) -> BindGroupLayoutDescription {
+            BindGroupLayoutDescription{
+                label: "camera layout description".into(),
+                entries: vec![
+                    self.projection_matrix_buffer.bind_group_entry_description(0, ShaderStages::VERTEX),
+                    self.camera_matrix_buffer.bind_group_entry_description(1, ShaderStages::VERTEX)
+                ],
+            }
     }
 }
 

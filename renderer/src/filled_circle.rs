@@ -1,13 +1,11 @@
 use glam::{Vec2, Vec3};
-use wgpu::{
-    include_wgsl, vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode,
-};
+use wgpu::{vertex_attr_array, MultisampleState, RenderPass, VertexStepMode};
 
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer},
-    context::{Context, RenderingContext},
-    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
-    raw::Gpu,
+    buffers::{IndexBuffer, WriteableBuffer}, context::{Context, RenderingContext}, include_wgsl, pipeline::{Pipeline, RenderTargetDescription}, raw::Gpu, resource_watcher::ResourceWatcher, web_gpu::{
+        FragmentState, PipelineLayoutDescription, RenderPipelineDescription,
+        VertexBufferLayout, VertexState,
+    }
 };
 
 #[derive(Debug)]
@@ -47,40 +45,10 @@ pub struct FilledCircleRenderer {
     index_buffer: IndexBuffer<u16>,
     instance_buffer: WriteableBuffer<FilledCircle>,
     pipeline: Option<Pipeline>,
-    shader: ShaderModule,
-}
-
-impl PipelineCreator for FilledCircleRenderer {
-    fn create_pipeline<'a>(
-        &'a self,
-        rendering_context: &'a RenderingContext,
-    ) -> CreatePipeline<'a> {
-        CreatePipeline {
-            shader: &self.shader,
-            vertex_buffer_layouts: vec![
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<Vec2>() as u64,
-                    step_mode: VertexStepMode::Vertex,
-                    attributes: &vertex_attr_array![0 => Float32x2],
-                },
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<FilledCircle>() as u64,
-                    step_mode: VertexStepMode::Instance,
-                    attributes: &CIRCLE_VERTEX_ATTRIBUTES,
-                },
-            ],
-            bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
-            name: "filled circle renderer".to_string(),
-        }
-    }
 }
 
 impl FilledCircleRenderer {
     pub fn new(context: &Context) -> Self {
-        let shader = context
-            .device
-            .create_shader_module(include_wgsl!("../shaders/filled_circle.wgsl"));
-
         let index_buffer = IndexBuffer::new(context, "circle index buffer", CIRCLE_INDICES);
         let vertex_buffer = WriteableBuffer::new(
             context,
@@ -101,7 +69,6 @@ impl FilledCircleRenderer {
             vertex_buffer,
             index_buffer,
             instance_buffer,
-            shader,
             pipeline: None,
         }
     }
@@ -116,13 +83,81 @@ impl FilledCircleRenderer {
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
+        resource_watcher: &mut ResourceWatcher,
     ) {
         if !self.circles.is_empty() {
             self.instance_buffer.write_data(context, &self.circles);
 
             if self.pipeline.is_none() {
-                let pipeline =
-                    Pipeline::new(context, self, render_target_description, rendering_context);
+                let depth_stencil =
+                    render_target_description
+                        .depth_texture
+                        .map(|format| wgpu::DepthStencilState {
+                            format,
+                            depth_write_enabled: true,
+                            depth_compare: wgpu::CompareFunction::Less,
+                            stencil: wgpu::StencilState::default(),
+                            bias: wgpu::DepthBiasState::default(),
+                        });
+
+                let targets: Vec<Option<wgpu::ColorTargetState>> = render_target_description
+                    .targets
+                    .iter()
+                    .map(|target_texture_format| {
+                        Some(wgpu::ColorTargetState {
+                            format: *target_texture_format,
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent::REPLACE,
+                                alpha: wgpu::BlendComponent::REPLACE,
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })
+                    })
+                    .collect();
+                let render_pipeline_description = RenderPipelineDescription {
+                    shader: include_wgsl!("../shaders/filled_circle.wgsl"),
+                    label: "filled circle renderer".to_string(),
+                    layout: Some(PipelineLayoutDescription {
+                        bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
+                        push_constant_ranges: vec![],
+                    }),
+                    vertex: VertexState {
+                        buffers: vec![
+                            VertexBufferLayout {
+                                array_stride: std::mem::size_of::<Vec2>() as u64,
+                                step_mode: VertexStepMode::Vertex,
+                                attributes: vertex_attr_array![0 => Float32x2].into(),
+                            },
+                            VertexBufferLayout {
+                                array_stride: std::mem::size_of::<FilledCircle>() as u64,
+                                step_mode: VertexStepMode::Instance,
+                                attributes: CIRCLE_VERTEX_ATTRIBUTES.into(),
+                            },
+                        ],
+                    },
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: Some(wgpu::Face::Back),
+                        // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+                        // or Features::POLYGON_MODE_POINT
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        // Requires Features::DEPTH_CLIP_CONTROL
+                        unclipped_depth: false,
+                        // Requires Features::CONSERVATIVE_RASTERIZATION
+                        conservative: false,
+                    },
+                    depth_stencil,
+                    multisample: MultisampleState {
+                        count: render_target_description.multisampling,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    fragment: Some(FragmentState { targets }),
+                    multiview: None,
+                };
+                let pipeline = Pipeline::new(context, &render_pipeline_description, resource_watcher);
 
                 self.pipeline = Some(pipeline);
             }
@@ -132,7 +167,8 @@ impl FilledCircleRenderer {
                 .as_ref()
                 .expect("pipeline should be created by now");
 
-            render_pass.set_pipeline(pipeline.render_pipeline());
+            let pipeline = pipeline.render_pipeline();
+            render_pass.set_pipeline(&pipeline);
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

@@ -6,12 +6,15 @@ pub mod custom_mesh_renderer;
 pub mod filled_circle;
 pub mod filled_rectangle;
 pub mod line_segment;
+pub mod macros;
 pub mod mesh;
 pub mod pipeline;
 pub mod projection;
 pub mod raw;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
+pub mod web_gpu;
+mod resource_watcher;
 
 use std::{
     any::{Any, TypeId},
@@ -27,6 +30,7 @@ use line_segment::{LineSegment, LineSegmentRenderer};
 use pipeline::RenderTargetDescription;
 use projection::Projection;
 
+use resource_watcher::ResourceWatcher;
 use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
 use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::info;
@@ -47,6 +51,7 @@ pub struct Renderer {
     size: Vec2,
     depth_texture: Option<Texture>,
     window_render_target_description: RenderTargetDescription,
+    resource_watcher: ResourceWatcher,
 }
 
 pub trait CustomRenderer {}
@@ -70,6 +75,7 @@ impl Renderer {
         let filled_rectangle_renderer = FilledRectangleRenderer::new(&context);
         let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context);
         let line_segment_renderer = LineSegmentRenderer::new(&context);
+        let resource_watcher = ResourceWatcher::new();
 
         Ok(Self {
             context,
@@ -83,6 +89,7 @@ impl Renderer {
             rendering_context,
             depth_texture: None,
             window_render_target_description,
+            resource_watcher,
         })
     }
 
@@ -209,30 +216,35 @@ impl Renderer {
                 &self.rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
+                &mut self.resource_watcher,
             );
             self.stroke_circle_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
+                &mut self.resource_watcher,
             );
             self.filled_rectangle_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
+                &mut self.resource_watcher,
             );
             self.line_segment_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
+                &mut self.resource_watcher,
             );
             self.stroke_rectangle_renderer.render(
                 &self.context,
                 &self.rendering_context,
                 &mut render_pass,
                 &self.window_render_target_description,
+                &mut self.resource_watcher,
             );
 
             for custom_mesh_renderer in self.custom_mesh_renderers.values_mut() {
@@ -241,8 +253,11 @@ impl Renderer {
                     &self.context,
                     &mut render_pass,
                     &self.window_render_target_description,
+                &mut self.resource_watcher,
                 );
             }
+
+            self.resource_watcher.process_watcher_updates(&self.context);
         }
 
         self.context.queue.submit(std::iter::once(encoder.finish()));

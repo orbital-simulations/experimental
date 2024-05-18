@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use game_engine::{
     game_engine_3d_parameters,
     mesh::{generate_mesh_normals, generate_mesh_plane},
@@ -8,15 +6,14 @@ use game_engine::{
 };
 use glam::Vec3;
 use noise::{NoiseFn, SuperSimplex};
-use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, CustomRenderer, Renderer};
+use renderer::{custom_mesh_renderer::CustomMeshRenderer, include_wgsl, mesh::GpuMesh, web_gpu::Shader, CustomRenderer, Renderer};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
-use wgpu::{include_wgsl, ShaderModule};
 use winit::{event_loop::EventLoop, window::Window};
 
 pub struct GameState {
     noises: Vec<(u32, f32, f32)>,
     noises_detection: Vec<(u32, f32, f32)>,
-    terrain_shader: Rc<ShaderModule>,
+    terrain_shader: Shader,
     vertices: Vec<Vec3>,
     indices: Vec<u32>,
 }
@@ -26,28 +23,22 @@ const CUBE_MATERIALS: [(&str, &str); 1] = [("cube.mtl", include_str!("../assets/
 
 struct CubeRenderer;
 impl CustomRenderer for CubeRenderer {}
+
 struct TerrainRenderer;
 impl CustomRenderer for TerrainRenderer {}
 
+struct SecondCubeRenderer;
+impl CustomRenderer for SecondCubeRenderer {}
+
 fn setup(game_engine: &mut GameEngine) -> GameState {
-    let shader = game_engine
-        .renderer
-        .context
-        .device
-        .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
-    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
-    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Rc::new(shader));
+    let shader = include_wgsl!("../shaders/cube.wgsl");
+    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS, &Vec3::new(0.0, 0., 0.)).unwrap();
+    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, shader);
     game_engine
         .renderer
         .add_custom_mesh_renderer(&CubeRenderer, custom_renderer);
 
-    let shader = Rc::new(
-        game_engine
-            .renderer
-            .context
-            .device
-            .create_shader_module(include_wgsl!("../shaders/terain.wgsl")),
-    );
+    let shader = include_wgsl!("../shaders/terain.wgsl");
 
     let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
     let noise1 = SuperSimplex::new(0);
@@ -67,6 +58,13 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     game_engine
         .renderer
         .add_custom_mesh_renderer(&TerrainRenderer, custom_renderer);
+
+    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS, &Vec3::new(10.0, 0., 0.)).unwrap();
+    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Shader::Path("app/shaders/reload_test.wgsl".into()) );
+    game_engine
+        .renderer
+        .add_custom_mesh_renderer(&SecondCubeRenderer, custom_renderer);
+
     GameState {
         noises: vec![(0, 50., 25.), (10, 10., 3.), (100, 1., 0.1)],
         terrain_shader: shader,
@@ -74,6 +72,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         indices,
         noises_detection: vec![],
     }
+
 }
 
 fn update(state: &mut GameState, game_engine: &mut GameEngine) {

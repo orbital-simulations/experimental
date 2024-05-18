@@ -9,6 +9,7 @@ pub fn load_model_static(
     context: &Context,
     data: &'static str,
     materials: &[(&'static str, &'static str)],
+    translate: &Vec3,
 ) -> Result<GpuMesh> {
     let config = LoadOptions {
         single_index: true,
@@ -32,7 +33,7 @@ pub fn load_model_static(
         .positions
         .iter()
         .tuples()
-        .map(|(x, y, z)| Vec3::new(*x, *y, *z))
+        .map(|(x, y, z)| Vec3::new(*x, *y, *z) + *translate)
         .collect::<Vec<Vec3>>();
     let normals = model
         .mesh
