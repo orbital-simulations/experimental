@@ -6,7 +6,10 @@ use game_engine::{
 };
 use glam::Vec3;
 use noise::{NoiseFn, SuperSimplex};
-use renderer::{custom_mesh_renderer::CustomMeshRenderer, include_wgsl, mesh::GpuMesh, web_gpu::Shader, CustomRenderer, Renderer};
+use renderer::{
+    custom_mesh_renderer::CustomMeshRenderer, include_wgsl, mesh::GpuMesh, web_gpu::Shader,
+    CustomRenderer, Renderer,
+};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
 
@@ -32,7 +35,13 @@ impl CustomRenderer for SecondCubeRenderer {}
 
 fn setup(game_engine: &mut GameEngine) -> GameState {
     let shader = include_wgsl!("../shaders/cube.wgsl");
-    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS, &Vec3::new(0.0, 0., 0.)).unwrap();
+    let gpu_mesh = load_model_static(
+        &game_engine.renderer.context,
+        CUBE,
+        &CUBE_MATERIALS,
+        &Vec3::new(0.0, 0., 0.),
+    )
+    .unwrap();
     let custom_renderer = CustomMeshRenderer::new(gpu_mesh, shader);
     game_engine
         .renderer
@@ -59,8 +68,17 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         .renderer
         .add_custom_mesh_renderer(&TerrainRenderer, custom_renderer);
 
-    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS, &Vec3::new(10.0, 0., 0.)).unwrap();
-    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Shader::Path("app/shaders/reload_test.wgsl".into()) );
+    let gpu_mesh = load_model_static(
+        &game_engine.renderer.context,
+        CUBE,
+        &CUBE_MATERIALS,
+        &Vec3::new(10.0, 0., 0.),
+    )
+    .unwrap();
+    let custom_renderer = CustomMeshRenderer::new(
+        gpu_mesh,
+        Shader::Path("app/shaders/reload_test.wgsl".into()),
+    );
     game_engine
         .renderer
         .add_custom_mesh_renderer(&SecondCubeRenderer, custom_renderer);
@@ -72,7 +90,6 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         indices,
         noises_detection: vec![],
     }
-
 }
 
 fn update(state: &mut GameState, game_engine: &mut GameEngine) {

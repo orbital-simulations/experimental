@@ -1,4 +1,9 @@
-use std::{collections::HashMap, env, path::{Path, PathBuf}, sync::mpsc::{channel, Receiver}};
+use std::{
+    collections::HashMap,
+    env,
+    path::{Path, PathBuf},
+    sync::mpsc::{channel, Receiver},
+};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::warn;
@@ -18,15 +23,17 @@ pub struct ResourceWatcher {
 
 impl ResourceWatcher {
     pub fn new() -> ResourceWatcher {
-            let (tx, rx) = channel();
-            let pwd = env::current_dir().unwrap();
-            let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
-            watcher.watch(pwd.as_ref(), RecursiveMode::Recursive).unwrap();
-            ResourceWatcher{
-                resource_map: HashMap::default(),
-                watcher,
-                receiver: rx,
-            }
+        let (tx, rx) = channel();
+        let pwd = env::current_dir().unwrap();
+        let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+        watcher
+            .watch(pwd.as_ref(), RecursiveMode::Recursive)
+            .unwrap();
+        ResourceWatcher {
+            resource_map: HashMap::default(),
+            watcher,
+            receiver: rx,
+        }
     }
 
     pub fn watch_resource<P: AsRef<Path>>(&mut self, path: P, resource: Box<dyn Reloadable>) {

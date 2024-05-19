@@ -3,8 +3,8 @@ use std::slice::from_ref;
 use crate::buffers::{BindGroup, DescriptiveBindGroupEntry};
 use crate::web_gpu::BindGroupLayoutDescription;
 use glam::{Mat4, Vec2};
-use wgpu::{BufferUsages, RenderPass};
 use wgpu::{BindGroupLayoutEntry, ShaderStages};
+use wgpu::{BufferUsages, RenderPass};
 
 use crate::{
     buffers::WriteableBuffer,
@@ -76,13 +76,15 @@ impl Camera {
     }
 
     pub fn bind_group_layout(&self) -> BindGroupLayoutDescription {
-            BindGroupLayoutDescription{
-                label: "camera layout description".into(),
-                entries: vec![
-                    self.projection_matrix_buffer.bind_group_entry_description(0, ShaderStages::VERTEX),
-                    self.camera_matrix_buffer.bind_group_entry_description(1, ShaderStages::VERTEX)
-                ],
-            }
+        BindGroupLayoutDescription {
+            label: "camera layout description".into(),
+            entries: vec![
+                self.projection_matrix_buffer
+                    .bind_group_entry_description(0, ShaderStages::VERTEX),
+                self.camera_matrix_buffer
+                    .bind_group_entry_description(1, ShaderStages::VERTEX),
+            ],
+        }
     }
 }
 

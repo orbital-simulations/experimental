@@ -1,9 +1,16 @@
-use std::{cell::RefCell, fs::File, io::Read, rc::Rc, sync::{RwLock, RwLockReadGuard}};
+use std::{
+    fs::File,
+    io::Read,
+    rc::Rc,
+    sync::{RwLock, RwLockReadGuard},
+};
 
 use wgpu::{ShaderModuleDescriptor, TextureFormat};
 
 use crate::{
-    context::Context, resource_watcher::{Reloadable, ResourceWatcher}, web_gpu::{RenderPipelineDescription, VertexBufferLayout}
+    context::Context,
+    resource_watcher::{Reloadable, ResourceWatcher},
+    web_gpu::{RenderPipelineDescription, VertexBufferLayout},
 };
 
 #[derive(Debug, Clone)]
@@ -49,12 +56,14 @@ impl PipelineInner {
             label: Some(&label),
             source: wgpu::ShaderSource::Wgsl(shader_code.into()),
         });
-        let fragment =
-            render_pipeline_description.fragment.as_ref().map(|fragment_description| wgpu::FragmentState {
-                    module: &shader_module,
-                    entry_point: "fs_main",
-                    targets: &fragment_description.targets,
-                });
+        let fragment = render_pipeline_description
+            .fragment
+            .as_ref()
+            .map(|fragment_description| wgpu::FragmentState {
+                module: &shader_module,
+                entry_point: "fs_main",
+                targets: &fragment_description.targets,
+            });
         let vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout> = render_pipeline_description
             .vertex
             .buffers
@@ -125,26 +134,31 @@ impl PipelineInner {
         println!("asdfasdf2");
     }
 
-    fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline>{
+    fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline> {
         self.pipeline.read().unwrap()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Pipeline {
-    pipeline: Rc<PipelineInner>
+    pipeline: Rc<PipelineInner>,
 }
 
 impl Pipeline {
-    pub fn new(context: &Context, render_pipeline_description: &RenderPipelineDescription, resource_watcher: &mut ResourceWatcher) -> Self {
-
-        let pipeline = Pipeline { pipeline:  Rc::new(PipelineInner::new(context, render_pipeline_description))};
+    pub fn new(
+        context: &Context,
+        render_pipeline_description: &RenderPipelineDescription,
+        resource_watcher: &mut ResourceWatcher,
+    ) -> Self {
+        let pipeline = Pipeline {
+            pipeline: Rc::new(PipelineInner::new(context, render_pipeline_description)),
+        };
         if let crate::web_gpu::Shader::Path(path) = &render_pipeline_description.shader {
             resource_watcher.watch_resource(path, Box::new(pipeline.clone()))
         }
         pipeline
     }
-    pub fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline>{
+    pub fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline> {
         self.pipeline.render_pipeline()
     }
 }

@@ -2,10 +2,16 @@ use glam::{Vec2, Vec3};
 use wgpu::{vertex_attr_array, MultisampleState, RenderPass, VertexStepMode};
 
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer}, context::{Context, RenderingContext}, include_wgsl, pipeline::{Pipeline, RenderTargetDescription}, raw::Gpu, resource_watcher::ResourceWatcher, web_gpu::{
-        FragmentState, PipelineLayoutDescription, RenderPipelineDescription,
-        VertexBufferLayout, VertexState,
-    }
+    buffers::{IndexBuffer, WriteableBuffer},
+    context::{Context, RenderingContext},
+    include_wgsl,
+    pipeline::{Pipeline, RenderTargetDescription},
+    raw::Gpu,
+    resource_watcher::ResourceWatcher,
+    web_gpu::{
+        FragmentState, PipelineLayoutDescription, RenderPipelineDescription, VertexBufferLayout,
+        VertexState,
+    },
 };
 
 #[derive(Debug)]
@@ -157,7 +163,8 @@ impl FilledCircleRenderer {
                     fragment: Some(FragmentState { targets }),
                     multiview: None,
                 };
-                let pipeline = Pipeline::new(context, &render_pipeline_description, resource_watcher);
+                let pipeline =
+                    Pipeline::new(context, &render_pipeline_description, resource_watcher);
 
                 self.pipeline = Some(pipeline);
             }
