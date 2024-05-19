@@ -1,18 +1,23 @@
 use glam::Vec3;
-use wgpu::{vertex_attr_array, RenderPass, VertexStepMode};
+use wgpu::{vertex_attr_array, RenderPass, RenderPipeline, VertexStepMode};
 
 use crate::{
-    context::{Context, RenderingContext}, mesh::GpuMesh, pipeline::{Pipeline, RenderTargetDescription}, resource_watcher::ResourceWatcher, web_gpu::{
+    context::{Context, RenderingContext},
+    mesh::GpuMesh,
+    pipeline::{Pipeline, RenderTargetDescription},
+    resource_watcher::ResourceWatcher,
+    web_gpu::{
         FragmentState, PipelineLayoutDescription, RenderPipelineDescription, Shader,
         VertexBufferLayout, VertexState,
-    }
+    },
 };
+use std::sync::RwLockReadGuard;
 
 #[derive(Debug)]
 pub struct CustomMeshRenderer {
     pipeline: Option<Pipeline>,
     mesh: GpuMesh,
-    shader_description: Shader
+    shader_description: Shader,
 }
 
 impl CustomMeshRenderer {
@@ -24,11 +29,10 @@ impl CustomMeshRenderer {
         }
     }
 
-    pub fn render<'a>(
+    pub fn build<'a>(
         &'a mut self,
         rendering_context: &'a RenderingContext,
         context: &Context,
-        render_pass: &mut RenderPass<'a>,
         render_target_description: &RenderTargetDescription,
         resource_watcher: &mut ResourceWatcher,
     ) {
@@ -105,13 +109,18 @@ impl CustomMeshRenderer {
 
             self.pipeline = Some(pipeline);
         }
+    }
 
-        let pipeline = &self
-            .pipeline
-            .as_ref()
-            .expect("pipeline should be created by now");
+    pub fn pipeline(&self) -> Option<RwLockReadGuard<'_, RenderPipeline>> {
+        self.pipeline.as_ref().map(|p| p.render_pipeline())
+    }
 
-        let pipeline = pipeline.render_pipeline();
+    pub fn render<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+        render_pass: &mut RenderPass<'a>,
+        pipeline: &'a RenderPipeline,
+    ) {
         render_pass.set_pipeline(&pipeline);
         rendering_context.camera().bind(render_pass, 0);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));

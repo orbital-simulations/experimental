@@ -11,14 +11,15 @@ pub mod mesh;
 pub mod pipeline;
 pub mod projection;
 pub mod raw;
+mod resource_watcher;
 pub mod stroke_circle;
 pub mod stroke_rectangle;
 pub mod web_gpu;
-mod resource_watcher;
 
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
+    sync::RwLockReadGuard,
 };
 
 use context::{Context, RenderingContext};
@@ -36,7 +37,7 @@ use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::info;
 use wgpu::{
     Color, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-    StoreOp, Texture, TextureFormat, TextureViewDescriptor,
+    RenderPipeline, StoreOp, Texture, TextureFormat, TextureViewDescriptor,
 };
 
 pub struct Renderer {
@@ -196,6 +197,21 @@ impl Renderer {
                 },
             })];
 
+            for renderer in self.custom_mesh_renderers.values_mut() {
+                renderer.build(
+                    &self.rendering_context,
+                    &self.context,
+                    &self.window_render_target_description,
+                    &mut self.resource_watcher,
+                )
+            }
+
+            let pipelines: HashMap<TypeId, RwLockReadGuard<'_, RenderPipeline>> = self
+                .custom_mesh_renderers
+                .iter()
+                .filter_map(|(id, r)| r.pipeline().map(|p| (*id, p)))
+                .collect();
+
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Shapes Renderer Pass"),
                 color_attachments: &color_attachments,
@@ -211,6 +227,7 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
+            /*
             self.filled_circle_renderer.render(
                 &self.context,
                 &self.rendering_context,
@@ -246,15 +263,16 @@ impl Renderer {
                 &self.window_render_target_description,
                 &mut self.resource_watcher,
             );
+            */
 
-            for custom_mesh_renderer in self.custom_mesh_renderers.values_mut() {
-                custom_mesh_renderer.render(
-                    &self.rendering_context,
-                    &self.context,
-                    &mut render_pass,
-                    &self.window_render_target_description,
-                &mut self.resource_watcher,
-                );
+            for (id, custom_mesh_renderer) in &self.custom_mesh_renderers {
+                if let Some(pipeline) = pipelines.get(id) {
+                    custom_mesh_renderer.render(
+                        &self.rendering_context,
+                        &mut render_pass,
+                        pipeline,
+                    );
+                }
             }
 
             self.resource_watcher.process_watcher_updates(&self.context);
