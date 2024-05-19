@@ -1,8 +1,5 @@
 use std::{
-    fs::File,
-    io::Read,
-    rc::Rc,
-    sync::{RwLock, RwLockReadGuard},
+    cell::{Ref, RefCell}, fs::File, io::Read, rc::Rc
 };
 
 use wgpu::{ShaderModuleDescriptor, TextureFormat};
@@ -24,7 +21,7 @@ pub struct RenderTargetDescription {
 struct PipelineInner {
     #[allow(dead_code)]
     name: String,
-    pipeline: RwLock<wgpu::RenderPipeline>,
+    pipeline: RefCell<wgpu::RenderPipeline>,
     pipeline_description: RenderPipelineDescription,
 }
 
@@ -33,7 +30,7 @@ impl PipelineInner {
         let pipeline = Self::build_pipeline(context, render_pipeline_description);
         Self {
             name: render_pipeline_description.label.clone(),
-            pipeline: RwLock::new(pipeline),
+            pipeline: RefCell::new(pipeline),
             pipeline_description: render_pipeline_description.clone(),
         }
     }
@@ -128,14 +125,11 @@ impl PipelineInner {
     }
 
     fn rebuild(&self, context: &Context) {
-        println!("asdfasdf");
-        let mut read_guard = self.pipeline.write().unwrap();
-        *read_guard = PipelineInner::build_pipeline(context, &self.pipeline_description);
-        println!("asdfasdf2");
+        self.pipeline.replace(PipelineInner::build_pipeline(context, &self.pipeline_description));
     }
 
-    fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline> {
-        self.pipeline.read().unwrap()
+    fn render_pipeline(&self) -> Ref<'_, wgpu::RenderPipeline> {
+        self.pipeline.borrow()
     }
 }
 
@@ -158,7 +152,7 @@ impl Pipeline {
         }
         pipeline
     }
-    pub fn render_pipeline(&self) -> RwLockReadGuard<'_, wgpu::RenderPipeline> {
+    pub fn render_pipeline(&self) -> Ref<'_, wgpu::RenderPipeline> {
         self.pipeline.render_pipeline()
     }
 }

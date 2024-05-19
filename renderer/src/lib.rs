@@ -3,37 +3,35 @@ pub mod camera;
 pub mod colors;
 pub mod context;
 pub mod custom_mesh_renderer;
-pub mod filled_circle;
-pub mod filled_rectangle;
-pub mod line_segment;
+//pub mod filled_circle;
+//pub mod filled_rectangle;
+//pub mod line_segment;
 pub mod macros;
 pub mod mesh;
 pub mod pipeline;
 pub mod projection;
 pub mod raw;
 mod resource_watcher;
-pub mod stroke_circle;
-pub mod stroke_rectangle;
+//pub mod stroke_circle;
+//pub mod stroke_rectangle;
 pub mod web_gpu;
 
 use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-    sync::RwLockReadGuard,
+    any::{Any, TypeId}, cell::Ref, collections::HashMap
 };
 
 use context::{Context, RenderingContext};
 use custom_mesh_renderer::CustomMeshRenderer;
-use filled_circle::{FilledCircle, FilledCircleRenderer};
-use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
+//use filled_circle::{FilledCircle, FilledCircleRenderer};
+//use filled_rectangle::{FilledRectangle, FilledRectangleRenderer};
 use glam::Vec2;
-use line_segment::{LineSegment, LineSegmentRenderer};
+//use line_segment::{LineSegment, LineSegmentRenderer};
 use pipeline::RenderTargetDescription;
 use projection::Projection;
 
 use resource_watcher::ResourceWatcher;
-use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
-use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
+//use stroke_circle::{StrokeCircle, StrokeCircleRenderer};
+//use stroke_rectangle::{StrokeRectangle, StrokeRectangleRenderer};
 use tracing::info;
 use wgpu::{
     Color, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
@@ -43,11 +41,11 @@ use wgpu::{
 pub struct Renderer {
     pub context: Context,
     pub rendering_context: RenderingContext,
-    filled_circle_renderer: FilledCircleRenderer,
-    stroke_circle_renderer: StrokeCircleRenderer,
-    filled_rectangle_renderer: FilledRectangleRenderer,
-    stroke_rectangle_renderer: StrokeRectangleRenderer,
-    line_segment_renderer: LineSegmentRenderer,
+//    filled_circle_renderer: FilledCircleRenderer,
+//    stroke_circle_renderer: StrokeCircleRenderer,
+//    filled_rectangle_renderer: FilledRectangleRenderer,
+//    stroke_rectangle_renderer: StrokeRectangleRenderer,
+//    line_segment_renderer: LineSegmentRenderer,
     custom_mesh_renderers: HashMap<TypeId, CustomMeshRenderer>,
     size: Vec2,
     depth_texture: Option<Texture>,
@@ -71,20 +69,20 @@ impl Renderer {
             depth_texture: Some(TextureFormat::Depth32Float),
             targets: vec![main_surface_format],
         };
-        let filled_circle_renderer = FilledCircleRenderer::new(&context);
-        let stroke_circle_renderer = StrokeCircleRenderer::new(&context);
-        let filled_rectangle_renderer = FilledRectangleRenderer::new(&context);
-        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context);
-        let line_segment_renderer = LineSegmentRenderer::new(&context);
+//        let filled_circle_renderer = FilledCircleRenderer::new(&context);
+//        let stroke_circle_renderer = StrokeCircleRenderer::new(&context);
+//        let filled_rectangle_renderer = FilledRectangleRenderer::new(&context);
+//        let stroke_rectangle_renderer = StrokeRectangleRenderer::new(&context);
+//        let line_segment_renderer = LineSegmentRenderer::new(&context);
         let resource_watcher = ResourceWatcher::new();
 
         Ok(Self {
             context,
-            filled_circle_renderer,
-            stroke_circle_renderer,
-            filled_rectangle_renderer,
-            stroke_rectangle_renderer,
-            line_segment_renderer,
+//            filled_circle_renderer,
+//            stroke_circle_renderer,
+//            filled_rectangle_renderer,
+//            stroke_rectangle_renderer,
+//            line_segment_renderer,
             size,
             custom_mesh_renderers: HashMap::new(),
             rendering_context,
@@ -94,26 +92,26 @@ impl Renderer {
         })
     }
 
-    pub fn draw_full_circle(&mut self, full_circle: FilledCircle) {
-        self.filled_circle_renderer.add_circle(full_circle);
-    }
-
-    pub fn draw_stroke_circle(&mut self, stroke_circle: StrokeCircle) {
-        self.stroke_circle_renderer.add_stroke_circle(stroke_circle);
-    }
-
-    pub fn draw_full_rectangle(&mut self, full_rectangle: FilledRectangle) {
-        self.filled_rectangle_renderer.add_rectangle(full_rectangle);
-    }
-
-    pub fn draw_stroke_rectangle(&mut self, stroke_rectangle: StrokeRectangle) {
-        self.stroke_rectangle_renderer
-            .add_rectangle(stroke_rectangle);
-    }
-
-    pub fn draw_line_segment(&mut self, line_segment: LineSegment) {
-        self.line_segment_renderer.add_line_segment(line_segment);
-    }
+//    pub fn draw_full_circle(&mut self, full_circle: FilledCircle) {
+//        self.filled_circle_renderer.add_circle(full_circle);
+//    }
+//
+//    pub fn draw_stroke_circle(&mut self, stroke_circle: StrokeCircle) {
+//        self.stroke_circle_renderer.add_stroke_circle(stroke_circle);
+//    }
+//
+//    pub fn draw_full_rectangle(&mut self, full_rectangle: FilledRectangle) {
+//        self.filled_rectangle_renderer.add_rectangle(full_rectangle);
+//    }
+//
+//    pub fn draw_stroke_rectangle(&mut self, stroke_rectangle: StrokeRectangle) {
+//        self.stroke_rectangle_renderer
+//            .add_rectangle(stroke_rectangle);
+//    }
+//
+//    pub fn draw_line_segment(&mut self, line_segment: LineSegment) {
+//        self.line_segment_renderer.add_line_segment(line_segment);
+//    }
 
     pub fn add_custom_mesh_renderer<K>(
         &mut self,
@@ -206,7 +204,7 @@ impl Renderer {
                 )
             }
 
-            let pipelines: HashMap<TypeId, RwLockReadGuard<'_, RenderPipeline>> = self
+            let pipelines: HashMap<TypeId, Ref<'_, RenderPipeline>> = self
                 .custom_mesh_renderers
                 .iter()
                 .filter_map(|(id, r)| r.pipeline().map(|p| (*id, p)))

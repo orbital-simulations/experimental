@@ -11,7 +11,7 @@ use crate::{
         VertexBufferLayout, VertexState,
     },
 };
-use std::sync::RwLockReadGuard;
+use std::cell::Ref;
 
 #[derive(Debug)]
 pub struct CustomMeshRenderer {
@@ -111,7 +111,7 @@ impl CustomMeshRenderer {
         }
     }
 
-    pub fn pipeline(&self) -> Option<RwLockReadGuard<'_, RenderPipeline>> {
+    pub fn pipeline(&self) -> Option<Ref<'_, RenderPipeline>> {
         self.pipeline.as_ref().map(|p| p.render_pipeline())
     }
 
@@ -121,7 +121,7 @@ impl CustomMeshRenderer {
         render_pass: &mut RenderPass<'a>,
         pipeline: &'a RenderPipeline,
     ) {
-        render_pass.set_pipeline(&pipeline);
+        render_pass.set_pipeline(pipeline);
         rendering_context.camera().bind(render_pass, 0);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.mesh.normal_buffer.slice(..));
