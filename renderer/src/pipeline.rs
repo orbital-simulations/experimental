@@ -128,8 +128,10 @@ impl PipelineInner {
         self.pipeline.replace(PipelineInner::build_pipeline(context, &self.pipeline_description));
     }
 
-    fn render_pipeline(&self) -> Ref<'_, wgpu::RenderPipeline> {
-        self.pipeline.borrow()
+    fn render_pipeline(&self) -> &wgpu::RenderPipeline {
+        unsafe {
+            &*self.pipeline.as_ptr()
+        }
     }
 }
 
@@ -152,7 +154,7 @@ impl Pipeline {
         }
         pipeline
     }
-    pub fn render_pipeline(&self) -> Ref<'_, wgpu::RenderPipeline> {
+    pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.pipeline.render_pipeline()
     }
 }

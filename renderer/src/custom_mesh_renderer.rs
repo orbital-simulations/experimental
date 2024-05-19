@@ -111,7 +111,7 @@ impl CustomMeshRenderer {
         }
     }
 
-    pub fn pipeline(&self) -> Option<Ref<'_, RenderPipeline>> {
+    pub fn pipeline(&self) -> Option<&RenderPipeline> {
         self.pipeline.as_ref().map(|p| p.render_pipeline())
     }
 
@@ -119,9 +119,8 @@ impl CustomMeshRenderer {
         &'a self,
         rendering_context: &'a RenderingContext,
         render_pass: &mut RenderPass<'a>,
-        pipeline: &'a RenderPipeline,
     ) {
-        render_pass.set_pipeline(pipeline);
+        render_pass.set_pipeline(self.pipeline().unwrap());
         rendering_context.camera().bind(render_pass, 0);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.mesh.normal_buffer.slice(..));

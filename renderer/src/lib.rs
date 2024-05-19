@@ -204,26 +204,21 @@ impl Renderer {
                 )
             }
 
-            let pipelines: HashMap<TypeId, Ref<'_, RenderPipeline>> = self
-                .custom_mesh_renderers
-                .iter()
-                .filter_map(|(id, r)| r.pipeline().map(|p| (*id, p)))
-                .collect();
-
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Shapes Renderer Pass"),
-                color_attachments: &color_attachments,
-                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                    view: &depth_texture_view,
-                    depth_ops: Some(Operations {
-                        load: LoadOp::Clear(1.0),
-                        store: StoreOp::Store,
+            {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Shapes Renderer Pass"),
+                    color_attachments: &color_attachments,
+                    depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                        view: &depth_texture_view,
+                        depth_ops: Some(Operations {
+                            load: LoadOp::Clear(1.0),
+                            store: StoreOp::Store,
+                        }),
+                        stencil_ops: None,
                     }),
-                    stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
 
             /*
             self.filled_circle_renderer.render(
@@ -264,15 +259,13 @@ impl Renderer {
             */
 
             for (id, custom_mesh_renderer) in &self.custom_mesh_renderers {
-                if let Some(pipeline) = pipelines.get(id) {
-                    custom_mesh_renderer.render(
-                        &self.rendering_context,
-                        &mut render_pass,
-                        pipeline,
-                    );
-                }
+                custom_mesh_renderer.render(
+                    &self.rendering_context,
+                    &mut render_pass,
+                );
             }
 
+            }
             self.resource_watcher.process_watcher_updates(&self.context);
         }
 
