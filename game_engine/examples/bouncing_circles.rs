@@ -1,15 +1,13 @@
 use std::{f64::consts::PI, iter::repeat_with};
 
 use game_engine::{game_engine_2_5d_parameters, GameEngine};
-use glam::{dvec2, DVec2};
+use glam::{dvec2, DVec2, Vec3};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
 use renderer::{
-    colors::{RED, YELLOW},
-    filled_circle::FilledCircle,
-    line_segment::LineSegment,
-    Renderer,
+    circle_rendering::Circle, colors::{RED, YELLOW}, transform::Transform
 };
+use renderer::renderer_api::Renderer;
 use tracing::debug;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
@@ -101,19 +99,19 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     for p in &state.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                renderer.draw_full_circle(FilledCircle::new(p.pos.as_vec2(), radius as f32, RED));
+                renderer.draw_circle(&Transform::from_translation(&Vec3::new(p.pos.as_vec2().x, p.pos.as_vec2().y, 0.0)), &Circle::new(radius as f32, RED));
             }
-            Shape::HalfPlane { normal_angle } => {
-                let extent = 10000.0;
-                let tangent = DVec2::from_angle(normal_angle).perp();
-                let from: DVec2 = p.pos + extent * tangent;
-                let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line_segment(LineSegment {
-                    from: from.as_vec2(),
-                    to: to.as_vec2(),
-                    color: YELLOW,
-                    width: 3.,
-                });
+            Shape::HalfPlane { normal_angle: _ } => {
+//                let extent = 10000.0;
+//                let tangent = DVec2::from_angle(normal_angle).perp();
+//                let from: DVec2 = p.pos + extent * tangent;
+//                let to: DVec2 = p.pos - extent * tangent;
+//                renderer.draw_line_segment(LineSegment {
+//                    from: from.as_vec2(),
+//                    to: to.as_vec2(),
+//                    color: YELLOW,
+//                    width: 3.,
+//                });
             }
             _ => {
                 unimplemented!("Render unknown shape {:?}", p.shape)

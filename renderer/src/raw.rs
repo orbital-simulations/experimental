@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use glam::{DMat3, DMat4, DVec2, DVec3, DVec4, Mat3, Mat4, Vec2, Vec3, Vec4};
 
 /// This trait should be instantiated for all the types transferred to the GPU.
@@ -37,13 +35,23 @@ unsafe impl Gpu for DVec4 {}
 
 pub trait Raw {
     fn get_raw(&self) -> &[u8];
+    fn byte_len(&self) -> usize;
 }
 
 impl<T: Sized + Gpu> Raw for T {
     fn get_raw(&self) -> &[u8] {
         // SAFETY: This slice is supposed to be send to the GPU so the caller
         // must uphold the safety contract of the Gpu trait.
-        unsafe { core::slice::from_raw_parts((self as *const T) as *const u8, size_of::<T>()) }
+        unsafe {
+            core::slice::from_raw_parts(
+                (self as *const T) as *const u8,
+                std::mem::size_of_val(self),
+            )
+        }
+    }
+
+    fn byte_len(&self) -> usize {
+        std::mem::size_of_val(self)
     }
 }
 
@@ -58,6 +66,10 @@ impl<T: Sized + Gpu> Raw for [T] {
             )
         }
     }
+
+    fn byte_len(&self) -> usize {
+        std::mem::size_of_val(self)
+    }
 }
 
 impl<T: Sized + Gpu> Raw for Vec<T> {
@@ -67,8 +79,30 @@ impl<T: Sized + Gpu> Raw for Vec<T> {
         unsafe {
             core::slice::from_raw_parts(
                 (self.as_slice() as *const [T]) as *const u8,
-                size_of::<T>() * self.len(),
+                std::mem::size_of_val(self.as_slice()),
             )
         }
+    }
+
+    fn byte_len(&self) -> usize {
+        std::mem::size_of_val(self.as_slice())
+    }
+}
+
+// TODO: This is something I don't like and I don't know how to make it vetter...
+impl<T: Sized + Gpu> Raw for [T; 4] {
+    fn get_raw(&self) -> &[u8] {
+        // SAFETY: This slice is supposed to be send to the GPU so the caller
+        // must uphold the safety contract of the Gpu trait.
+        unsafe {
+            core::slice::from_raw_parts(
+                (self as *const [T]) as *const u8,
+                std::mem::size_of_val(self),
+            )
+        }
+    }
+
+    fn byte_len(&self) -> usize {
+        std::mem::size_of_val(self)
     }
 }

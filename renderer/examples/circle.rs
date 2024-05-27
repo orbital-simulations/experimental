@@ -1,15 +1,11 @@
-use glam::Vec2;
-use renderer::{colors::GREEN, filled_circle::FilledCircle};
+use glam::Vec3;
+use renderer::{circle_rendering::Circle, colors::GREEN, transform::Transform};
 
 mod shared;
 
 fn main() -> color_eyre::eyre::Result<()> {
     pollster::block_on(shared::run(|renderer| {
-        renderer.draw_full_circle(FilledCircle {
-            pos: Vec2::new(0., 0.),
-            radius: 100.,
-            color: GREEN,
-        })
+        renderer.draw_circle(&Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)), &Circle::new(100., GREEN))
     }))?;
     Ok(())
 }

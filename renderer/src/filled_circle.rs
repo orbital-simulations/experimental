@@ -10,7 +10,7 @@ use crate::{
     raw::Gpu,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[repr(C, packed)]
 pub struct FilledCircle {
     pub pos: Vec2,
@@ -136,6 +136,7 @@ impl FilledCircleRenderer {
             rendering_context.camera().bind(render_pass, 0);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            render_pass.set_vertex_buffer(2, self.instance_buffer.slice(..));
             self.index_buffer.set_index_buffer(render_pass);
             render_pass.draw_indexed(
                 0..self.index_buffer.draw_count(),

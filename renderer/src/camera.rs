@@ -5,11 +5,7 @@ use glam::{Mat4, Vec2};
 use wgpu::{BindGroupLayout, BufferUsages, RenderPass};
 use wgpu::{BindGroupLayoutEntry, ShaderStages};
 
-use crate::{
-    buffers::WriteableBuffer,
-    context::Context,
-    projection::{Projection, ProjectionManipulation},
-};
+use crate::{buffers::WriteableBuffer, context::Context, projection::Projection};
 
 pub struct Camera {
     // Contains projection and camra layous.

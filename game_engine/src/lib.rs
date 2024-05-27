@@ -8,9 +8,12 @@ use camera::{Camera, CameraController};
 use egui_integration::EguiIntegration;
 use glam::{vec2, vec3, Vec2};
 use inputs::Inputs;
-use renderer::projection::{OrtographicProjection, PerspectiveProjection, Projection};
-use renderer::Renderer;
+use renderer::camera2::PrimaryCamera;
+use renderer::gpu_context::GpuContext;
+use renderer::projection2::{CameraProjection, Orthographic, Perspective};
+use renderer::renderer_api::Renderer;
 use std::f32::consts::PI;
+use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, warn};
 use wgpu::util::parse_backends_from_comma_list;
@@ -27,8 +30,6 @@ use winit::keyboard::NamedKey;
 
 use winit::window::Window;
 use winit::{dpi::PhysicalSize, event::Event, event_loop::EventLoop};
-
-use renderer::context::Context;
 
 pub struct GameEngine<'a> {
     window: &'a Window,
@@ -62,14 +63,14 @@ pub fn game_engine_3d_parameters() -> MkGameEngine {
 
 pub fn game_engine_2_5d_parameters() -> MkGameEngine {
     MkGameEngine {
-        projection: ProjectionInit::Ortographic,
+        projection: ProjectionInit::Orthographic,
         camera: Camera::new(vec3(0., 0., 10.), 0., -PI / 2.),
     }
 }
 
 enum ProjectionInit {
     Perspective,
-    Ortographic,
+    Orthographic,
 }
 
 impl<'a> GameEngine<'a> {
@@ -135,34 +136,32 @@ impl<'a> GameEngine<'a> {
             desired_maximum_frame_latency: 1,
         };
         surface.configure(&device, &surface_configuration);
-        let context = Context::new(device, queue);
+        let gpu_context = Arc::new(GpuContext::new(device, queue));
         let projection = match game_engine_parameters.projection {
-            ProjectionInit::Perspective => Projection::Perspective(PerspectiveProjection::new(
-                size.width as f32,
-                size.height as f32,
-                std::f32::consts::FRAC_PI_2,
-                1.00,
-                1000.,
-                scale_factor,
-            )),
-            ProjectionInit::Ortographic => Projection::Ortographic(OrtographicProjection::new(
-                size.width as f32,
-                size.height as f32,
-                100.,
-                scale_factor,
-            )),
+            ProjectionInit::Perspective => CameraProjection::Perspective(Perspective{
+                fovy: std::f32::consts::FRAC_PI_2, // In radians
+                znear: 1.00,
+                zfar: 1000.,
+                scale: scale_factor,
+            }),
+            ProjectionInit::Orthographic => CameraProjection::Orthographic(Orthographic{
+                depth: 100.,
+                scale: scale_factor,
+            }),
         };
 
         let egui_integration =
-            EguiIntegration::new(window, &context.device, surface_configuration.format);
+            EguiIntegration::new(window, gpu_context.device(), surface_configuration.format);
 
         let texture = surface.get_current_texture().unwrap();
         let renderer = Renderer::new(
-            context,
-            size_to_vec2(&size),
-            projection,
-            texture.texture.format(),
-        )?;
+            &gpu_context,
+PrimaryCamera {
+    projection,
+    surface_format: texture.texture.format(),
+    size: size_to_vec2(&size),
+}
+        );
 
         Ok((
             Self {
@@ -305,10 +304,7 @@ impl<'a> GameEngine<'a> {
         self.last_frame_delta = self.timer.elapsed().as_secs_f32();
         self.camera_controler
             .update_camera(&mut self.camera, self.last_frame_delta, &self.inputs);
-        self.renderer
-            .rendering_context
-            .camera_mut()
-            .set_camera_matrix(&self.renderer.context, &self.camera.calc_matrix());
+        self.renderer.set_primary_camera_matrix(&self.camera.calc_matrix());
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
@@ -320,8 +316,8 @@ impl<'a> GameEngine<'a> {
             Ok(output) => {
                 self.renderer.render(&output.texture);
                 self.egui_integration.render(
-                    &self.renderer.context.device,
-                    &self.renderer.context.queue,
+                    self.renderer.rendering_context.gpu_context.device(),
+                    self.renderer.rendering_context.gpu_context.queue(),
                     &output,
                 );
 
@@ -346,7 +342,7 @@ impl<'a> GameEngine<'a> {
         self.surface_configuration.width = new_size.width;
         self.surface_configuration.height = new_size.height;
         self.surface
-            .configure(&self.renderer.context.device, &self.surface_configuration);
+            .configure(self.renderer.rendering_context.gpu_context.device(), &self.surface_configuration);
         self.renderer.on_resize(size_to_vec2(&new_size));
     }
 

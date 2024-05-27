@@ -1,15 +1,11 @@
-use glam::Vec2;
-use renderer::{colors::GREEN, filled_rectangle::FilledRectangle};
+use glam::{Vec2, Vec3};
+use renderer::{colors::GREEN, rectangle_rendering::Rectangle, transform::Transform};
 
 mod shared;
 
 fn main() -> color_eyre::eyre::Result<()> {
     pollster::block_on(shared::run(|renderer| {
-        renderer.draw_full_rectangle(FilledRectangle {
-            pos: Vec2::new(0., 0.),
-            size: Vec2::new(200., 100.),
-            color: GREEN,
-        })
+        renderer.draw_rectangle(&Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)), &Rectangle::new(Vec2::new(200., 100.), GREEN));
     }))?;
     Ok(())
 }

@@ -1,5 +1,5 @@
 use game_engine::{game_engine_2_5d_parameters, GameEngine};
-use renderer::Renderer;
+use renderer::renderer_api::Renderer;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
 
