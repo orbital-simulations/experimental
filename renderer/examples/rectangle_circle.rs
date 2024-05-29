@@ -1,14 +1,23 @@
 use glam::{Vec2, Vec3};
 use renderer::{
-    circle_rendering::Circle, colors::{BLUE, RED}, rectangle_rendering::Rectangle, transform::Transform
+    circle_rendering::Circle,
+    colors::{BLUE, RED},
+    rectangle_rendering::Rectangle,
+    transform::Transform,
 };
 
 mod shared;
 
 fn main() -> color_eyre::eyre::Result<()> {
     pollster::block_on(shared::run(|renderer| {
-        renderer.draw_rectangle(&Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)), &Rectangle::new(Vec2::new(200., 100.), BLUE));
-        renderer.draw_circle(&Transform::from_translation(&Vec3::new(-100.0, -100.0, 0.0)),&Circle::new(100.0, RED));
+        renderer.draw_rectangle(
+            &Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)),
+            &Rectangle::new(Vec2::new(200., 100.), BLUE),
+        );
+        renderer.draw_circle(
+            &Transform::from_translation(&Vec3::new(-100.0, -100.0, 0.0)),
+            &Circle::new(100.0, RED),
+        );
     }))?;
     Ok(())
 }

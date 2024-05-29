@@ -16,14 +16,14 @@ use crate::{
     resource_store::shader::ShaderSource,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[repr(C, packed)]
 pub struct Rectangle {
     size: Vec2,
     color: Vec3,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[repr(C, packed)]
 pub struct RectangleLine {
     size: Vec2,
@@ -117,17 +117,16 @@ impl RectangleRendering {
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
-            "rectangle index buffer",
+            "quad vertex buffer",
             &QUAD_2D_VERICES,
             wgpu::BufferUsages::VERTEX,
         );
         let quad_index_buffer = IndexBuffer::new(
             &rendering_context.gpu_context,
-            "rectangle index buffer",
+            "quad index buffer",
             QUAD_2D_INDICES,
         );
 
-        // FIXME: Depth buffer
         let targets: Vec<Option<wgpu::ColorTargetState>> = vec![Some(wgpu::ColorTargetState {
             format: rendering_context.primary_camera.surface_format(),
             blend: Some(wgpu::BlendState {
@@ -191,8 +190,7 @@ impl RectangleRendering {
                         unclipped_depth: false,
                         conservative: false,
                     },
-                    // TODO: Use depth stencil from rendering context.
-                    depth_stencil: None,
+                    depth_stencil: rendering_context.primary_camera.depth_stencil(),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(FragmentState {
                         module: rectangle_shader_id.clone(),
@@ -240,7 +238,8 @@ impl RectangleRendering {
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<RectangleLine>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: vertex_attr_array![5 => Float32x2, 6 => Float32x3, 7 => Float32]
+                                attributes:
+                                    vertex_attr_array![5 => Float32x2, 6 => Float32x3, 7 => Float32]
                                         .to_vec(),
                             },
                         ],
@@ -254,8 +253,7 @@ impl RectangleRendering {
                         unclipped_depth: false,
                         conservative: false,
                     },
-                    // TODO: Use depth stencil from rendering context.
-                    depth_stencil: None,
+                    depth_stencil: rendering_context.primary_camera.depth_stencil(),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(FragmentState {
                         module: rectangle_line_shader_id.clone(),
@@ -298,7 +296,8 @@ impl RectangleRendering {
         if !self.rectangles.is_empty() {
             self.rectangles_buffer
                 .write_data(&rendering_context.gpu_context, &self.rectangles);
-            self.rectangles_transforms_buffer.write_data(&rendering_context.gpu_context, &self.rectangles_transforms);
+            self.rectangles_transforms_buffer
+                .write_data(&rendering_context.gpu_context, &self.rectangles_transforms);
 
             let pipeline = &rendering_context
                 .resource_store
@@ -309,7 +308,10 @@ impl RectangleRendering {
             render_pass.set_vertex_buffer(0, self.quad_vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.rectangles_transforms_buffer.slice(..));
             render_pass.set_vertex_buffer(2, self.rectangles_buffer.slice(..));
-            render_pass.set_index_buffer(self.quad_index_buffer.slice(..), self.quad_index_buffer.index_format());
+            render_pass.set_index_buffer(
+                self.quad_index_buffer.slice(..),
+                self.quad_index_buffer.index_format(),
+            );
             render_pass.draw_indexed(
                 self.quad_index_buffer.draw_count(),
                 0,
@@ -325,7 +327,10 @@ impl RectangleRendering {
         if !self.rectangle_lines.is_empty() {
             self.rectangle_lines_buffer
                 .write_data(&rendering_context.gpu_context, &self.rectangle_lines);
-            self.rectangle_lines_transforms_buffer.write_data(&rendering_context.gpu_context, &self.rectangle_lines_transforms);
+            self.rectangle_lines_transforms_buffer.write_data(
+                &rendering_context.gpu_context,
+                &self.rectangle_lines_transforms,
+            );
 
             let pipeline = &rendering_context
                 .resource_store
@@ -336,7 +341,10 @@ impl RectangleRendering {
             render_pass.set_vertex_buffer(0, self.quad_vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.rectangle_lines_transforms_buffer.slice(..));
             render_pass.set_vertex_buffer(2, self.rectangle_lines_buffer.slice(..));
-            render_pass.set_index_buffer(self.quad_index_buffer.slice(..), self.quad_index_buffer.index_format());
+            render_pass.set_index_buffer(
+                self.quad_index_buffer.slice(..),
+                self.quad_index_buffer.index_format(),
+            );
             render_pass.draw_indexed(
                 self.quad_index_buffer.draw_count(),
                 0,

@@ -4,7 +4,12 @@ use color_eyre::eyre::Result;
 use eyre::OptionExt;
 use glam::Vec2;
 use image::{ImageBuffer, Rgba};
-use renderer::{camera2::PrimaryCamera, gpu_context::GpuContext, projection2::{CameraProjection, Orthographic}, renderer_api::Renderer};
+use renderer::{
+    camera2::PrimaryCamera,
+    gpu_context::GpuContext,
+    projection2::{CameraProjection, Orthographic},
+    renderer_api::Renderer,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use wgpu::util::parse_backends_from_comma_list;
 
@@ -99,23 +104,34 @@ where
 
     let gpu_context = Arc::new(GpuContext::new(device, queue));
 
-    let projection = CameraProjection::Orthographic(Orthographic{ depth: 2.0, scale: 1.0 });
-    let primary_camera = PrimaryCamera{
+    let projection = CameraProjection::Orthographic(Orthographic {
+        depth: 2.0,
+        scale: 1.0,
+    });
+    let primary_camera = PrimaryCamera {
         projection,
         surface_format: texture_format,
         size: Vec2::new(OUTPUT_WIDTH as f32, OUTPUT_HEIGH as f32),
+        depth_buffer: Some(wgpu::ColorTargetState {
+            format: wgpu::TextureFormat::Depth32Float,
+            blend: Some(wgpu::BlendState {
+                color: wgpu::BlendComponent::REPLACE,
+                alpha: wgpu::BlendComponent::REPLACE,
+            }),
+            write_mask: wgpu::ColorWrites::ALL,
+        }),
     };
 
-    let mut renderer = Renderer::new(
-        &gpu_context, primary_camera
-    );
+    let mut renderer = Renderer::new(&gpu_context, primary_camera);
 
     render(&mut renderer);
 
     renderer.render(&texture);
 
     let mut encoder = renderer
-        .rendering_context.gpu_context.device()
+        .rendering_context
+        .gpu_context
+        .device()
         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
     encoder.copy_texture_to_buffer(
@@ -135,7 +151,11 @@ where
         },
         texture_descriptor.size,
     );
-    renderer.rendering_context.gpu_context.queue().submit(iter::once(encoder.finish()));
+    renderer
+        .rendering_context
+        .gpu_context
+        .queue()
+        .submit(iter::once(encoder.finish()));
 
     let buffer_slice = output_buffer.slice(..);
 
@@ -143,7 +163,11 @@ where
         result.expect("GPU didn't copy data to output buffer");
     });
 
-    renderer.rendering_context.gpu_context.device().poll(wgpu::Maintain::Wait);
+    renderer
+        .rendering_context
+        .gpu_context
+        .device()
+        .poll(wgpu::Maintain::Wait);
 
     let padded_data = buffer_slice.get_mapped_range();
     let data = padded_data

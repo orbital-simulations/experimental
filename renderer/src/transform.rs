@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec3, Vec4};
+use glam::{EulerRot, Mat4, Vec3, Vec4};
 
 pub struct Transform {
     translate: Vec3,
@@ -49,6 +49,6 @@ impl Transform {
             Vec4::new(0.0, self.scale.y, 0.0, 0.0),
             Vec4::new(0.0, 0.0, self.scale.z, 0.0),
             Vec4::new(self.translate.x, self.translate.y, self.translate.z, 1.0),
-        ) * Mat4::from_rotation_z(self.rotate.z)
+        ) * Mat4::from_euler(EulerRot::XYZ, self.rotate.x, self.rotate.y, self.rotate.z)
     }
 }

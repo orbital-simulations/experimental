@@ -21,6 +21,7 @@ impl RenderingContext {
             primary_camera.projection,
             primary_camera.surface_format,
             primary_camera.size,
+            primary_camera.depth_buffer,
         );
         Self {
             gpu_context: gpu_context.clone(),

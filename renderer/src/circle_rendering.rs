@@ -16,14 +16,14 @@ use crate::{
     resource_store::shader::ShaderSource,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[repr(C, packed)]
 pub struct Circle {
     color: Vec3, // TODO: Maybe the collor should be with alpha????
     radius: f32,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[repr(C, packed)]
 pub struct CircleLine {
     color: Vec3,
@@ -117,17 +117,16 @@ impl CircleRendering {
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
-            "circle index buffer",
+            "quad vertex buffer",
             &QUAD_2D_VERICES,
             wgpu::BufferUsages::VERTEX,
         );
         let quad_index_buffer = IndexBuffer::new(
             &rendering_context.gpu_context,
-            "circle index buffer",
+            "quad index buffer",
             QUAD_2D_INDICES,
         );
 
-        // FIXME: Depth buffer
         let targets: Vec<Option<wgpu::ColorTargetState>> = vec![Some(wgpu::ColorTargetState {
             format: rendering_context.primary_camera.surface_format(),
             blend: Some(wgpu::BlendState {
@@ -191,8 +190,7 @@ impl CircleRendering {
                         unclipped_depth: false,
                         conservative: false,
                     },
-                    // TODO: Use depth stencil from rendering context.
-                    depth_stencil: None,
+                    depth_stencil: rendering_context.primary_camera.depth_stencil(),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(FragmentState {
                         module: circle_shader_id.clone(),
@@ -255,8 +253,7 @@ impl CircleRendering {
                         unclipped_depth: false,
                         conservative: false,
                     },
-                    // TODO: Use depth stencil from rendering context.
-                    depth_stencil: None,
+                    depth_stencil: rendering_context.primary_camera.depth_stencil(),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(FragmentState {
                         module: circle_line_shader_id.clone(),
@@ -299,7 +296,8 @@ impl CircleRendering {
         if !self.circles.is_empty() {
             self.circles_buffer
                 .write_data(&rendering_context.gpu_context, &self.circles);
-            self.circles_transforms_buffer.write_data(&rendering_context.gpu_context, &self.circles_transforms);
+            self.circles_transforms_buffer
+                .write_data(&rendering_context.gpu_context, &self.circles_transforms);
 
             let pipeline = &rendering_context
                 .resource_store
@@ -310,7 +308,10 @@ impl CircleRendering {
             render_pass.set_vertex_buffer(0, self.quad_vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.circles_transforms_buffer.slice(..));
             render_pass.set_vertex_buffer(2, self.circles_buffer.slice(..));
-            render_pass.set_index_buffer(self.quad_index_buffer.slice(..), self.quad_index_buffer.index_format());
+            render_pass.set_index_buffer(
+                self.quad_index_buffer.slice(..),
+                self.quad_index_buffer.index_format(),
+            );
             render_pass.draw_indexed(
                 self.quad_index_buffer.draw_count(),
                 0,
@@ -326,7 +327,10 @@ impl CircleRendering {
         if !self.circle_lines.is_empty() {
             self.circle_lines_buffer
                 .write_data(&rendering_context.gpu_context, &self.circle_lines);
-            self.circle_lines_transforms_buffer.write_data(&rendering_context.gpu_context, &self.circle_lines_transforms);
+            self.circle_lines_transforms_buffer.write_data(
+                &rendering_context.gpu_context,
+                &self.circle_lines_transforms,
+            );
 
             let pipeline = &rendering_context
                 .resource_store
@@ -337,7 +341,10 @@ impl CircleRendering {
             render_pass.set_vertex_buffer(0, self.quad_vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.circle_lines_transforms_buffer.slice(..));
             render_pass.set_vertex_buffer(2, self.circle_lines_buffer.slice(..));
-            render_pass.set_index_buffer(self.quad_index_buffer.slice(..), self.quad_index_buffer.index_format());
+            render_pass.set_index_buffer(
+                self.quad_index_buffer.slice(..),
+                self.quad_index_buffer.index_format(),
+            );
             render_pass.draw_indexed(
                 self.quad_index_buffer.draw_count(),
                 0,

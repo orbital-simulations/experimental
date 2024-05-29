@@ -6,8 +6,8 @@ struct VertexInput {
 }
 
 struct InstanceInput {
-    @location(1) p1: vec2<f32>,
-    @location(2) p2: vec2<f32>,
+    @location(1) p1: vec3<f32>,
+    @location(2) p2: vec3<f32>,
     @location(3) color: vec3<f32>,
     @location(4) width: f32,
 }
@@ -27,15 +27,19 @@ fn vs_main(
     let delta = (instance.p2 - instance.p1);
     let center = (delta / 2.0) + instance.p1;
 
-    let normalized_delta = normalize(delta);
-    let cos_angle = normalized_delta.x;
-    let sin_angle = normalized_delta.y;
+    let yaw = atan2(delta.y, delta.x);
+    let pitch = atan2(delta.z, delta.x);
+
+    let cos_yaw = cos(yaw);
+    let sin_yaw = sin(yaw);
+    let cos_pitch = cos(pitch);
+    let sin_pitch = sin(pitch);
 
     let translation_matrix = mat4x4<f32>(
-        vec4(cos_angle, sin_angle, 0.0, 0.0),
-        vec4(-sin_angle, cos_angle, 0.0, 0.0),
-        vec4(0.0, 0.0, 1.0, 0.0),
-        vec4(center.x, center.y, 0.0, 1.0)
+        vec4(cos_yaw * cos_pitch, sin_yaw, -cos_yaw * sin_pitch, 0.0),
+        vec4(-sin_yaw * cos_pitch, cos_yaw, sin_yaw * sin_pitch, 0.0),
+        vec4(sin_pitch, 0.0, cos_pitch, 0.0),
+        vec4(center.x, center.y, center.z, 1.0)
     );
 
     let scale_matrix = mat4x4<f32>(
@@ -45,7 +49,8 @@ fn vs_main(
         vec4(0.0, 0.0, 0.0, 1.0)
     );
 
-    let world_position = translation_matrix * scale_matrix * vec4<f32>(model.position, -0.5, 1.0);
+    //let world_position = translation_matrix_pitch * translation_matrix_yaw * scale_matrix * vec4<f32>(model.position, 0.0, 1.0);
+    let world_position = translation_matrix * scale_matrix * vec4<f32>(model.position, 0.0, 1.0);
 
     out.clip_position = projection * world_position;
     out.color = instance.color;

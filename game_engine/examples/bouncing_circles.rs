@@ -4,10 +4,13 @@ use game_engine::{game_engine_2_5d_parameters, GameEngine};
 use glam::{dvec2, DVec2, Vec3};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
-use renderer::{
-    circle_rendering::Circle, colors::{RED, YELLOW}, transform::Transform
-};
+use renderer::line_rendering::Line;
 use renderer::renderer_api::Renderer;
+use renderer::{
+    circle_rendering::Circle,
+    colors::{RED, YELLOW},
+    transform::Transform,
+};
 use tracing::debug;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
@@ -99,19 +102,26 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     for p in &state.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                renderer.draw_circle(&Transform::from_translation(&Vec3::new(p.pos.as_vec2().x, p.pos.as_vec2().y, 0.0)), &Circle::new(radius as f32, RED));
+                renderer.draw_circle(
+                    &Transform::from_translation(&Vec3::new(
+                        p.pos.as_vec2().x,
+                        p.pos.as_vec2().y,
+                        0.0,
+                    )),
+                    &Circle::new(radius as f32, RED),
+                );
             }
-            Shape::HalfPlane { normal_angle: _ } => {
-//                let extent = 10000.0;
-//                let tangent = DVec2::from_angle(normal_angle).perp();
-//                let from: DVec2 = p.pos + extent * tangent;
-//                let to: DVec2 = p.pos - extent * tangent;
-//                renderer.draw_line_segment(LineSegment {
-//                    from: from.as_vec2(),
-//                    to: to.as_vec2(),
-//                    color: YELLOW,
-//                    width: 3.,
-//                });
+            Shape::HalfPlane { normal_angle } => {
+                                let extent = 10000.0;
+                                let tangent = DVec2::from_angle(normal_angle).perp();
+                                let from: DVec2 = p.pos + extent * tangent;
+                                let to: DVec2 = p.pos - extent * tangent;
+                                renderer.draw_line(&Line {
+                                    from: Vec3::new(from.x as f32, from.y as f32, 0.0),
+                                    to: Vec3::new(to.x as f32, to.y as f32, 0.0),
+                                    color: YELLOW,
+                                    width: 3.,
+                                });
             }
             _ => {
                 unimplemented!("Render unknown shape {:?}", p.shape)

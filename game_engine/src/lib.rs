@@ -138,13 +138,13 @@ impl<'a> GameEngine<'a> {
         surface.configure(&device, &surface_configuration);
         let gpu_context = Arc::new(GpuContext::new(device, queue));
         let projection = match game_engine_parameters.projection {
-            ProjectionInit::Perspective => CameraProjection::Perspective(Perspective{
+            ProjectionInit::Perspective => CameraProjection::Perspective(Perspective {
                 fovy: std::f32::consts::FRAC_PI_2, // In radians
                 znear: 1.00,
                 zfar: 1000.,
                 scale: scale_factor,
             }),
-            ProjectionInit::Orthographic => CameraProjection::Orthographic(Orthographic{
+            ProjectionInit::Orthographic => CameraProjection::Orthographic(Orthographic {
                 depth: 100.,
                 scale: scale_factor,
             }),
@@ -156,11 +156,19 @@ impl<'a> GameEngine<'a> {
         let texture = surface.get_current_texture().unwrap();
         let renderer = Renderer::new(
             &gpu_context,
-PrimaryCamera {
-    projection,
-    surface_format: texture.texture.format(),
-    size: size_to_vec2(&size),
-}
+            PrimaryCamera {
+                projection,
+                surface_format: texture.texture.format(),
+                size: size_to_vec2(&size),
+                depth_buffer: Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent::REPLACE,
+                        alpha: wgpu::BlendComponent::REPLACE,
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
+                }),
+            },
         );
 
         Ok((
@@ -304,7 +312,8 @@ PrimaryCamera {
         self.last_frame_delta = self.timer.elapsed().as_secs_f32();
         self.camera_controler
             .update_camera(&mut self.camera, self.last_frame_delta, &self.inputs);
-        self.renderer.set_primary_camera_matrix(&self.camera.calc_matrix());
+        self.renderer
+            .set_primary_camera_matrix(&self.camera.calc_matrix());
         warn!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
@@ -341,8 +350,10 @@ PrimaryCamera {
         info!("on resize event received new_size: {:?}", new_size);
         self.surface_configuration.width = new_size.width;
         self.surface_configuration.height = new_size.height;
-        self.surface
-            .configure(self.renderer.rendering_context.gpu_context.device(), &self.surface_configuration);
+        self.surface.configure(
+            self.renderer.rendering_context.gpu_context.device(),
+            &self.surface_configuration,
+        );
         self.renderer.on_resize(size_to_vec2(&new_size));
     }
 

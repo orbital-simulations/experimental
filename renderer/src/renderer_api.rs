@@ -1,16 +1,18 @@
 use std::{path::Path, sync::Arc};
 
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat4, Vec2};
 
 use crate::{
-    camera2::PrimaryCamera, circle_rendering::{Circle, CircleLine, CircleRendering}, gpu_context::GpuContext, projection2::CameraProjection, rectangle_rendering::{Rectangle, RectangleLine, RectangleRendering}, rendering_context::RenderingContext, resource_store::shader::{ShaderId, ShaderSource}, transform::Transform
+    camera2::PrimaryCamera,
+    circle_rendering::{Circle, CircleLine, CircleRendering},
+    gpu_context::GpuContext,
+    line_rendering::{Line, LineRenderering},
+    projection2::CameraProjection,
+    rectangle_rendering::{Rectangle, RectangleLine, RectangleRendering},
+    rendering_context::RenderingContext,
+    resource_store::shader::{ShaderId, ShaderSource},
+    transform::Transform,
 };
-
-#[derive(Clone)]
-pub struct LineSegment {
-    width: f32,
-    color: Vec3,
-}
 
 #[derive(Clone)]
 pub struct MeshId;
@@ -31,6 +33,7 @@ pub struct Renderer {
     pub rendering_context: RenderingContext,
     circle_rendering: CircleRendering,
     rectangle_rendering: RectangleRendering,
+    line_rendering: LineRenderering,
 }
 
 struct Mesh {}
@@ -40,7 +43,13 @@ impl Renderer {
         let mut rendering_context = RenderingContext::new(gpu_context, primary_camera);
         let circle_rendering = CircleRendering::new(&mut rendering_context);
         let rectangle_rendering = RectangleRendering::new(&mut rendering_context);
-        Self { rendering_context, circle_rendering, rectangle_rendering }
+        let line_rendering = LineRenderering::new(&mut rendering_context);
+        Self {
+            rendering_context,
+            circle_rendering,
+            rectangle_rendering,
+            line_rendering,
+        }
     }
 
     // Thinking about consuming the Circle because it needs to be recreated in
@@ -51,7 +60,8 @@ impl Renderer {
     }
 
     pub fn draw_circle_line(&mut self, transform: &Transform, circle_line: &CircleLine) {
-        self.circle_rendering.add_circle_line(transform, circle_line);
+        self.circle_rendering
+            .add_circle_line(transform, circle_line);
     }
 
     pub fn draw_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {
@@ -59,11 +69,12 @@ impl Renderer {
     }
 
     pub fn draw_rectangle_line(&mut self, transform: &Transform, rectangle_line: &RectangleLine) {
-        self.rectangle_rendering.add_rectangle_line(transform, rectangle_line);
+        self.rectangle_rendering
+            .add_rectangle_line(transform, rectangle_line);
     }
 
-    pub fn draw_line_segment(&mut self, p1: &Vec3, p2: &Vec3, line_segment: &LineSegment) {
-        todo!()
+    pub fn draw_line(&mut self, line_segment: &Line) {
+        self.line_rendering.add_line_segment(line_segment);
     }
 
     // This is probably something that could be made transparent.
@@ -90,7 +101,9 @@ impl Renderer {
     //    and from scale that would be passed in.
     //  Not sure which design is better.
     pub fn on_resize(&mut self, new_size: Vec2) {
-        self.rendering_context.primary_camera.on_resize(new_size);
+        self.rendering_context
+            .primary_camera
+            .on_resize(new_size, &self.rendering_context.gpu_context);
     }
 
     pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
@@ -101,11 +114,13 @@ impl Renderer {
 
     pub fn render(&mut self, target_texture: &wgpu::Texture) {
         let texture_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder =
-            self.rendering_context.gpu_context.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("GPU Encoder"),
-                });
+        let mut encoder = self
+            .rendering_context
+            .gpu_context
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("GPU Encoder"),
+            });
         {
             let color_attachments = [Some(wgpu::RenderPassColorAttachment {
                 view: &texture_view,
@@ -120,50 +135,71 @@ impl Renderer {
                     store: wgpu::StoreOp::Store,
                 },
             })];
+
+            let depth_stencil_attachment = self
+                .rendering_context
+                .primary_camera
+                .depth_buffer()
+                .as_ref()
+                .map(
+                    |(_depth_texture_config, _depth_texture, depth_texture_view)| {
+                        wgpu::RenderPassDepthStencilAttachment {
+                            view: depth_texture_view,
+                            depth_ops: Some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                store: wgpu::StoreOp::Store,
+                            }),
+                            stencil_ops: None,
+                        }
+                    },
+                );
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Shapes Renderer Pass"),
                 color_attachments: &color_attachments,
-                depth_stencil_attachment: None,
-                //Some(RenderPassDepthStencilAttachment {
-                //    view: &depth_texture_view,
-                //    depth_ops: Some(Operations {
-                //        load: LoadOp::Clear(1.0),
-                //        store: StoreOp::Store,
-                //    }),
-                //    stencil_ops: None,
-                //}),
+                depth_stencil_attachment,
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            self.circle_rendering.render(&self.rendering_context, &mut render_pass);
-            self.rectangle_rendering.render(&self.rendering_context, &mut render_pass);
+            self.circle_rendering
+                .render(&self.rendering_context, &mut render_pass);
+            self.rectangle_rendering
+                .render(&self.rendering_context, &mut render_pass);
+            self.line_rendering
+                .render(&self.rendering_context, &mut render_pass);
         }
 
-        self.rendering_context.gpu_context.queue().submit(std::iter::once(encoder.finish()));
+        self.rendering_context
+            .gpu_context
+            .queue()
+            .submit(std::iter::once(encoder.finish()));
     }
 
     // For later use???
     pub fn create_camera(
         &mut self,
-        transform: &Transform,
-        projection: CameraProjection,
+        _transform: &Transform,
+        _projection: CameraProjection,
     ) -> CameraId {
         todo!()
     }
 
     pub fn set_primary_camera_projection(&mut self, projection: &CameraProjection) {
-        self.rendering_context.primary_camera.set_camera_projection(projection);
+        self.rendering_context
+            .primary_camera
+            .set_camera_projection(projection);
     }
 
     pub fn set_primary_camera_matrix(&mut self, matrix: &Mat4) {
-        self.rendering_context.primary_camera.set_camera_matrix(matrix)
+        self.rendering_context
+            .primary_camera
+            .set_camera_matrix(matrix)
     }
 
-    pub fn set_camera_projection(&mut self, camera_id: &CameraId, projection: &CameraProjection) {
+    pub fn set_camera_projection(&mut self, _camera_id: &CameraId, _projection: &CameraProjection) {
         todo!()
     }
 
-    pub fn set_camera_matrix(&mut self, camera_id: &CameraId, matrix: &Mat4) {
+    pub fn set_camera_matrix(&mut self, _camera_id: &CameraId, _matrix: &Mat4) {
         todo!()
     }
 }

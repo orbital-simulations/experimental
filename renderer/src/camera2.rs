@@ -1,6 +1,6 @@
 use glam::{Mat4, Vec2};
-use wgpu::BufferUsages;
 use wgpu::{BindGroupLayoutEntry, ShaderStages};
+use wgpu::{BufferUsages, DepthStencilState};
 
 use crate::buffers2::WriteableBuffer;
 use crate::gpu_context::GpuContext;
@@ -13,6 +13,7 @@ pub struct PrimaryCamera {
     pub projection: CameraProjection,
     pub surface_format: wgpu::TextureFormat,
     pub size: Vec2,
+    pub depth_buffer: Option<wgpu::ColorTargetState>,
 }
 
 pub struct Camera {
@@ -24,6 +25,7 @@ pub struct Camera {
     gpu_context: GpuContext,
     size: Vec2,
     surface_format: wgpu::TextureFormat,
+    depth_texture: Option<(wgpu::ColorTargetState, wgpu::Texture, wgpu::TextureView)>,
 }
 
 impl Camera {
@@ -33,6 +35,7 @@ impl Camera {
         projection: CameraProjection,
         surface_format: wgpu::TextureFormat,
         size: Vec2,
+        depth_texture_config: Option<wgpu::ColorTargetState>,
     ) -> Self {
         let projection_matrix_buffer: WriteableBuffer<Mat4> = WriteableBuffer::new(
             gpu_context,
@@ -93,6 +96,18 @@ impl Camera {
                 ],
             });
 
+        let depth_texture = depth_texture_config.map(|depth_texture_config| {
+            let depth_texture =
+                Self::build_depth_texture(gpu_context, &size, &depth_texture_config);
+            let depth_texture_view =
+                depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+            (
+                depth_texture_config.clone(),
+                depth_texture,
+                depth_texture_view,
+            )
+        });
+
         Self {
             projection_matrix_buffer,
             camera_transform_buffer,
@@ -102,14 +117,23 @@ impl Camera {
             gpu_context: gpu_context.clone(),
             size,
             surface_format,
+            depth_texture,
         }
     }
 
-    pub fn on_resize(&mut self, new_size: Vec2) {
+    pub fn on_resize(&mut self, new_size: Vec2, gpu_context: &GpuContext) {
         self.size = new_size;
         self.projection_matrix_buffer.write_data(
             &self.gpu_context,
             &self.projection.make_projection_matrix(new_size),
+        );
+        self.depth_texture.iter_mut().for_each(
+            |(depth_texture_config, depth_texture, depth_texture_view)| {
+                *depth_texture =
+                    Self::build_depth_texture(gpu_context, &new_size, depth_texture_config);
+                *depth_texture_view =
+                    depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+            },
         );
     }
 
@@ -144,5 +168,48 @@ impl Camera {
 
     pub fn surface_format(&self) -> wgpu::TextureFormat {
         self.surface_format
+    }
+
+    pub fn depth_buffer(
+        &self,
+    ) -> &Option<(wgpu::ColorTargetState, wgpu::Texture, wgpu::TextureView)> {
+        &self.depth_texture
+    }
+
+    fn build_depth_texture(
+        gpu_context: &GpuContext,
+        size: &Vec2,
+        depth_buffer_config: &wgpu::ColorTargetState,
+    ) -> wgpu::Texture {
+        let depth_texture_size = wgpu::Extent3d {
+            width: size.x as u32,
+            height: size.y as u32,
+            depth_or_array_layers: 1,
+        };
+        let depth_texture_description = wgpu::TextureDescriptor {
+            label: Some("camera depth texture"),
+            size: depth_texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: depth_buffer_config.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[depth_buffer_config.format],
+        };
+        gpu_context
+            .device()
+            .create_texture(&depth_texture_description)
+    }
+
+    pub fn depth_stencil(&self) -> Option<DepthStencilState> {
+        self.depth_texture
+            .as_ref()
+            .map(|(depth_texture_config, _, _)| wgpu::DepthStencilState {
+                format: depth_texture_config.format,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            })
     }
 }
