@@ -4,7 +4,7 @@ use glam::{Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
 
 use crate::{
-    buffers2::{IndexBuffer, WriteableBuffer},
+    buffers::{IndexBuffer, WriteableBuffer},
     circle_rendering::Circle,
     primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES},
     raw::Gpu,

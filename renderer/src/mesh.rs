@@ -2,7 +2,7 @@ use glam::Vec3;
 
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
-    context::Context,
+    gpu_context::GpuContext,
 };
 
 #[derive(Debug)]
@@ -13,7 +13,7 @@ pub struct GpuMesh {
 }
 
 impl GpuMesh {
-    pub fn new(context: &Context, vertices: &[Vec3], normals: &[Vec3], indices: &[u32]) -> GpuMesh {
+    pub fn new(context: &GpuContext, vertices: &[Vec3], normals: &[Vec3], indices: &[u32]) -> GpuMesh {
         let vertex_buffer = WriteableBuffer::new(
             context,
             "mesh vertex buffer",

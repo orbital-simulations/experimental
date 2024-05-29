@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    camera2::{Camera, PrimaryCamera},
+    camera::{Camera, PrimaryCamera},
     gpu_context::GpuContext,
     resource_store::ResourceStore,
 };

@@ -1,28 +1,17 @@
 pub mod buffers;
-pub mod buffers2;
 pub mod camera;
-pub mod camera2;
 pub mod circle_rendering;
 pub mod colors;
-pub mod context;
-pub mod custom_mesh_renderer;
-pub mod filled_circle;
-pub mod filled_rectangle;
+pub mod mesh_rendering;
 pub mod gpu_context;
 pub mod line_rendering;
-pub mod line_segment;
 pub mod mesh;
-pub mod pipeline;
 pub mod primitives;
 pub mod projection;
-pub mod projection2;
 pub mod raw;
 pub mod rectangle_rendering;
-pub mod renderer_api;
 pub mod rendering_context;
 pub mod resource_store;
-pub mod stroke_circle;
-pub mod stroke_rectangle;
 pub mod transform;
 
 use std::{path::Path, sync::Arc};
@@ -30,11 +19,11 @@ use std::{path::Path, sync::Arc};
 use glam::{Mat4, Vec2};
 
 use crate::{
-    camera2::PrimaryCamera,
+    camera::PrimaryCamera,
     circle_rendering::{Circle, CircleLine, CircleRendering},
     gpu_context::GpuContext,
     line_rendering::{Line, LineRenderering},
-    projection2::CameraProjection,
+    projection::CameraProjection,
     rectangle_rendering::{Rectangle, RectangleLine, RectangleRendering},
     rendering_context::RenderingContext,
     resource_store::shader::{ShaderId, ShaderSource},

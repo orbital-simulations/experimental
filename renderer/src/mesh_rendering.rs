@@ -1,107 +1,51 @@
-use std::path::PathBuf;
+use std::rc::Rc;
 
-use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
-use crate::transform::Transform;
-use glam::{Mat4, Vec2, Vec3};
-use wgpu::{include_wgsl, vertex_attr_array};
+use glam::Vec3;
+use wgpu::{vertex_attr_array, RenderPass, ShaderModule, VertexBufferLayout, VertexStepMode};
 
-use crate::resource_store::pipeline_layout::PipelineLayoutDescriptor;
-use crate::resource_store::render_pipeline::{
-    FragmentState, PipelineId, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
-};
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer},
-    raw::Gpu,
-    rendering_context::RenderingContext,
-    resource_store::shader::ShaderSource,
+    context::{Context, RenderingContext},
+    mesh::GpuMesh,
+    pipeline::{CreatePipeline, Pipeline, PipelineCreator, RenderTargetDescription},
 };
 
-#[derive(Debug, Clone)]
-#[repr(C, packed)]
-pub struct Circle {
-    color: Vec3, // TODO: Maybe the collor should be with alpha????
-    radius: f32,
+#[derive(Debug)]
+pub struct CustomMeshRenderer {
+    shader: Rc<ShaderModule>,
+    pipeline: Option<Pipeline>,
+    mesh: GpuMesh,
 }
 
-#[derive(Debug, Clone)]
-#[repr(C, packed)]
-pub struct CircleLine {
-    color: Vec3,
-    radius: f32,
-    border: f32,
-}
-
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for Circle {}
-
-impl Circle {
-    pub fn new(radius: f32, color: Vec3) -> Self {
-        Self { radius, color }
-    }
-}
-
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for CircleLine {}
-
-impl CircleLine {
-    pub fn new(radius: f32, color: Vec3, border: f32) -> Self {
-        Self {
-            radius,
-            color,
-            border,
+impl PipelineCreator for CustomMeshRenderer {
+    fn create_pipeline<'a>(
+        &'a self,
+        rendering_context: &'a RenderingContext,
+    ) -> CreatePipeline<'a> {
+        CreatePipeline {
+            shader: &self.shader,
+            vertex_buffer_layouts: vec![
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vec3>() as u64,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &vertex_attr_array![0 => Float32x3],
+                },
+                VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vec3>() as u64,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: &vertex_attr_array![1 => Float32x3],
+                },
+            ],
+            bind_group_layouts: vec![rendering_context.camera().bind_group_layout()],
+            name: "custom mesh renderer".to_string(),
         }
     }
 }
 
-pub struct CircleRendering {
-    circles_buffer: WriteableBuffer<Vec<Circle>>,
-    circles: Vec<Circle>,
-    circles_transforms: Vec<Mat4>,
-    circles_transforms_buffer: WriteableBuffer<Vec<Mat4>>,
-    circle_lines_buffer: WriteableBuffer<Vec<CircleLine>>,
-    circle_lines: Vec<CircleLine>,
-    circle_lines_transforms: Vec<Mat4>,
-    circle_lines_transforms_buffer: WriteableBuffer<Vec<Mat4>>,
-    quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
-    quad_index_buffer: IndexBuffer<u16>,
-    circles_pipeline: PipelineId,
-    circle_lines_pipeline: PipelineId,
+pub struct MeshRendering {
 }
 
-impl CircleRendering {
+impl MeshRendering {
     pub fn new(rendering_context: &mut RenderingContext) -> Self {
-        let circles = Vec::new();
-        let circles_buffer = WriteableBuffer::new(
-            &rendering_context.gpu_context,
-            "circles buffer",
-            &circles,
-            wgpu::BufferUsages::VERTEX,
-        );
-        let circle_lines = Vec::new();
-        let circle_lines_buffer = WriteableBuffer::new(
-            &rendering_context.gpu_context,
-            "circle lines buffer",
-            &circle_lines,
-            wgpu::BufferUsages::VERTEX,
-        );
-
-        let circles_transforms = Vec::new();
-        let circles_transforms_buffer = WriteableBuffer::new(
-            &rendering_context.gpu_context,
-            "circle transforms buffer",
-            &circles_transforms,
-            wgpu::BufferUsages::VERTEX,
-        );
-        let circle_lines_transforms = Vec::new();
-        let circle_lines_transforms_buffer = WriteableBuffer::new(
-            &rendering_context.gpu_context,
-            "circle line transforms buffer",
-            &circle_lines_transforms,
-            wgpu::BufferUsages::VERTEX,
-        );
-
         let circle_shader_id =
             rendering_context
                 .resource_store

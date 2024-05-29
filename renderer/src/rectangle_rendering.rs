@@ -10,7 +10,7 @@ use crate::resource_store::render_pipeline::{
     FragmentState, PipelineId, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
 };
 use crate::{
-    buffers2::{IndexBuffer, WriteableBuffer},
+    buffers::{IndexBuffer, WriteableBuffer},
     raw::Gpu,
     rendering_context::RenderingContext,
     resource_store::shader::ShaderSource,
