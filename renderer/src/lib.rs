@@ -25,191 +25,208 @@ pub mod stroke_circle;
 pub mod stroke_rectangle;
 pub mod transform;
 
-use std::path::PathBuf;
+use std::{path::Path, sync::Arc};
 
-use glam::{Vec2, Vec3};
-use wgpu::{include_wgsl, vertex_attr_array};
+use glam::{Mat4, Vec2};
 
 use crate::{
-    buffers2::{IndexBuffer, WriteableBuffer},
-    circle_rendering::Circle,
-    primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES},
-    raw::Gpu,
+    camera2::PrimaryCamera,
+    circle_rendering::{Circle, CircleLine, CircleRendering},
+    gpu_context::GpuContext,
+    line_rendering::{Line, LineRenderering},
+    projection2::CameraProjection,
+    rectangle_rendering::{Rectangle, RectangleLine, RectangleRendering},
     rendering_context::RenderingContext,
-    resource_store::{
-        pipeline_layout::PipelineLayoutDescriptor,
-        render_pipeline::{
-            FragmentState, PipelineId, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
-        },
-        shader::ShaderSource,
-    },
+    resource_store::shader::{ShaderId, ShaderSource},
+    transform::Transform,
 };
 
-#[derive(Debug, Clone)]
-#[repr(C, packed)]
-pub struct Line {
-    pub from: Vec3,
-    pub to: Vec3,
-    pub color: Vec3,
-    pub width: f32,
+#[derive(Clone)]
+pub struct MeshId;
+
+#[derive(Clone)]
+pub struct MeshBundle {
+    shader: ShaderId,
+    mesh: MeshId,
 }
 
-impl Line {
-    pub fn new(from: Vec3, to: Vec3, color: Vec3, width: f32) -> Self {
+pub struct CameraId;
+
+pub struct Renderer {
+    // TODO: This needs a bit of an discusion... I is public beccause you need
+    // to be able to request stuff like shader or buffer layout etc. But on the
+    // other hand. Primary camera has function which allow modification witthout
+    // getting a reference to RenderingContext which holds the primary camera...
+    pub rendering_context: RenderingContext,
+    circle_rendering: CircleRendering,
+    rectangle_rendering: RectangleRendering,
+    line_rendering: LineRenderering,
+}
+
+struct Mesh {}
+
+impl Renderer {
+    pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> Self {
+        let mut rendering_context = RenderingContext::new(gpu_context, primary_camera);
+        let circle_rendering = CircleRendering::new(&mut rendering_context);
+        let rectangle_rendering = RectangleRendering::new(&mut rendering_context);
+        let line_rendering = LineRenderering::new(&mut rendering_context);
         Self {
-            from,
-            to,
-            color,
-            width,
+            rendering_context,
+            circle_rendering,
+            rectangle_rendering,
+            line_rendering,
         }
     }
-}
 
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for Line {}
+    // Thinking about consuming the Circle because it needs to be recreated in
+    // the next render cycle anyway. On the other hand if it is an reference
+    // then user can draw the same circle multiple times without much hassle.
+    pub fn draw_circle(&mut self, transform: &Transform, circle: &Circle) {
+        self.circle_rendering.add_circle(transform, circle);
+    }
 
-pub struct LineRenderering {
-    line_segments: Vec<Line>,
-    line_segments_buffer: WriteableBuffer<Vec<Line>>,
-    line_segment_pipeline: PipelineId,
-    quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
-    quad_index_buffer: IndexBuffer<u16>,
-}
+    pub fn draw_circle_line(&mut self, transform: &Transform, circle_line: &CircleLine) {
+        self.circle_rendering
+            .add_circle_line(transform, circle_line);
+    }
 
-impl LineRenderering {
-    pub fn new(rendering_context: &mut RenderingContext) -> Self {
-        let line_segments = Vec::new();
-        let line_segments_buffer = WriteableBuffer::new(
-            &rendering_context.gpu_context,
-            "line segments buffer",
-            &line_segments,
-            wgpu::BufferUsages::VERTEX,
-        );
+    pub fn draw_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {
+        self.rectangle_rendering.add_rectangle(transform, rectangle);
+    }
 
-        let line_segment_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader::<PathBuf>(&ShaderSource::StaticFile(include_wgsl!(
-                    "../shaders/line_segment.wgsl"
-                )));
-        let quad_vertex_buffer = WriteableBuffer::new(
-            &rendering_context.gpu_context,
-            "quad index buffer",
-            &QUAD_2D_VERICES,
-            wgpu::BufferUsages::VERTEX,
-        );
-        let quad_index_buffer = IndexBuffer::new(
-            &rendering_context.gpu_context,
-            "quad index buffer",
-            QUAD_2D_INDICES,
-        );
+    pub fn draw_rectangle_line(&mut self, transform: &Transform, rectangle_line: &RectangleLine) {
+        self.rectangle_rendering
+            .add_rectangle_line(transform, rectangle_line);
+    }
 
-        let targets: Vec<Option<wgpu::ColorTargetState>> = vec![
-            Some(wgpu::ColorTargetState {
-                format: rendering_context.primary_camera.surface_format(),
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            }),
-        ];
+    pub fn draw_line(&mut self, line_segment: &Line) {
+        self.line_rendering.add_line_segment(line_segment);
+    }
 
-        let line_segment_piepeline_layout_id = rendering_context
-            .resource_store
-            .build_pipeline_layout(&PipelineLayoutDescriptor {
-                label: "line segment pipeline layout".to_string(),
-                bind_group_layouts: vec![rendering_context
-                    .primary_camera
-                    .bing_group_layout()
-                    .clone()],
-                push_constant_ranges: Vec::new(),
+    // This is probably something that could be made transparent.
+    pub fn add_mesh(&mut self, stroke_rectangle: &Mesh) -> MeshId {
+        todo!()
+    }
+
+    // This is probably something that could be made transparent.
+    pub fn add_shader<P: AsRef<Path>>(&mut self, shader: &ShaderSource<P>) -> ShaderId {
+        todo!()
+    }
+
+    pub fn draw_mesh(&mut self, transform: &Transform, mesh_bundle: &MeshBundle) {
+        todo!()
+    }
+
+    pub fn draw_instanced_mesh(&mut self, transform: &Vec<Transform>, mesh_bundle: &MeshBundle) {
+        todo!()
+    }
+
+    // There are two options:
+    //  * Either we implement `on_resize` and `on_scale_factor_change` callbacks,
+    //  * or we try to determin the change in render funcion from texture size
+    //    and from scale that would be passed in.
+    //  Not sure which design is better.
+    pub fn on_resize(&mut self, new_size: Vec2) {
+        self.rendering_context
+            .primary_camera
+            .on_resize(new_size, &self.rendering_context.gpu_context);
+    }
+
+    pub fn on_scale_factor_change(&mut self, scale_factor: f64) {
+        self.rendering_context
+            .primary_camera
+            .on_scale_factor_change(scale_factor as f32);
+    }
+
+    pub fn render(&mut self, target_texture: &wgpu::Texture) {
+        let texture_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .rendering_context
+            .gpu_context
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("GPU Encoder"),
             });
-
-        let line_segment_pipeline =
-            rendering_context
-                .resource_store
-                .build_render_pipeline(&RenderPipelineDescriptor {
-                    label: "line segment pipeline".to_string(),
-                    layout: Some(line_segment_piepeline_layout_id),
-                    vertex: VertexState {
-                        module: line_segment_shader_id.clone(),
-                        buffers: vec![
-                            VertexBufferLayout {
-                                array_stride: std::mem::size_of::<Vec2>() as u64,
-                                step_mode: wgpu::VertexStepMode::Vertex,
-                                attributes: vertex_attr_array![0 => Float32x2].to_vec(),
-                            },
-                            VertexBufferLayout {
-                                array_stride: std::mem::size_of::<Circle>() as u64,
-                                step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: vertex_attr_array![1 => Float32x3, 2 => Float32x3, 3 => Float32x3, 4 => Float32]
-                                    .to_vec(),
-                            },
-                        ],
-                    },
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                        conservative: false,
-                    },
-                    depth_stencil: rendering_context.primary_camera.depth_stencil(),
-                    multisample: wgpu::MultisampleState::default(),
-                    fragment: Some(FragmentState {
-                        module: line_segment_shader_id.clone(),
-                        targets: targets.clone(),
+        {
+            let color_attachments = [Some(wgpu::RenderPassColorAttachment {
+                view: &texture_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
                     }),
-                    multiview: None,
-                });
+                    store: wgpu::StoreOp::Store,
+                },
+            })];
 
-        Self {
-            line_segments,
-            line_segments_buffer,
-            line_segment_pipeline,
-            quad_vertex_buffer,
-            quad_index_buffer,
+            let depth_stencil_attachment = self
+                .rendering_context
+                .primary_camera
+                .depth_buffer()
+                .as_ref()
+                .map(
+                    |(_depth_texture_config, _depth_texture, depth_texture_view)| {
+                        wgpu::RenderPassDepthStencilAttachment {
+                            view: depth_texture_view,
+                            depth_ops: Some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                store: wgpu::StoreOp::Store,
+                            }),
+                            stencil_ops: None,
+                        }
+                    },
+                );
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Shapes Renderer Pass"),
+                color_attachments: &color_attachments,
+                depth_stencil_attachment,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            self.circle_rendering
+                .render(&self.rendering_context, &mut render_pass);
+            self.rectangle_rendering
+                .render(&self.rendering_context, &mut render_pass);
+            self.line_rendering
+                .render(&self.rendering_context, &mut render_pass);
         }
+
+        self.rendering_context
+            .gpu_context
+            .queue()
+            .submit(std::iter::once(encoder.finish()));
     }
 
-    pub fn add_line_segment(&mut self, line_segment: &Line) {
-        self.line_segments.push(line_segment.clone());
+    // For later use???
+    pub fn create_camera(
+        &mut self,
+        _transform: &Transform,
+        _projection: CameraProjection,
+    ) -> CameraId {
+        todo!()
     }
 
-    pub fn render<'a>(
-        &'a mut self,
-        rendering_context: &'a RenderingContext,
-        render_pass: &mut wgpu::RenderPass<'a>,
-    ) {
-        if !self.line_segments.is_empty() {
-            self.line_segments_buffer
-                .write_data(&rendering_context.gpu_context, &self.line_segments);
+    pub fn set_primary_camera_projection(&mut self, projection: &CameraProjection) {
+        self.rendering_context
+            .primary_camera
+            .set_camera_projection(projection);
+    }
 
-            let pipeline = &rendering_context
-                .resource_store
-                .get_render_pipeline(&self.line_segment_pipeline);
+    pub fn set_primary_camera_matrix(&mut self, matrix: &Mat4) {
+        self.rendering_context
+            .primary_camera
+            .set_camera_matrix(matrix)
+    }
 
-            render_pass.set_pipeline(pipeline);
-            render_pass.set_bind_group(0, rendering_context.primary_camera.bing_group(), &[]);
-            render_pass.set_vertex_buffer(0, self.quad_vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.line_segments_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.quad_index_buffer.slice(..),
-                self.quad_index_buffer.index_format(),
-            );
-            render_pass.draw_indexed(
-                self.quad_index_buffer.draw_count(),
-                0,
-                0..(self.line_segments.len() as u32),
-            );
+    pub fn set_camera_projection(&mut self, _camera_id: &CameraId, _projection: &CameraProjection) {
+        todo!()
+    }
 
-            // TODO: Think about some memory releasing strategy. Spike in number of
-            // circles will lead to space leak.
-            self.line_segments.clear();
-        }
+    pub fn set_camera_matrix(&mut self, _camera_id: &CameraId, _matrix: &Mat4) {
+        todo!()
     }
 }
