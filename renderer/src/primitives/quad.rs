@@ -1,5 +1,4 @@
 use glam::Vec2;
-use wgpu::{vertex_attr_array, VertexAttribute};
 
 pub const QUAD_2D_VERICES: [Vec2; 4] = [
     Vec2 { x: -1.0, y: -1.0 },

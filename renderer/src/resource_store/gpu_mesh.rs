@@ -32,7 +32,7 @@ impl GpuMeshStore {
         &mut self,
         vertices: &Vec<Vec3>,
         normals: &Vec<Vec3>,
-        indices: &Vec<u32>,
+        indices: &[u32],
     ) -> GpuMeshId {
         let vertex_buffer = WriteableBuffer::new(
             &self.gpu_context,

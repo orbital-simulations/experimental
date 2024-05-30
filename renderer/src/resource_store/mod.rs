@@ -101,7 +101,7 @@ impl ResourceStore {
         &mut self,
         vertices: &Vec<Vec3>,
         normals: &Vec<Vec3>,
-        indices: &Vec<u32>,
+        indices: &[u32],
     ) -> GpuMeshId {
         self.gpu_mesh_store
             .build_gpu_mesh(vertices, normals, indices)

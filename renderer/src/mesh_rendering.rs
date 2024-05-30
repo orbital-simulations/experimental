@@ -65,9 +65,9 @@ impl MeshRendering {
                     label: Some(TRANSFORMS_UNIFORM_BUFFER_NAME),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                     size: 1, // This is a bit of a hack to make sure the first
-                            // bind group created correctly, which means we
-                            // don't need to use `Option` n bothw buffer and
-                            // bind group.
+                    // bind group created correctly, which means we
+                    // don't need to use `Option` n bothw buffer and
+                    // bind group.
                     mapped_at_creation: false,
                 });
         let transform_uniform_bind_group = rendering_context
@@ -200,9 +200,13 @@ impl MeshRendering {
                             .get_bing_group_layout(&self.transform_uniform_bind_group_layout),
                         entries: &[wgpu::BindGroupEntry {
                             binding: 0,
-                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding{ buffer: &self.transform_uniform_buffer, offset: 0, size: Some(std::num::NonZeroU64::new(size_of::<Mat4>() as u64).unwrap()) }
-                                ,
-                            ),
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: &self.transform_uniform_buffer,
+                                offset: 0,
+                                size: Some(
+                                    std::num::NonZeroU64::new(size_of::<Mat4>() as u64).unwrap(),
+                                ),
+                            }),
                         }],
                     });
             }

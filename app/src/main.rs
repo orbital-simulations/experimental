@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use game_engine::{
     game_engine_3d_parameters,
     mesh::{generate_mesh_normals, generate_mesh_plane},
@@ -20,6 +22,7 @@ pub struct GameState {
     vertices: Vec<Vec3>,
     indices: Vec<u32>,
     cube_bundle: MeshBundle,
+    cube_rotation: f32,
     terain_bundle: MeshBundle,
 }
 
@@ -68,6 +71,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         noises_detection: vec![],
         cube_bundle,
         terain_bundle,
+        cube_rotation: 0.0,
     }
 }
 
@@ -112,6 +116,8 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
             .build_gpu_mesh(&state.vertices, &normals, &state.indices);
         state.terain_bundle.mesh_id = gpu_mesh_id;
     }
+
+    state.cube_rotation += (PI / 180.0) * 2.0;
 }
 
 fn render(state: &GameState, renderer: &mut Renderer) {
@@ -119,10 +125,11 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         &Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)),
         &state.terain_bundle,
     );
-    renderer.draw_mesh(
-        &Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)),
-        &state.cube_bundle,
-    );
+
+    let mut cube_transform = Transform::from_rotation(&Vec3::new(0.0, 0.0, state.cube_rotation));
+    cube_transform.set_translation(&Vec3::new(-10.0, 100.0, 10.0));
+
+    renderer.draw_mesh(&cube_transform, &state.cube_bundle);
 }
 
 fn main() -> color_eyre::eyre::Result<()> {

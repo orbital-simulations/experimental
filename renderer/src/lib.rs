@@ -91,7 +91,7 @@ impl Renderer {
         &mut self,
         vertices: &Vec<Vec3>,
         normals: &Vec<Vec3>,
-        indices: &Vec<u32>,
+        indices: &[u32],
     ) -> GpuMeshId {
         self.rendering_context
             .resource_store
@@ -183,8 +183,8 @@ impl Renderer {
                 .render(&self.rendering_context, &mut render_pass);
             self.line_rendering
                 .render(&self.rendering_context, &mut render_pass);
-            self.mesh_rendering.render(&self.rendering_context, &mut render_pass);
-
+            self.mesh_rendering
+                .render(&self.rendering_context, &mut render_pass);
         }
 
         self.rendering_context
