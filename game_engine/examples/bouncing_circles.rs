@@ -5,7 +5,7 @@ use glam::{dvec2, DVec2, Vec3};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
 use renderer::line_rendering::Line;
-use renderer::renderer_api::Renderer;
+use renderer::Renderer;
 use renderer::{
     circle_rendering::Circle,
     colors::{RED, YELLOW},
@@ -112,16 +112,16 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 );
             }
             Shape::HalfPlane { normal_angle } => {
-                                let extent = 10000.0;
-                                let tangent = DVec2::from_angle(normal_angle).perp();
-                                let from: DVec2 = p.pos + extent * tangent;
-                                let to: DVec2 = p.pos - extent * tangent;
-                                renderer.draw_line(&Line {
-                                    from: Vec3::new(from.x as f32, from.y as f32, 0.0),
-                                    to: Vec3::new(to.x as f32, to.y as f32, 0.0),
-                                    color: YELLOW,
-                                    width: 3.,
-                                });
+                let extent = 10000.0;
+                let tangent = DVec2::from_angle(normal_angle).perp();
+                let from: DVec2 = p.pos + extent * tangent;
+                let to: DVec2 = p.pos - extent * tangent;
+                renderer.draw_line(&Line {
+                    from: Vec3::new(from.x as f32, from.y as f32, 0.0),
+                    to: Vec3::new(to.x as f32, to.y as f32, 0.0),
+                    color: YELLOW,
+                    width: 3.,
+                });
             }
             _ => {
                 unimplemented!("Render unknown shape {:?}", p.shape)

@@ -1,15 +1,17 @@
 pub mod bind_group_layout;
+pub mod gpu_mesh;
 pub mod pipeline_layout;
 pub mod render_pipeline;
 pub mod shader;
 pub mod store_base;
 
-use std::path::Path;
+use glam::Vec3;
 
 use crate::gpu_context::GpuContext;
 
 use self::{
     bind_group_layout::{BindGroupLayoutId, BindGroupLayoutStore},
+    gpu_mesh::{GpuMesh, GpuMeshId, GpuMeshStore},
     pipeline_layout::{PipelineLayoutDescriptor, PipelineLayoutId, PipelineLayoutStore},
     render_pipeline::{PipelineId, RenderPipelineDescriptor, RenderPipelineStore},
     shader::{ShaderId, ShaderSource, ShaderStore},
@@ -20,6 +22,7 @@ pub struct ResourceStore {
     render_pipeline_store: RenderPipelineStore,
     pipeline_layout_store: PipelineLayoutStore,
     bind_group_layout_store: BindGroupLayoutStore,
+    gpu_mesh_store: GpuMeshStore,
 }
 
 impl ResourceStore {
@@ -28,12 +31,14 @@ impl ResourceStore {
         let pipeline_layout_store = PipelineLayoutStore::new(gpu_context);
         let shader_store = ShaderStore::new(gpu_context);
         let render_pipeline_store = RenderPipelineStore::new(gpu_context);
+        let gpu_mesh_store = GpuMeshStore::new(gpu_context);
 
         Self {
             shader_store,
             render_pipeline_store,
             pipeline_layout_store,
             bind_group_layout_store,
+            gpu_mesh_store,
         }
     }
 
@@ -69,7 +74,7 @@ impl ResourceStore {
             .get_pipeline_layout(pipeline_layout_id)
     }
 
-    pub fn build_shader<P: AsRef<Path>>(&mut self, shader_source: &ShaderSource<P>) -> ShaderId {
+    pub fn build_shader(&mut self, shader_source: &ShaderSource) -> ShaderId {
         self.shader_store.build_shader(shader_source)
     }
 
@@ -90,5 +95,19 @@ impl ResourceStore {
 
     pub fn get_render_pipeline(&self, pipeline_id: &PipelineId) -> &wgpu::RenderPipeline {
         self.render_pipeline_store.get_render_pipeline(pipeline_id)
+    }
+
+    pub fn build_gpu_mesh(
+        &mut self,
+        vertices: &Vec<Vec3>,
+        normals: &Vec<Vec3>,
+        indices: &Vec<u32>,
+    ) -> GpuMeshId {
+        self.gpu_mesh_store
+            .build_gpu_mesh(vertices, normals, indices)
+    }
+
+    pub fn get_gpu_mesh(&self, gpu_mesh_id: &GpuMeshId) -> &GpuMesh {
+        self.gpu_mesh_store.get_gpu_mesh(gpu_mesh_id)
     }
 }

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::transform::Transform;
 use glam::{Mat4, Vec2, Vec3};
@@ -105,13 +103,13 @@ impl CircleRendering {
         let circle_shader_id =
             rendering_context
                 .resource_store
-                .build_shader::<PathBuf>(&ShaderSource::StaticFile(include_wgsl!(
+                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
                     "../shaders/circle.wgsl"
                 )));
         let circle_line_shader_id =
             rendering_context
                 .resource_store
-                .build_shader::<PathBuf>(&ShaderSource::StaticFile(include_wgsl!(
+                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
                     "../shaders/circle_line.wgsl"
                 )));
 
@@ -136,7 +134,7 @@ impl CircleRendering {
             write_mask: wgpu::ColorWrites::ALL,
         })];
 
-        let circle_piepeline_layout_id =
+        let circle_pipeline_layout_id =
             rendering_context
                 .resource_store
                 .build_pipeline_layout(&PipelineLayoutDescriptor {
@@ -153,7 +151,7 @@ impl CircleRendering {
                 .resource_store
                 .build_render_pipeline(&RenderPipelineDescriptor {
                     label: "circle pipeline".to_string(),
-                    layout: Some(circle_piepeline_layout_id),
+                    layout: Some(circle_pipeline_layout_id),
                     vertex: VertexState {
                         module: circle_shader_id.clone(),
                         buffers: vec![
@@ -199,7 +197,7 @@ impl CircleRendering {
                     multiview: None,
                 });
 
-        let circle_line_piepeline_layout_id = rendering_context
+        let circle_line_pipeline_layout_id = rendering_context
             .resource_store
             .build_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "circle line pipeline layout".to_string(),
@@ -215,7 +213,7 @@ impl CircleRendering {
                 .resource_store
                 .build_render_pipeline(&RenderPipelineDescriptor {
                     label: "circle line pipeline".to_string(),
-                    layout: Some(circle_line_piepeline_layout_id),
+                    layout: Some(circle_line_pipeline_layout_id),
                     vertex: VertexState {
                         module: circle_line_shader_id.clone(),
                         buffers: vec![

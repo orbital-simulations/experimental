@@ -2,10 +2,9 @@ pub mod buffers;
 pub mod camera;
 pub mod circle_rendering;
 pub mod colors;
-pub mod mesh_rendering;
 pub mod gpu_context;
 pub mod line_rendering;
-pub mod mesh;
+pub mod mesh_rendering;
 pub mod primitives;
 pub mod projection;
 pub mod raw;
@@ -14,9 +13,11 @@ pub mod rendering_context;
 pub mod resource_store;
 pub mod transform;
 
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
-use glam::{Mat4, Vec2};
+use glam::{Mat4, Vec2, Vec3};
+use mesh_rendering::{MeshBundle, MeshRendering};
+use resource_store::{gpu_mesh::GpuMeshId, render_pipeline::PipelineId};
 
 use crate::{
     camera::PrimaryCamera,
@@ -26,18 +27,9 @@ use crate::{
     projection::CameraProjection,
     rectangle_rendering::{Rectangle, RectangleLine, RectangleRendering},
     rendering_context::RenderingContext,
-    resource_store::shader::{ShaderId, ShaderSource},
+    resource_store::shader::ShaderSource,
     transform::Transform,
 };
-
-#[derive(Clone)]
-pub struct MeshId;
-
-#[derive(Clone)]
-pub struct MeshBundle {
-    shader: ShaderId,
-    mesh: MeshId,
-}
 
 pub struct CameraId;
 
@@ -50,9 +42,8 @@ pub struct Renderer {
     circle_rendering: CircleRendering,
     rectangle_rendering: RectangleRendering,
     line_rendering: LineRenderering,
+    mesh_rendering: MeshRendering,
 }
-
-struct Mesh {}
 
 impl Renderer {
     pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> Self {
@@ -60,11 +51,13 @@ impl Renderer {
         let circle_rendering = CircleRendering::new(&mut rendering_context);
         let rectangle_rendering = RectangleRendering::new(&mut rendering_context);
         let line_rendering = LineRenderering::new(&mut rendering_context);
+        let mesh_rendering = MeshRendering::new(&mut rendering_context);
         Self {
             rendering_context,
             circle_rendering,
             rectangle_rendering,
             line_rendering,
+            mesh_rendering,
         }
     }
 
@@ -94,20 +87,28 @@ impl Renderer {
     }
 
     // This is probably something that could be made transparent.
-    pub fn add_mesh(&mut self, stroke_rectangle: &Mesh) -> MeshId {
-        todo!()
+    pub fn add_mesh(
+        &mut self,
+        vertices: &Vec<Vec3>,
+        normals: &Vec<Vec3>,
+        indices: &Vec<u32>,
+    ) -> GpuMeshId {
+        self.rendering_context
+            .resource_store
+            .build_gpu_mesh(vertices, normals, indices)
     }
 
     // This is probably something that could be made transparent.
-    pub fn add_shader<P: AsRef<Path>>(&mut self, shader: &ShaderSource<P>) -> ShaderId {
-        todo!()
+    pub fn create_3d_pipeline(&mut self, shader: &ShaderSource) -> PipelineId {
+        self.mesh_rendering
+            .create_3d_pipeline(&mut self.rendering_context, shader)
     }
 
     pub fn draw_mesh(&mut self, transform: &Transform, mesh_bundle: &MeshBundle) {
-        todo!()
+        self.mesh_rendering.add_mesh_bundle(transform, mesh_bundle);
     }
 
-    pub fn draw_instanced_mesh(&mut self, transform: &Vec<Transform>, mesh_bundle: &MeshBundle) {
+    pub fn draw_instanced_mesh(&mut self, _transform: &[Transform], _mesh_bundle: &MeshBundle) {
         todo!()
     }
 
@@ -182,6 +183,8 @@ impl Renderer {
                 .render(&self.rendering_context, &mut render_pass);
             self.line_rendering
                 .render(&self.rendering_context, &mut render_pass);
+            self.mesh_rendering.render(&self.rendering_context, &mut render_pass);
+
         }
 
         self.rendering_context
@@ -217,5 +220,9 @@ impl Renderer {
 
     pub fn set_camera_matrix(&mut self, _camera_id: &CameraId, _matrix: &Mat4) {
         todo!()
+    }
+
+    pub fn wgpu_limits() -> wgpu::Limits {
+        RenderingContext::wgpu_limits()
     }
 }

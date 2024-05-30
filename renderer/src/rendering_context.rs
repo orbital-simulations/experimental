@@ -29,4 +29,8 @@ impl RenderingContext {
             resource_store,
         }
     }
+
+    pub fn wgpu_limits() -> wgpu::Limits {
+        wgpu::Limits::default()
+    }
 }

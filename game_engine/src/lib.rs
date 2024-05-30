@@ -8,10 +8,10 @@ use camera::{Camera, CameraController};
 use egui_integration::EguiIntegration;
 use glam::{vec2, vec3, Vec2};
 use inputs::Inputs;
-use renderer::camera2::PrimaryCamera;
+use renderer::camera::PrimaryCamera;
 use renderer::gpu_context::GpuContext;
-use renderer::projection2::{CameraProjection, Orthographic, Perspective};
-use renderer::renderer_api::Renderer;
+use renderer::projection::{CameraProjection, Orthographic, Perspective};
+use renderer::Renderer;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
@@ -19,7 +19,7 @@ use tracing::{debug, info, warn};
 use wgpu::util::parse_backends_from_comma_list;
 use wgpu::{
     DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor, InstanceFlags,
-    Limits, PowerPreference, PresentMode, RequestAdapterOptions, Surface, SurfaceConfiguration,
+    PowerPreference, PresentMode, RequestAdapterOptions, Surface, SurfaceConfiguration,
     TextureUsages,
 };
 
@@ -110,7 +110,7 @@ impl<'a> GameEngine<'a> {
                 &DeviceDescriptor {
                     label: Some("GPU device"),
                     required_features: Features::empty(),
-                    required_limits: Limits::default(),
+                    required_limits: Renderer::wgpu_limits(),
                 },
                 None, // Trace path
             )

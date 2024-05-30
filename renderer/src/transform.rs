@@ -1,5 +1,6 @@
 use glam::{EulerRot, Mat4, Vec3, Vec4};
 
+#[derive(Clone)]
 pub struct Transform {
     translate: Vec3,
     scale: Vec3,

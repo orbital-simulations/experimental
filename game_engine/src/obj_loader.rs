@@ -1,15 +1,14 @@
 use eyre::Result;
 use glam::Vec3;
 use itertools::Itertools;
-use renderer::context::Context;
-use renderer::mesh::GpuMesh;
+use renderer::{resource_store::gpu_mesh::GpuMeshId, Renderer};
 use tobj::{load_mtl_buf, load_obj_buf, LoadError, LoadOptions};
 
 pub fn load_model_static(
-    context: &Context,
+    renderer: &mut Renderer,
     data: &'static str,
     materials: &[(&'static str, &'static str)],
-) -> Result<GpuMesh> {
+) -> Result<GpuMeshId> {
     let config = LoadOptions {
         single_index: true,
         triangulate: false,
@@ -41,8 +40,8 @@ pub fn load_model_static(
         .tuples()
         .map(|(x, y, z)| Vec3::new(*x, *y, *z))
         .collect::<Vec<Vec3>>();
-    Ok(GpuMesh::new(
-        context,
+
+    Ok(renderer.rendering_context.resource_store.build_gpu_mesh(
         &vertices,
         &normals,
         &model.mesh.indices,

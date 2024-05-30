@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use glam::{Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
 
@@ -63,7 +61,7 @@ impl LineRenderering {
         let line_segment_shader_id =
             rendering_context
                 .resource_store
-                .build_shader::<PathBuf>(&ShaderSource::StaticFile(include_wgsl!(
+                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
                     "../shaders/line_segment.wgsl"
                 )));
         let quad_vertex_buffer = WriteableBuffer::new(
@@ -78,18 +76,16 @@ impl LineRenderering {
             QUAD_2D_INDICES,
         );
 
-        let targets: Vec<Option<wgpu::ColorTargetState>> = vec![
-            Some(wgpu::ColorTargetState {
-                format: rendering_context.primary_camera.surface_format(),
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
+        let targets: Vec<Option<wgpu::ColorTargetState>> = vec![Some(wgpu::ColorTargetState {
+            format: rendering_context.primary_camera.surface_format(),
+            blend: Some(wgpu::BlendState {
+                color: wgpu::BlendComponent::REPLACE,
+                alpha: wgpu::BlendComponent::REPLACE,
             }),
-        ];
+            write_mask: wgpu::ColorWrites::ALL,
+        })];
 
-        let line_segment_piepeline_layout_id = rendering_context
+        let line_segment_pipeline_layout_id = rendering_context
             .resource_store
             .build_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "line segment pipeline layout".to_string(),
@@ -105,7 +101,7 @@ impl LineRenderering {
                 .resource_store
                 .build_render_pipeline(&RenderPipelineDescriptor {
                     label: "line segment pipeline".to_string(),
-                    layout: Some(line_segment_piepeline_layout_id),
+                    layout: Some(line_segment_pipeline_layout_id),
                     vertex: VertexState {
                         module: line_segment_shader_id.clone(),
                         buffers: vec![

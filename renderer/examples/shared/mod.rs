@@ -5,10 +5,10 @@ use eyre::OptionExt;
 use glam::Vec2;
 use image::{ImageBuffer, Rgba};
 use renderer::{
-    camera2::PrimaryCamera,
+    camera::PrimaryCamera,
     gpu_context::GpuContext,
-    projection2::{CameraProjection, Orthographic},
-    renderer_api::Renderer,
+    projection::{CameraProjection, Orthographic},
+    Renderer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use wgpu::util::parse_backends_from_comma_list;
@@ -57,7 +57,7 @@ where
             &wgpu::DeviceDescriptor {
                 label: Some("Device"),
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_limits: Renderer::wgpu_limits(),
             },
             None,
         )

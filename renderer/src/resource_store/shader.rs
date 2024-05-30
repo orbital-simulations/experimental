@@ -1,4 +1,4 @@
-use std::{borrow::Cow, env, io::Read, path::Path};
+use std::{borrow::Cow, env, io::Read, path::PathBuf};
 
 use wgpu::ShaderModuleDescriptor;
 
@@ -12,8 +12,8 @@ pub struct ShaderStore {
     gpu_context: GpuContext,
 }
 
-pub enum ShaderSource<P: AsRef<Path>> {
-    ShaderFile(P),
+pub enum ShaderSource {
+    ShaderFile(PathBuf),
     StaticFile(wgpu::ShaderModuleDescriptor<'static>),
 }
 
@@ -25,7 +25,7 @@ impl ShaderStore {
         }
     }
 
-    pub fn build_shader<P: AsRef<Path>>(&mut self, shader_source: &ShaderSource<P>) -> ShaderId {
+    pub fn build_shader(&mut self, shader_source: &ShaderSource) -> ShaderId {
         match shader_source {
             ShaderSource::ShaderFile(file_path) => {
                 // TODO: In future. We should start using some kind of an asset loader so we can

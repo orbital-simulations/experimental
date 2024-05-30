@@ -1,13 +1,14 @@
 use game_engine::{game_engine_2_5d_parameters, GameEngine};
-use glam::{DMat2, DVec2};
+use glam::{DMat2, DVec2, Vec3};
 use physics::{
     scenarios::{Collision, Scenario},
     Engine, Shape,
 };
 use renderer::{
+    circle_rendering::CircleLine,
     colors::{RED, YELLOW},
-    line_segment::LineSegment,
-    stroke_circle::StrokeCircle,
+    line_rendering::Line,
+    transform::Transform,
     Renderer,
 };
 use tracing::debug;
@@ -147,27 +148,30 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     for p in &state.history.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                renderer.draw_stroke_circle(StrokeCircle::new(
-                    p.pos.as_vec2(),
-                    radius as f32,
-                    3.0,
-                    RED,
-                ));
+                renderer.draw_circle_line(
+                    &Transform::from_translation(&Vec3::new(p.pos.x as f32, p.pos.y as f32, 0.0)),
+                    &CircleLine::new(radius as f32, RED, 3.0),
+                );
                 let direction = DMat2::from_angle(p.angle) * DVec2::X;
                 let to = (p.pos + direction * radius).as_vec2();
-                renderer.draw_line_segment(LineSegment::new(p.pos.as_vec2(), to, RED, 1.0));
+                renderer.draw_line(&Line::new(
+                    Vec3::new(p.pos.x as f32, p.pos.y as f32, 0.0),
+                    Vec3::new(to.x, to.y, 0.0),
+                    RED,
+                    1.0,
+                ));
             }
             Shape::HalfPlane { normal_angle } => {
                 let extent = 10000.0;
                 let tangent = DVec2::from_angle(normal_angle).perp();
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line_segment(LineSegment {
-                    from: from.as_vec2(),
-                    to: to.as_vec2(),
-                    color: YELLOW,
-                    width: 3.,
-                });
+                renderer.draw_line(&Line::new(
+                    Vec3::new(from.x as f32, from.y as f32, 0.0),
+                    Vec3::new(to.x as f32, to.y as f32, 0.0),
+                    YELLOW,
+                    3.0,
+                ));
             }
             _ => {
                 unimplemented!("Render unknown shape {:?}", p.shape)

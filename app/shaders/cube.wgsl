@@ -2,9 +2,11 @@
 var<uniform> projection: mat4x4<f32>;
 @group(0) @binding(1)
 var<uniform> camera: mat4x4<f32>;
+@group(1) @binding(0)
+var<uniform> transform: mat4x4<f32>;
 
 struct VertexInput {
-    @location(0) position: vec3<f32>,
+    @location(0) vertex: vec3<f32>,
     @location(1) normal: vec3<f32>,
 }
 
@@ -18,7 +20,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
 
-    let world_position = vec4<f32>(model.position, 1.0);
+    let world_position = transform * vec4<f32>(model.vertex, 1.0);
 
     let world_matrix = projection * camera;
 

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::transform::Transform;
 use glam::{Mat4, Vec2, Vec3};
@@ -105,13 +103,13 @@ impl RectangleRendering {
         let rectangle_shader_id =
             rendering_context
                 .resource_store
-                .build_shader::<PathBuf>(&ShaderSource::StaticFile(include_wgsl!(
+                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
                     "../shaders/rectangle.wgsl"
                 )));
         let rectangle_line_shader_id =
             rendering_context
                 .resource_store
-                .build_shader::<PathBuf>(&ShaderSource::StaticFile(include_wgsl!(
+                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
                     "../shaders/rectangle_line.wgsl"
                 )));
 
@@ -136,7 +134,7 @@ impl RectangleRendering {
             write_mask: wgpu::ColorWrites::ALL,
         })];
 
-        let rectangle_piepeline_layout_id =
+        let rectangle_pipeline_layout_id =
             rendering_context
                 .resource_store
                 .build_pipeline_layout(&PipelineLayoutDescriptor {
@@ -153,7 +151,7 @@ impl RectangleRendering {
                 .resource_store
                 .build_render_pipeline(&RenderPipelineDescriptor {
                     label: "rectangle pipeline".to_string(),
-                    layout: Some(rectangle_piepeline_layout_id),
+                    layout: Some(rectangle_pipeline_layout_id),
                     vertex: VertexState {
                         module: rectangle_shader_id.clone(),
                         buffers: vec![
@@ -199,7 +197,7 @@ impl RectangleRendering {
                     multiview: None,
                 });
 
-        let rectangle_line_piepeline_layout_id = rendering_context
+        let rectangle_line_pipeline_layout_id = rendering_context
             .resource_store
             .build_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "rectangle line pipeline layout".to_string(),
@@ -215,7 +213,7 @@ impl RectangleRendering {
                 .resource_store
                 .build_render_pipeline(&RenderPipelineDescriptor {
                     label: "rectangle line pipeline".to_string(),
-                    layout: Some(rectangle_line_piepeline_layout_id),
+                    layout: Some(rectangle_line_pipeline_layout_id),
                     vertex: VertexState {
                         module: rectangle_line_shader_id.clone(),
                         buffers: vec![
