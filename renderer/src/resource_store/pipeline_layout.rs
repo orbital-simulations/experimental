@@ -1,6 +1,8 @@
 use slotmap::{new_key_type, SlotMap};
-
-use super::bind_group_layout::{BindGroupLayoutId, BindGroupLayoutStore};
+use super::{
+    bind_group_layout::BindGroupLayoutStore,
+    BindGroupLayoutId,
+};
 use crate::gpu_context::GpuContext;
 
 #[derive(Clone, Debug, Default)]

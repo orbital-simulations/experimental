@@ -22,6 +22,7 @@ pub struct GameState {
     vertices: Vec<Vec3>,
     indices: Vec<u32>,
     cube_bundle: MeshBundle,
+    reload_cube_bundle: MeshBundle,
     cube_rotation: f32,
     terain_bundle: MeshBundle,
 }
@@ -37,6 +38,15 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
             .create_3d_pipeline(&ShaderSource::StaticFile(include_wgsl!(
                 "../shaders/cube.wgsl"
             ))),
+    };
+
+    let reload_cube_bundle = MeshBundle {
+        mesh_id: load_model_static(&mut game_engine.renderer, CUBE, &CUBE_MATERIALS).unwrap(),
+        pipeline_id: game_engine
+            .renderer
+            .create_3d_pipeline(&ShaderSource::ShaderFile(
+                "app/shaders/cube_reload_test.wgsl".into(),
+            )),
     };
 
     let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
@@ -70,6 +80,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         indices,
         noises_detection: vec![],
         cube_bundle,
+        reload_cube_bundle,
         terain_bundle,
         cube_rotation: 0.0,
     }
@@ -130,6 +141,10 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     cube_transform.set_translation(&Vec3::new(-10.0, 100.0, 10.0));
 
     renderer.draw_mesh(&cube_transform, &state.cube_bundle);
+    let mut reload_cube_transform =
+        Transform::from_rotation(&Vec3::new(0.0, 0.0, state.cube_rotation));
+    reload_cube_transform.set_translation(&Vec3::new(-10.0, 80.0, 10.0));
+    renderer.draw_mesh(&reload_cube_transform, &state.reload_cube_bundle);
 }
 
 fn main() -> color_eyre::eyre::Result<()> {

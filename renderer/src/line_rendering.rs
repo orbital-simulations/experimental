@@ -10,9 +10,10 @@ use crate::{
     resource_store::{
         pipeline_layout::PipelineLayoutDescriptor,
         render_pipeline::{
-            FragmentState, PipelineId, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
+            FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
         },
         shader::ShaderSource,
+        PipelineId,
     },
 };
 

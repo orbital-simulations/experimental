@@ -169,7 +169,8 @@ impl<'a> GameEngine<'a> {
                     write_mask: wgpu::ColorWrites::ALL,
                 }),
             },
-        );
+        )
+        .unwrap();
 
         Ok((
             Self {

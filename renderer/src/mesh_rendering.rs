@@ -7,13 +7,12 @@ use crate::{
     raw::Raw,
     rendering_context::RenderingContext,
     resource_store::{
-        bind_group_layout::BindGroupLayoutId,
-        gpu_mesh::GpuMeshId,
         pipeline_layout::PipelineLayoutDescriptor,
         render_pipeline::{
-            FragmentState, PipelineId, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
+            FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
         },
         shader::ShaderSource,
+        BindGroupLayoutId, GpuMeshId, PipelineId,
     },
     transform::Transform,
 };

@@ -1,7 +1,7 @@
 use eyre::Result;
 use glam::Vec3;
 use itertools::Itertools;
-use renderer::{resource_store::gpu_mesh::GpuMeshId, Renderer};
+use renderer::{resource_store::GpuMeshId, Renderer};
 use tobj::{load_mtl_buf, load_obj_buf, LoadError, LoadOptions};
 
 pub fn load_model_static(
