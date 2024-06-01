@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 eyre = { workspace = true }
 glam = { workspace = true }
+slotmap = "1.0.7"
 tracing = { workspace = true }
 wgpu = { workspace = true }
 

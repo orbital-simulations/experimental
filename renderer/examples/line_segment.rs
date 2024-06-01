@@ -1,13 +1,13 @@
-use glam::Vec2;
-use renderer::{colors::GREEN, line_segment::LineSegment};
+use glam::Vec3;
+use renderer::{colors::GREEN, line_rendering::Line};
 
 mod shared;
 
 fn main() -> color_eyre::eyre::Result<()> {
     pollster::block_on(shared::run(|renderer| {
-        renderer.draw_line_segment(LineSegment {
-            from: Vec2::new(0., 0.),
-            to: Vec2::new(200., 100.),
+        renderer.draw_line(&Line {
+            from: Vec3::new(0.0, 0.0, 0.0),
+            to: Vec3::new(200.0, 100.0, 0.0),
             color: GREEN,
             width: 10.,
         });

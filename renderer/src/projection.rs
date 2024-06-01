@@ -1,120 +1,57 @@
-use glam::Mat4;
-use tracing::warn;
+use glam::{Mat4, Vec2};
 
-#[derive(Debug)]
-pub enum Projection {
-    Perspective(PerspectiveProjection),
-    Ortographic(OrtographicProjection),
+#[derive(Clone, Debug)]
+pub struct Perspective {
+    pub fovy: f32, // In radians
+    pub znear: f32,
+    pub zfar: f32,
+    pub scale: f32,
 }
 
-#[derive(Debug)]
-pub struct OrtographicProjection {
-    width: f32,
-    height: f32,
-    depth: f32,
-    scale_factor: f32,
+#[derive(Clone, Debug)]
+pub struct Orthographic {
+    pub depth: f32,
+    pub scale: f32,
 }
 
-impl OrtographicProjection {
-    pub fn new(width: f32, height: f32, depth: f32, scale_factor: f32) -> Self {
-        Self {
-            width,
-            height,
-            depth,
-            scale_factor,
-        }
-    }
+#[derive(Clone, Debug)]
+pub enum CameraProjection {
+    Perspective(Perspective),
+    Orthographic(Orthographic),
 }
 
-pub trait ProjectionManipulation {
-    fn resize(&mut self, width: f32, height: f32);
-    fn scale(&mut self, scale_factor: f32);
-    fn make_projection_matrix(&self) -> Mat4;
-}
-
-impl ProjectionManipulation for OrtographicProjection {
-    fn make_projection_matrix(&self) -> Mat4 {
-        let half_width = self.width / (2. * self.scale_factor);
-        let half_height = self.height / (2. * self.scale_factor);
-        let half_depth = self.depth / 2.;
-        glam::Mat4::orthographic_rh(
-            -half_width,
-            half_width,
-            -half_height,
-            half_height,
-            -half_depth,
-            half_depth,
-        )
-    }
-
-    fn resize(&mut self, width: f32, height: f32) {
-        self.width = width;
-        self.height = height;
-    }
-
-    fn scale(&mut self, scale_factor: f32) {
-        self.scale_factor = scale_factor;
-    }
-}
-
-#[derive(Debug)]
-pub struct PerspectiveProjection {
-    aspect: f32,
-    fovy: f32, // In radians
-    znear: f32,
-    zfar: f32,
-    scale: f32,
-}
-
-impl PerspectiveProjection {
-    pub fn new(width: f32, height: f32, fovy: f32, znear: f32, zfar: f32, scale: f32) -> Self {
-        warn!("width: {}", width);
-        warn!("height: {}", height);
-        let aspect = width / height;
-        warn!("acpect: {}", aspect);
-        Self {
-            aspect,
-            fovy,
-            znear,
-            zfar,
-            scale,
-        }
-    }
-}
-
-impl ProjectionManipulation for PerspectiveProjection {
-    fn make_projection_matrix(&self) -> Mat4 {
-        Mat4::perspective_rh(self.fovy / self.scale, self.aspect, self.znear, self.zfar)
-    }
-
-    fn resize(&mut self, width: f32, height: f32) {
-        self.aspect = width / height;
-    }
-
-    fn scale(&mut self, scale_factor: f32) {
-        self.scale = scale_factor;
-    }
-}
-
-impl ProjectionManipulation for Projection {
-    fn make_projection_matrix(&self) -> Mat4 {
+impl CameraProjection {
+    pub fn make_projection_matrix(&self, size: Vec2) -> Mat4 {
         match self {
-            Projection::Perspective(p) => p.make_projection_matrix(),
-            Projection::Ortographic(p) => p.make_projection_matrix(),
+            CameraProjection::Perspective(Perspective {
+                fovy,
+                znear,
+                zfar,
+                scale,
+            }) => {
+                let aspect = size.x / size.y;
+                Mat4::perspective_rh(fovy / scale, aspect, *znear, *zfar)
+            }
+            CameraProjection::Orthographic(Orthographic { depth, scale }) => {
+                let half_width = size.x / (2. * scale);
+                let half_height = size.y / (2. * scale);
+                let half_depth = depth / 2.;
+                glam::Mat4::orthographic_rh(
+                    -half_width,
+                    half_width,
+                    -half_height,
+                    half_height,
+                    -half_depth,
+                    half_depth,
+                )
+            }
         }
     }
 
-    fn resize(&mut self, width: f32, height: f32) {
+    pub fn set_scale(&mut self, scale: f32) {
         match self {
-            Projection::Perspective(p) => p.resize(width, height),
-            Projection::Ortographic(p) => p.resize(width, height),
-        }
-    }
-
-    fn scale(&mut self, scale_factor: f32) {
-        match self {
-            Projection::Perspective(p) => p.scale(scale_factor),
-            Projection::Ortographic(p) => p.scale(scale_factor),
+            CameraProjection::Perspective(perspective) => perspective.scale = scale,
+            CameraProjection::Orthographic(orthographic) => orthographic.scale = scale,
         }
     }
 }

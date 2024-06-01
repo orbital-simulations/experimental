@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::f32::consts::PI;
 
 use game_engine::{
     game_engine_3d_parameters,
@@ -8,46 +8,36 @@ use game_engine::{
 };
 use glam::Vec3;
 use noise::{NoiseFn, SuperSimplex};
-use renderer::{custom_mesh_renderer::CustomMeshRenderer, mesh::GpuMesh, CustomRenderer, Renderer};
+use renderer::{
+    mesh_rendering::MeshBundle, resource_store::shader::ShaderSource, transform::Transform,
+    Renderer,
+};
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
-use wgpu::{include_wgsl, ShaderModule};
+use wgpu::include_wgsl;
 use winit::{event_loop::EventLoop, window::Window};
 
 pub struct GameState {
     noises: Vec<(u32, f32, f32)>,
     noises_detection: Vec<(u32, f32, f32)>,
-    terrain_shader: Rc<ShaderModule>,
     vertices: Vec<Vec3>,
     indices: Vec<u32>,
+    cube_bundle: MeshBundle,
+    cube_rotation: f32,
+    terain_bundle: MeshBundle,
 }
 
 const CUBE: &str = include_str!("../assets/cube.obj");
 const CUBE_MATERIALS: [(&str, &str); 1] = [("cube.mtl", include_str!("../assets/cube.mtl"))];
 
-struct CubeRenderer;
-impl CustomRenderer for CubeRenderer {}
-struct TerrainRenderer;
-impl CustomRenderer for TerrainRenderer {}
-
 fn setup(game_engine: &mut GameEngine) -> GameState {
-    let shader = game_engine
-        .renderer
-        .context
-        .device
-        .create_shader_module(include_wgsl!("../shaders/cube.wgsl"));
-    let gpu_mesh = load_model_static(&game_engine.renderer.context, CUBE, &CUBE_MATERIALS).unwrap();
-    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, Rc::new(shader));
-    game_engine
-        .renderer
-        .add_custom_mesh_renderer(&CubeRenderer, custom_renderer);
-
-    let shader = Rc::new(
-        game_engine
+    let cube_bundle = MeshBundle {
+        mesh_id: load_model_static(&mut game_engine.renderer, CUBE, &CUBE_MATERIALS).unwrap(),
+        pipeline_id: game_engine
             .renderer
-            .context
-            .device
-            .create_shader_module(include_wgsl!("../shaders/terain.wgsl")),
-    );
+            .create_3d_pipeline(&ShaderSource::StaticFile(include_wgsl!(
+                "../shaders/cube.wgsl"
+            ))),
+    };
 
     let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
     let noise1 = SuperSimplex::new(0);
@@ -61,18 +51,27 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
     }
 
     let normals = generate_mesh_normals(&vertices, &indices);
+    let terain_bundle = MeshBundle {
+        mesh_id: game_engine
+            .renderer
+            .rendering_context
+            .resource_store
+            .build_gpu_mesh(&vertices, &normals, &indices),
+        pipeline_id: game_engine
+            .renderer
+            .create_3d_pipeline(&ShaderSource::StaticFile(include_wgsl!(
+                "../shaders/terain.wgsl"
+            ))),
+    };
 
-    let gpu_mesh = GpuMesh::new(&game_engine.renderer.context, &vertices, &normals, &indices);
-    let custom_renderer = CustomMeshRenderer::new(gpu_mesh, shader.clone());
-    game_engine
-        .renderer
-        .add_custom_mesh_renderer(&TerrainRenderer, custom_renderer);
     GameState {
         noises: vec![(0, 50., 25.), (10, 10., 3.), (100, 1., 0.1)],
-        terrain_shader: shader,
         vertices,
         indices,
         noises_detection: vec![],
+        cube_bundle,
+        terain_bundle,
+        cube_rotation: 0.0,
     }
 }
 
@@ -110,21 +109,28 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
             v.z = z;
         }
         let normals = generate_mesh_normals(&state.vertices, &state.indices);
-
-        let gpu_mesh = GpuMesh::new(
-            &game_engine.renderer.context,
-            &state.vertices,
-            &normals,
-            &state.indices,
-        );
-        let custom_renderer = CustomMeshRenderer::new(gpu_mesh, state.terrain_shader.clone());
-        game_engine
+        let gpu_mesh_id = game_engine
             .renderer
-            .add_custom_mesh_renderer(&TerrainRenderer, custom_renderer);
+            .rendering_context
+            .resource_store
+            .build_gpu_mesh(&state.vertices, &normals, &state.indices);
+        state.terain_bundle.mesh_id = gpu_mesh_id;
     }
+
+    state.cube_rotation += (PI / 180.0) * 2.0;
 }
 
-fn render(_state: &GameState, _renderer: &mut Renderer) {}
+fn render(state: &GameState, renderer: &mut Renderer) {
+    renderer.draw_mesh(
+        &Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)),
+        &state.terain_bundle,
+    );
+
+    let mut cube_transform = Transform::from_rotation(&Vec3::new(0.0, 0.0, state.cube_rotation));
+    cube_transform.set_translation(&Vec3::new(-10.0, 100.0, 10.0));
+
+    renderer.draw_mesh(&cube_transform, &state.cube_bundle);
+}
 
 fn main() -> color_eyre::eyre::Result<()> {
     let fmt_layer = fmt::layer().pretty();
