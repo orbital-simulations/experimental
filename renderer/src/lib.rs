@@ -8,7 +8,6 @@ pub mod line_rendering;
 pub mod mesh_rendering;
 pub mod primitives;
 pub mod projection;
-pub mod raw;
 pub mod rectangle_rendering;
 pub mod rendering_context;
 pub mod resource_store;

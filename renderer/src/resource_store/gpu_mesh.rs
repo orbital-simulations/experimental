@@ -2,14 +2,14 @@ use glam::Vec3;
 use slotmap::{new_key_type, SlotMap};
 
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer},
+    buffers::{IndexBuffer, WriteableVecBuffer},
     gpu_context::GpuContext,
 };
 
 #[derive(Debug)]
 pub struct GpuMesh {
-    pub vertex_buffer: WriteableBuffer<Vec<Vec3>>,
-    pub normal_buffer: WriteableBuffer<Vec<Vec3>>,
+    pub vertex_buffer: WriteableVecBuffer<Vec3>,
+    pub normal_buffer: WriteableVecBuffer<Vec3>,
     pub index_buffer: IndexBuffer<u32>,
 }
 
@@ -36,16 +36,16 @@ impl GpuMeshStore {
         normals: &Vec<Vec3>,
         indices: &[u32],
     ) -> GpuMeshId {
-        let vertex_buffer = WriteableBuffer::new(
+        let vertex_buffer = WriteableVecBuffer::new(
             &self.gpu_context,
             "mesh vertex buffer",
-            vertices,
+            &vertices,
             wgpu::BufferUsages::VERTEX,
         );
-        let normal_buffer = WriteableBuffer::new(
+        let normal_buffer = WriteableVecBuffer::new(
             &self.gpu_context,
             "mesh normals buffer",
-            normals,
+            &normals,
             wgpu::BufferUsages::VERTEX,
         );
 
