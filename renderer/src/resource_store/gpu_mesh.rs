@@ -32,20 +32,20 @@ impl GpuMeshStore {
 
     pub fn build_gpu_mesh(
         &mut self,
-        vertices: &Vec<Vec3>,
-        normals: &Vec<Vec3>,
+        vertices: &[Vec3],
+        normals: &[Vec3],
         indices: &[u32],
     ) -> GpuMeshId {
         let vertex_buffer = WriteableVecBuffer::new(
             &self.gpu_context,
             "mesh vertex buffer",
-            &vertices,
+            vertices,
             wgpu::BufferUsages::VERTEX,
         );
         let normal_buffer = WriteableVecBuffer::new(
             &self.gpu_context,
             "mesh normals buffer",
-            &normals,
+            normals,
             wgpu::BufferUsages::VERTEX,
         );
 

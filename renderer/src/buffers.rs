@@ -3,11 +3,10 @@ use std::{
     ops::{Range, RangeBounds},
 };
 
-use bytemuck::{NoUninit, bytes_of, must_cast_slice};
+use bytemuck::{bytes_of, must_cast_slice, NoUninit};
 use wgpu::{util::DeviceExt, Buffer, BufferUsages, IndexFormat};
 
 use crate::gpu_context::GpuContext;
-
 
 #[derive(Debug)]
 pub struct WriteableBuffer<T: NoUninit> {
@@ -90,9 +89,7 @@ impl<T: NoUninit> WriteableVecBuffer<T> {
             self.buffer = buffer;
             self.count = new_data.len();
         } else {
-            gpu_context
-                .queue()
-                .write_buffer(&self.buffer, 0, byte_data);
+            gpu_context.queue().write_buffer(&self.buffer, 0, byte_data);
         }
     }
 
@@ -111,9 +108,7 @@ impl<T: NoUninit> WriteableVecBuffer<T> {
             self.buffer = buffer;
             self.count = new_data.len();
         } else {
-            gpu_context
-                .queue()
-                .write_buffer(&self.buffer, 0, byte_data);
+            gpu_context.queue().write_buffer(&self.buffer, 0, byte_data);
         }
     }
 

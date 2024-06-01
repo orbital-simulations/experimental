@@ -10,7 +10,9 @@ use crate::resource_store::pipeline_layout::PipelineLayoutDescriptor;
 use crate::resource_store::render_pipeline::{
     FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
 };
-use crate::{buffers::IndexBuffer, rendering_context::RenderingContext, resource_store::shader::ShaderSource};
+use crate::{
+    buffers::IndexBuffer, rendering_context::RenderingContext, resource_store::shader::ShaderSource,
+};
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]

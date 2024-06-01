@@ -87,12 +87,7 @@ impl Renderer {
     }
 
     // This is probably something that could be made transparent.
-    pub fn add_mesh(
-        &mut self,
-        vertices: &Vec<Vec3>,
-        normals: &Vec<Vec3>,
-        indices: &[u32],
-    ) -> GpuMeshId {
+    pub fn add_mesh(&mut self, vertices: &[Vec3], normals: &[Vec3], indices: &[u32]) -> GpuMeshId {
         self.rendering_context
             .resource_store
             .build_gpu_mesh(vertices, normals, indices)
