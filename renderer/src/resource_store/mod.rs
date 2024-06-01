@@ -12,7 +12,11 @@ use glam::Vec3;
 use crate::{file_watcher::FileWatcher, gpu_context::GpuContext};
 
 use self::{
-    bind_group_layout::BindGroupLayoutStore, gpu_mesh::{GpuMesh, GpuMeshStore}, pipeline_layout::{PipelineLayoutDescriptor, PipelineLayoutStore}, render_pipeline::{RenderPipelineDescriptor, RenderPipelineStore}, shader::{ShaderSource, ShaderStore}
+    bind_group_layout::BindGroupLayoutStore,
+    gpu_mesh::{GpuMesh, GpuMeshStore},
+    pipeline_layout::{PipelineLayoutDescriptor, PipelineLayoutStore},
+    render_pipeline::{RenderPipelineDescriptor, RenderPipelineStore},
+    shader::{ShaderSource, ShaderStore},
 };
 
 pub use self::bind_group_layout::BindGroupLayoutId;

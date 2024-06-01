@@ -1,9 +1,6 @@
-use slotmap::{new_key_type, SlotMap};
-use super::{
-    bind_group_layout::BindGroupLayoutStore,
-    BindGroupLayoutId,
-};
+use super::{bind_group_layout::BindGroupLayoutStore, BindGroupLayoutId};
 use crate::gpu_context::GpuContext;
+use slotmap::{new_key_type, SlotMap};
 
 #[derive(Clone, Debug, Default)]
 pub struct PipelineLayoutDescriptor {

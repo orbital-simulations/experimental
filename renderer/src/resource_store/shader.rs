@@ -3,9 +3,9 @@ use std::{borrow::Cow, env, io::Read, path::PathBuf};
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use wgpu::ShaderModuleDescriptor;
 
-use crate::gpu_context::GpuContext;
 use super::reload_command::RebuildCommand;
 use crate::file_watcher::FileWatcher;
+use crate::gpu_context::GpuContext;
 
 new_key_type! {
     pub struct ShaderId;

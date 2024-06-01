@@ -3,8 +3,8 @@ use std::num::NonZeroU32;
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
 use super::pipeline_layout::{PipelineLayoutId, PipelineLayoutStore};
-use super::shader::{ShaderId, ShaderStore};
 use super::reload_command::RebuildCommand;
+use super::shader::{ShaderId, ShaderStore};
 use crate::gpu_context::GpuContext;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
@@ -89,16 +89,13 @@ impl RenderPipelineStore {
             shader_store,
             pipeline_layout_store,
         );
-        let id = self
-            .store
-            .insert(render_pipeline);
-        self.pipeline_descriptors.insert(id, render_pipeline_descriptor.clone());
-
+        let id = self.store.insert(render_pipeline);
+        self.pipeline_descriptors
+            .insert(id, render_pipeline_descriptor.clone());
 
         shader_store.register_dependant(vertex_shader_id, RebuildCommand::Pipeline(id));
         if let Some(fragmen_shader_id) = fragmen_shader_id {
-            shader_store
-                .register_dependant(fragmen_shader_id, RebuildCommand::Pipeline(id));
+            shader_store.register_dependant(fragmen_shader_id, RebuildCommand::Pipeline(id));
         }
         id
     }
