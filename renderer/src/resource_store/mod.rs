@@ -1,22 +1,32 @@
 pub mod bind_group_layout;
 pub mod gpu_mesh;
 pub mod pipeline_layout;
+pub mod reload_command;
 pub mod render_pipeline;
 pub mod shader;
 
+use std::env;
+
 use glam::Vec3;
 
-use crate::gpu_context::GpuContext;
+use crate::{file_watcher::FileWatcher, gpu_context::GpuContext};
 
 use self::{
-    bind_group_layout::{BindGroupLayoutId, BindGroupLayoutStore},
-    gpu_mesh::{GpuMesh, GpuMeshId, GpuMeshStore},
-    pipeline_layout::{PipelineLayoutDescriptor, PipelineLayoutId, PipelineLayoutStore},
-    render_pipeline::{PipelineId, RenderPipelineDescriptor, RenderPipelineStore},
-    shader::{ShaderId, ShaderSource, ShaderStore},
+    bind_group_layout::BindGroupLayoutStore,
+    gpu_mesh::{GpuMesh, GpuMeshStore},
+    pipeline_layout::{PipelineLayoutDescriptor, PipelineLayoutStore},
+    render_pipeline::{RenderPipelineDescriptor, RenderPipelineStore},
+    shader::{ShaderSource, ShaderStore},
 };
 
+pub use self::bind_group_layout::BindGroupLayoutId;
+pub use self::gpu_mesh::GpuMeshId;
+pub use self::pipeline_layout::PipelineLayoutId;
+pub use self::render_pipeline::PipelineId;
+pub use self::shader::ShaderId;
+
 pub struct ResourceStore {
+    file_watcher: FileWatcher,
     shader_store: ShaderStore,
     render_pipeline_store: RenderPipelineStore,
     pipeline_layout_store: PipelineLayoutStore,
@@ -25,20 +35,23 @@ pub struct ResourceStore {
 }
 
 impl ResourceStore {
-    pub fn new(gpu_context: &GpuContext) -> Self {
+    pub fn new(gpu_context: &GpuContext) -> eyre::Result<Self> {
         let bind_group_layout_store = BindGroupLayoutStore::new(gpu_context);
         let pipeline_layout_store = PipelineLayoutStore::new(gpu_context);
         let shader_store = ShaderStore::new(gpu_context);
         let render_pipeline_store = RenderPipelineStore::new(gpu_context);
         let gpu_mesh_store = GpuMeshStore::new(gpu_context);
+        let pwd = env::current_dir()?;
+        let file_watcher = FileWatcher::new(pwd)?;
 
-        Self {
+        Ok(Self {
             shader_store,
             render_pipeline_store,
             pipeline_layout_store,
             bind_group_layout_store,
             gpu_mesh_store,
-        }
+            file_watcher,
+        })
     }
 
     pub fn build_bind_group_layout(
@@ -74,7 +87,8 @@ impl ResourceStore {
     }
 
     pub fn build_shader(&mut self, shader_source: &ShaderSource) -> ShaderId {
-        self.shader_store.build_shader(shader_source)
+        self.shader_store
+            .build_shader(&mut self.file_watcher, shader_source)
     }
 
     pub fn get_shader(&self, shader_id: ShaderId) -> &wgpu::ShaderModule {
@@ -87,7 +101,7 @@ impl ResourceStore {
     ) -> PipelineId {
         self.render_pipeline_store.build_render_pipeline(
             bind_group_layout_descriptor,
-            &self.shader_store,
+            &mut self.shader_store,
             &self.pipeline_layout_store,
         )
     }
@@ -108,5 +122,27 @@ impl ResourceStore {
 
     pub fn get_gpu_mesh(&self, gpu_mesh_id: GpuMeshId) -> &GpuMesh {
         self.gpu_mesh_store.get_gpu_mesh(gpu_mesh_id)
+    }
+
+    pub fn reload_if_necessary(&mut self) {
+        let mut dependants = self.file_watcher.process_updates();
+        while let Some(dependant) = dependants.pop() {
+            let new_dependants = match dependant {
+                reload_command::RebuildCommand::Shader(shader_id) => {
+                    self.shader_store.rebuild(shader_id)
+                }
+                reload_command::RebuildCommand::Pipeline(pipeline_id) => {
+                    self.render_pipeline_store.rebuild(
+                        &self.shader_store,
+                        &self.pipeline_layout_store,
+                        pipeline_id,
+                    );
+                    Vec::new()
+                }
+            };
+            for new_dependant in new_dependants {
+                dependants.push(new_dependant.clone());
+            }
+        }
     }
 }

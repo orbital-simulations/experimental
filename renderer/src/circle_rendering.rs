@@ -1,11 +1,12 @@
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
+use crate::resource_store::PipelineId;
 use crate::transform::Transform;
 use glam::{Mat4, Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
 
 use crate::resource_store::pipeline_layout::PipelineLayoutDescriptor;
 use crate::resource_store::render_pipeline::{
-    FragmentState, PipelineId, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
+    FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
 };
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},

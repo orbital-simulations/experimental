@@ -13,8 +13,8 @@ pub struct RenderingContext {
 }
 
 impl RenderingContext {
-    pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> Self {
-        let mut resource_store = ResourceStore::new(gpu_context);
+    pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> eyre::Result<Self> {
+        let mut resource_store = ResourceStore::new(gpu_context)?;
         let primary_camera = Camera::new(
             gpu_context,
             &mut resource_store,
@@ -23,11 +23,11 @@ impl RenderingContext {
             primary_camera.size,
             primary_camera.depth_buffer,
         );
-        Self {
+        Ok(Self {
             gpu_context: gpu_context.clone(),
             primary_camera,
             resource_store,
-        }
+        })
     }
 
     pub fn wgpu_limits() -> wgpu::Limits {

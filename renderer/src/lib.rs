@@ -2,6 +2,7 @@ pub mod buffers;
 pub mod camera;
 pub mod circle_rendering;
 pub mod colors;
+pub mod file_watcher;
 pub mod gpu_context;
 pub mod line_rendering;
 pub mod mesh_rendering;
@@ -17,7 +18,7 @@ use std::sync::Arc;
 
 use glam::{Mat4, Vec2, Vec3};
 use mesh_rendering::{MeshBundle, MeshRendering};
-use resource_store::{gpu_mesh::GpuMeshId, render_pipeline::PipelineId};
+use resource_store::{GpuMeshId, PipelineId};
 
 use crate::{
     camera::PrimaryCamera,
@@ -46,19 +47,19 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> Self {
-        let mut rendering_context = RenderingContext::new(gpu_context, primary_camera);
+    pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> eyre::Result<Self> {
+        let mut rendering_context = RenderingContext::new(gpu_context, primary_camera)?;
         let circle_rendering = CircleRendering::new(&mut rendering_context);
         let rectangle_rendering = RectangleRendering::new(&mut rendering_context);
         let line_rendering = LineRenderering::new(&mut rendering_context);
         let mesh_rendering = MeshRendering::new(&mut rendering_context);
-        Self {
+        Ok(Self {
             rendering_context,
             circle_rendering,
             rectangle_rendering,
             line_rendering,
             mesh_rendering,
-        }
+        })
     }
 
     // Thinking about consuming the Circle because it needs to be recreated in
@@ -191,6 +192,7 @@ impl Renderer {
             .gpu_context
             .queue()
             .submit(std::iter::once(encoder.finish()));
+        self.rendering_context.resource_store.reload_if_necessary();
     }
 
     // For later use???

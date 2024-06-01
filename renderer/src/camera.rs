@@ -5,8 +5,7 @@ use wgpu::{BufferUsages, DepthStencilState};
 use crate::buffers::WriteableBuffer;
 use crate::gpu_context::GpuContext;
 use crate::projection::CameraProjection;
-use crate::resource_store::bind_group_layout::BindGroupLayoutId;
-use crate::resource_store::ResourceStore;
+use crate::resource_store::{BindGroupLayoutId, ResourceStore};
 
 #[derive(Debug, Clone)]
 pub struct PrimaryCamera {

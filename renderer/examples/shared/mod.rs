@@ -122,7 +122,7 @@ where
         }),
     };
 
-    let mut renderer = Renderer::new(&gpu_context, primary_camera);
+    let mut renderer = Renderer::new(&gpu_context, primary_camera).unwrap();
 
     render(&mut renderer);
 
