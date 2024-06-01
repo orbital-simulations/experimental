@@ -72,10 +72,6 @@ impl ShaderStore {
     }
 
     pub fn get_shader(&self, shader_id: ShaderId) -> &wgpu::ShaderModule {
-        // SAFETY: This works fine because we don't remove element and when we start removing them
-        // it will be done in a way that doesn't leave keys (ids) dangling.
-        unsafe {
-            self.store.get_unchecked(shader_id)
-        }
+        &self.store[shader_id]
     }
 }

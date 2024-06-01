@@ -34,10 +34,6 @@ impl BindGroupLayoutStore {
         &self,
         bind_group_id: BindGroupLayoutId,
     ) -> &wgpu::BindGroupLayout {
-        // SAFETY: This works fine because we don't remove element and when we start removing them
-        // it will be done in a way that doesn't leave keys (ids) dangling.
-        unsafe {
-            self.store.get_unchecked(bind_group_id)
-        }
+        &self.store[bind_group_id]
     }
 }

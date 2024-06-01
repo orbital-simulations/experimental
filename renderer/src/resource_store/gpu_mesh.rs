@@ -58,10 +58,6 @@ impl GpuMeshStore {
     }
 
     pub fn get_gpu_mesh(&self, gpu_mesh_id: GpuMeshId) -> &GpuMesh {
-        // SAFETY: This works fine because we don't remove element and when we start removing them
-        // it will be done in a way that doesn't leave keys (ids) dangling.
-        unsafe {
-            self.store.get_unchecked(gpu_mesh_id)
-        }
+        &self.store[gpu_mesh_id]
     }
 }

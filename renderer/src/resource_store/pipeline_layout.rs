@@ -60,10 +60,6 @@ impl PipelineLayoutStore {
         &self,
         pipeline_layout_id: PipelineLayoutId,
     ) -> &wgpu::PipelineLayout {
-        // SAFETY: This works fine because we don't remove element and when we start removing them
-        // it will be done in a way that doesn't leave keys (ids) dangling.
-        unsafe {
-            self.store.get_unchecked(pipeline_layout_id)
-        }
+        &self.store[pipeline_layout_id]
     }
 }

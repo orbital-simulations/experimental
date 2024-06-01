@@ -120,10 +120,6 @@ impl RenderPipelineStore {
     }
 
     pub fn get_render_pipeline(&self, pipeline_id: PipelineId) -> &wgpu::RenderPipeline {
-        // SAFETY: This works fine because we don't remove element and when we start removing them
-        // it will be done in a way that doesn't leave keys (ids) dangling.
-        unsafe {
-            self.store.get_unchecked(pipeline_id)
-        }
+        &self.store[pipeline_id]
     }
 }

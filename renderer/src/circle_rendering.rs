@@ -139,9 +139,7 @@ impl CircleRendering {
                 .resource_store
                 .build_pipeline_layout(&PipelineLayoutDescriptor {
                     label: "circle pipeline layout".to_string(),
-                    bind_group_layouts: vec![*rendering_context
-                        .primary_camera
-                        .bing_group_layout()],
+                    bind_group_layouts: vec![*rendering_context.primary_camera.bing_group_layout()],
                     push_constant_ranges: Vec::new(),
                 });
 
@@ -200,9 +198,7 @@ impl CircleRendering {
             .resource_store
             .build_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "circle line pipeline layout".to_string(),
-                bind_group_layouts: vec![*rendering_context
-                    .primary_camera
-                    .bing_group_layout()],
+                bind_group_layouts: vec![*rendering_context.primary_camera.bing_group_layout()],
                 push_constant_ranges: Vec::new(),
             });
 
