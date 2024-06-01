@@ -83,7 +83,7 @@ impl Camera {
             .device()
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("camera bind group"),
-                layout: resource_store.get_bing_group_layout(&bing_group_layout_id),
+                layout: resource_store.get_bing_group_layout(bing_group_layout_id),
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,

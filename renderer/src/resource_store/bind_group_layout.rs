@@ -1,17 +1,20 @@
-use super::store_base::{StoreBase, StoreEntityId};
+use slotmap::{new_key_type, SlotMap};
+
 use crate::gpu_context::GpuContext;
 
-pub type BindGroupLayoutId = StoreEntityId<wgpu::BindGroupLayout>;
+new_key_type! {
+    pub struct BindGroupLayoutId;
+}
 
 pub struct BindGroupLayoutStore {
-    store: StoreBase<wgpu::BindGroupLayout>,
+    store: SlotMap<BindGroupLayoutId, wgpu::BindGroupLayout>,
     gpu_context: GpuContext,
 }
 
 impl BindGroupLayoutStore {
     pub fn new(gpu_context: &GpuContext) -> Self {
         Self {
-            store: StoreBase::new(),
+            store: SlotMap::with_key(),
             gpu_context: gpu_context.clone(),
         }
     }
@@ -24,13 +27,17 @@ impl BindGroupLayoutStore {
             .gpu_context
             .device()
             .create_bind_group_layout(bind_group_layout_descriptor);
-        self.store.add(bind_group_layout)
+        self.store.insert(bind_group_layout)
     }
 
     pub fn get_bing_group_layout(
         &self,
-        bind_group_id: &BindGroupLayoutId,
+        bind_group_id: BindGroupLayoutId,
     ) -> &wgpu::BindGroupLayout {
-        self.store.get(bind_group_id)
+        // SAFETY: This works fine because we don't remove element and when we start removing them
+        // it will be done in a way that doesn't leave keys (ids) dangling.
+        unsafe {
+            self.store.get_unchecked(bind_group_id)
+        }
     }
 }

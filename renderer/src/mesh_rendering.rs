@@ -77,7 +77,7 @@ impl MeshRendering {
                 label: Some(TRANSFORMS_UNIFORM_BIND_GROUP_NAME),
                 layout: rendering_context
                     .resource_store
-                    .get_bing_group_layout(&transform_uniform_bind_group_layout),
+                    .get_bing_group_layout(transform_uniform_bind_group_layout),
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer(
@@ -112,8 +112,8 @@ impl MeshRendering {
                 .build_pipeline_layout(&PipelineLayoutDescriptor {
                     label: "3d mesh pipeline layout".to_string(),
                     bind_group_layouts: vec![
-                        rendering_context.primary_camera.bing_group_layout().clone(),
-                        self.transform_uniform_bind_group_layout.clone(),
+                        *rendering_context.primary_camera.bing_group_layout(),
+                        self.transform_uniform_bind_group_layout,
                     ],
                     push_constant_ranges: Vec::new(),
                 });
@@ -133,7 +133,7 @@ impl MeshRendering {
                 label: "3d mesh pipeline".to_string(),
                 layout: Some(pipeline_layout_id),
                 vertex: VertexState {
-                    module: shader_id.clone(),
+                    module: shader_id,
                     buffers: vec![
                         VertexBufferLayout {
                             array_stride: std::mem::size_of::<Vec3>() as u64,
@@ -162,7 +162,7 @@ impl MeshRendering {
                 depth_stencil: rendering_context.primary_camera.depth_stencil(),
                 multisample: wgpu::MultisampleState::default(),
                 fragment: Some(FragmentState {
-                    module: shader_id.clone(),
+                    module: shader_id,
                     targets: targets.clone(),
                 }),
                 multiview: None,
@@ -197,7 +197,7 @@ impl MeshRendering {
                         label: Some(TRANSFORMS_UNIFORM_BIND_GROUP_NAME),
                         layout: rendering_context
                             .resource_store
-                            .get_bing_group_layout(&self.transform_uniform_bind_group_layout),
+                            .get_bing_group_layout(self.transform_uniform_bind_group_layout),
                         entries: &[wgpu::BindGroupEntry {
                             binding: 0,
                             resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
@@ -221,11 +221,11 @@ impl MeshRendering {
             for (i, bundle) in self.bundles.iter().enumerate() {
                 let pipeline = &rendering_context
                     .resource_store
-                    .get_render_pipeline(&bundle.1.pipeline_id);
+                    .get_render_pipeline(bundle.1.pipeline_id);
 
                 let gpu_mesh = rendering_context
                     .resource_store
-                    .get_gpu_mesh(&bundle.1.mesh_id);
+                    .get_gpu_mesh(bundle.1.mesh_id);
 
                 render_pass.set_pipeline(pipeline);
                 render_pass.set_bind_group(0, rendering_context.primary_camera.bing_group(), &[]);

@@ -1,6 +1,6 @@
 use glam::Vec3;
+use slotmap::{new_key_type, SlotMap};
 
-use super::store_base::{StoreBase, StoreEntityId};
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer},
     gpu_context::GpuContext,
@@ -13,17 +13,19 @@ pub struct GpuMesh {
     pub index_buffer: IndexBuffer<u32>,
 }
 
-pub type GpuMeshId = StoreEntityId<GpuMesh>;
+new_key_type! {
+    pub struct GpuMeshId;
+}
 
 pub struct GpuMeshStore {
-    store: StoreBase<GpuMesh>,
+    store: SlotMap<GpuMeshId, GpuMesh>,
     gpu_context: GpuContext,
 }
 
 impl GpuMeshStore {
     pub fn new(gpu_context: &GpuContext) -> Self {
         GpuMeshStore {
-            store: StoreBase::new(),
+            store: SlotMap::with_key(),
             gpu_context: gpu_context.clone(),
         }
     }
@@ -48,14 +50,18 @@ impl GpuMeshStore {
         );
 
         let index_buffer = IndexBuffer::new(&self.gpu_context, "gpu mesh", indices);
-        self.store.add(GpuMesh {
+        self.store.insert(GpuMesh {
             vertex_buffer,
             normal_buffer,
             index_buffer,
         })
     }
 
-    pub fn get_gpu_mesh(&self, gpu_mesh_id: &GpuMeshId) -> &GpuMesh {
-        self.store.get(gpu_mesh_id)
+    pub fn get_gpu_mesh(&self, gpu_mesh_id: GpuMeshId) -> &GpuMesh {
+        // SAFETY: This works fine because we don't remove element and when we start removing them
+        // it will be done in a way that doesn't leave keys (ids) dangling.
+        unsafe {
+            self.store.get_unchecked(gpu_mesh_id)
+        }
     }
 }

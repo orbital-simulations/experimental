@@ -1,14 +1,16 @@
 use std::{borrow::Cow, env, io::Read, path::PathBuf};
 
+use slotmap::{new_key_type, SlotMap};
 use wgpu::ShaderModuleDescriptor;
 
-use super::store_base::{StoreBase, StoreEntityId};
 use crate::gpu_context::GpuContext;
 
-pub type ShaderId = StoreEntityId<wgpu::ShaderModule>;
+new_key_type! {
+    pub struct ShaderId;
+}
 
 pub struct ShaderStore {
-    store: StoreBase<wgpu::ShaderModule>,
+    store: SlotMap<ShaderId, wgpu::ShaderModule>,
     gpu_context: GpuContext,
 }
 
@@ -20,7 +22,7 @@ pub enum ShaderSource {
 impl ShaderStore {
     pub fn new(gpu_context: &GpuContext) -> Self {
         Self {
-            store: StoreBase::new(),
+            store: SlotMap::with_key(),
             gpu_context: gpu_context.clone(),
         }
     }
@@ -57,19 +59,23 @@ impl ShaderStore {
                             label: Some(file_path.as_os_str().to_str().unwrap()),
                             source: wgpu::ShaderSource::Wgsl(Cow::Owned(source)),
                         });
-                self.store.add(shader_module)
+                self.store.insert(shader_module)
             }
             ShaderSource::StaticFile(shader_module_descriptor) => {
                 let shader_module = self
                     .gpu_context
                     .device()
                     .create_shader_module(shader_module_descriptor.clone());
-                self.store.add(shader_module)
+                self.store.insert(shader_module)
             }
         }
     }
 
-    pub fn get_shader(&self, shader_id: &ShaderId) -> &wgpu::ShaderModule {
-        self.store.get(shader_id)
+    pub fn get_shader(&self, shader_id: ShaderId) -> &wgpu::ShaderModule {
+        // SAFETY: This works fine because we don't remove element and when we start removing them
+        // it will be done in a way that doesn't leave keys (ids) dangling.
+        unsafe {
+            self.store.get_unchecked(shader_id)
+        }
     }
 }

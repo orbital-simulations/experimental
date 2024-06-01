@@ -2130,6 +2130,7 @@ dependencies = [
  "glam 0.25.0",
  "image",
  "pollster",
+ "slotmap",
  "tracing",
  "tracing-subscriber",
  "wgpu",

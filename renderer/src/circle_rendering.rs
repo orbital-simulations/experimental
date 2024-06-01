@@ -139,10 +139,9 @@ impl CircleRendering {
                 .resource_store
                 .build_pipeline_layout(&PipelineLayoutDescriptor {
                     label: "circle pipeline layout".to_string(),
-                    bind_group_layouts: vec![rendering_context
+                    bind_group_layouts: vec![*rendering_context
                         .primary_camera
-                        .bing_group_layout()
-                        .clone()],
+                        .bing_group_layout()],
                     push_constant_ranges: Vec::new(),
                 });
 
@@ -153,7 +152,7 @@ impl CircleRendering {
                     label: "circle pipeline".to_string(),
                     layout: Some(circle_pipeline_layout_id),
                     vertex: VertexState {
-                        module: circle_shader_id.clone(),
+                        module: circle_shader_id,
                         buffers: vec![
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Vec2>() as u64,
@@ -191,7 +190,7 @@ impl CircleRendering {
                     depth_stencil: rendering_context.primary_camera.depth_stencil(),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(FragmentState {
-                        module: circle_shader_id.clone(),
+                        module: circle_shader_id,
                         targets: targets.clone(),
                     }),
                     multiview: None,
@@ -201,10 +200,9 @@ impl CircleRendering {
             .resource_store
             .build_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "circle line pipeline layout".to_string(),
-                bind_group_layouts: vec![rendering_context
+                bind_group_layouts: vec![*rendering_context
                     .primary_camera
-                    .bing_group_layout()
-                    .clone()],
+                    .bing_group_layout()],
                 push_constant_ranges: Vec::new(),
             });
 
@@ -215,7 +213,7 @@ impl CircleRendering {
                     label: "circle line pipeline".to_string(),
                     layout: Some(circle_line_pipeline_layout_id),
                     vertex: VertexState {
-                        module: circle_line_shader_id.clone(),
+                        module: circle_line_shader_id,
                         buffers: vec![
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Vec2>() as u64,
@@ -254,7 +252,7 @@ impl CircleRendering {
                     depth_stencil: rendering_context.primary_camera.depth_stencil(),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(FragmentState {
-                        module: circle_line_shader_id.clone(),
+                        module: circle_line_shader_id,
                         targets: targets.clone(),
                     }),
                     multiview: None,
@@ -299,7 +297,7 @@ impl CircleRendering {
 
             let pipeline = &rendering_context
                 .resource_store
-                .get_render_pipeline(&self.circles_pipeline);
+                .get_render_pipeline(self.circles_pipeline);
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, rendering_context.primary_camera.bing_group(), &[]);
@@ -332,7 +330,7 @@ impl CircleRendering {
 
             let pipeline = &rendering_context
                 .resource_store
-                .get_render_pipeline(&self.circle_lines_pipeline);
+                .get_render_pipeline(self.circle_lines_pipeline);
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, rendering_context.primary_camera.bing_group(), &[]);

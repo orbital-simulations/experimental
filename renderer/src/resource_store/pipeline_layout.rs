@@ -1,10 +1,7 @@
-use super::{
-    bind_group_layout::{BindGroupLayoutId, BindGroupLayoutStore},
-    store_base::{StoreBase, StoreEntityId},
-};
-use crate::gpu_context::GpuContext;
+use slotmap::{new_key_type, SlotMap};
 
-pub type PipelineLayoutId = StoreEntityId<wgpu::PipelineLayout>;
+use super::bind_group_layout::{BindGroupLayoutId, BindGroupLayoutStore};
+use crate::gpu_context::GpuContext;
 
 #[derive(Clone, Debug, Default)]
 pub struct PipelineLayoutDescriptor {
@@ -22,14 +19,18 @@ pub struct PipelineLayoutDescriptor {
 }
 
 pub struct PipelineLayoutStore {
-    store: StoreBase<wgpu::PipelineLayout>,
+    store: SlotMap<PipelineLayoutId, wgpu::PipelineLayout>,
     gpu_context: GpuContext,
+}
+
+new_key_type! {
+    pub struct PipelineLayoutId;
 }
 
 impl PipelineLayoutStore {
     pub fn new(gpu_context: &GpuContext) -> Self {
         Self {
-            store: StoreBase::new(),
+            store: SlotMap::with_key(),
             gpu_context: gpu_context.clone(),
         }
     }
@@ -44,7 +45,7 @@ impl PipelineLayoutStore {
             bind_group_layouts: &bind_group_layout_descriptor
                 .bind_group_layouts
                 .iter()
-                .map(|v| bind_group_layout_store.get_bing_group_layout(v))
+                .map(|v| bind_group_layout_store.get_bing_group_layout(*v))
                 .collect::<Vec<&wgpu::BindGroupLayout>>(),
             push_constant_ranges: &bind_group_layout_descriptor.push_constant_ranges,
         };
@@ -52,13 +53,17 @@ impl PipelineLayoutStore {
             .gpu_context
             .device()
             .create_pipeline_layout(&descriptor);
-        self.store.add(pipeline_layout)
+        self.store.insert(pipeline_layout)
     }
 
     pub fn get_pipeline_layout(
         &self,
-        pipeline_layout_id: &PipelineLayoutId,
+        pipeline_layout_id: PipelineLayoutId,
     ) -> &wgpu::PipelineLayout {
-        self.store.get(pipeline_layout_id)
+        // SAFETY: This works fine because we don't remove element and when we start removing them
+        // it will be done in a way that doesn't leave keys (ids) dangling.
+        unsafe {
+            self.store.get_unchecked(pipeline_layout_id)
+        }
     }
 }

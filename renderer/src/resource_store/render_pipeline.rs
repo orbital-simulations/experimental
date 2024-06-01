@@ -1,8 +1,9 @@
 use std::num::NonZeroU32;
 
+use slotmap::{new_key_type, SlotMap};
+
 use super::pipeline_layout::{PipelineLayoutId, PipelineLayoutStore};
 use super::shader::{ShaderId, ShaderStore};
-use super::store_base::{StoreBase, StoreEntityId};
 use crate::gpu_context::GpuContext;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
@@ -51,17 +52,19 @@ pub struct RenderPipelineDescriptor {
     pub multiview: Option<NonZeroU32>,
 }
 
-pub type PipelineId = StoreEntityId<wgpu::RenderPipeline>;
+new_key_type! {
+    pub struct PipelineId;
+}
 
 pub struct RenderPipelineStore {
-    store: StoreBase<wgpu::RenderPipeline>,
+    store: SlotMap<PipelineId, wgpu::RenderPipeline>,
     gpu_context: GpuContext,
 }
 
 impl RenderPipelineStore {
     pub fn new(gpu_context: &GpuContext) -> Self {
         Self {
-            store: StoreBase::new(),
+            store: SlotMap::with_key(),
             gpu_context: gpu_context.clone(),
         }
     }
@@ -83,7 +86,7 @@ impl RenderPipelineStore {
             })
             .collect::<Vec<wgpu::VertexBufferLayout>>();
         let vertex = wgpu::VertexState {
-            module: shader_store.get_shader(&bind_group_layout_descriptor.vertex.module),
+            module: shader_store.get_shader(bind_group_layout_descriptor.vertex.module),
             buffers: buffers.as_slice(),
             entry_point: "vs_main",
         };
@@ -92,7 +95,7 @@ impl RenderPipelineStore {
                 .fragment
                 .as_ref()
                 .map(|v| wgpu::FragmentState {
-                    module: shader_store.get_shader(&v.module),
+                    module: shader_store.get_shader(v.module),
                     entry_point: "fs_main",
                     targets: &v.targets,
                 });
@@ -101,7 +104,7 @@ impl RenderPipelineStore {
             layout: bind_group_layout_descriptor
                 .layout
                 .as_ref()
-                .map(|v| pipeline_layout_store.get_pipeline_layout(v)),
+                .map(|v| pipeline_layout_store.get_pipeline_layout(*v)),
             vertex,
             primitive: bind_group_layout_descriptor.primitive,
             depth_stencil: bind_group_layout_descriptor.depth_stencil.clone(),
@@ -113,10 +116,14 @@ impl RenderPipelineStore {
             .gpu_context
             .device()
             .create_render_pipeline(&bind_group_layout_descriptor);
-        self.store.add(bind_group_layout)
+        self.store.insert(bind_group_layout)
     }
 
-    pub fn get_render_pipeline(&self, pipeline_id: &PipelineId) -> &wgpu::RenderPipeline {
-        self.store.get(pipeline_id)
+    pub fn get_render_pipeline(&self, pipeline_id: PipelineId) -> &wgpu::RenderPipeline {
+        // SAFETY: This works fine because we don't remove element and when we start removing them
+        // it will be done in a way that doesn't leave keys (ids) dangling.
+        unsafe {
+            self.store.get_unchecked(pipeline_id)
+        }
     }
 }

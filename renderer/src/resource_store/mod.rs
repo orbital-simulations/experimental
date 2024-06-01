@@ -3,7 +3,6 @@ pub mod gpu_mesh;
 pub mod pipeline_layout;
 pub mod render_pipeline;
 pub mod shader;
-pub mod store_base;
 
 use glam::Vec3;
 
@@ -52,7 +51,7 @@ impl ResourceStore {
 
     pub fn get_bing_group_layout(
         &self,
-        bind_group_id: &BindGroupLayoutId,
+        bind_group_id: BindGroupLayoutId,
     ) -> &wgpu::BindGroupLayout {
         self.bind_group_layout_store
             .get_bing_group_layout(bind_group_id)
@@ -68,7 +67,7 @@ impl ResourceStore {
 
     pub fn get_pipeline_layout(
         &self,
-        pipeline_layout_id: &PipelineLayoutId,
+        pipeline_layout_id: PipelineLayoutId,
     ) -> &wgpu::PipelineLayout {
         self.pipeline_layout_store
             .get_pipeline_layout(pipeline_layout_id)
@@ -78,7 +77,7 @@ impl ResourceStore {
         self.shader_store.build_shader(shader_source)
     }
 
-    pub fn get_shader(&self, shader_id: &ShaderId) -> &wgpu::ShaderModule {
+    pub fn get_shader(&self, shader_id: ShaderId) -> &wgpu::ShaderModule {
         self.shader_store.get_shader(shader_id)
     }
 
@@ -93,7 +92,7 @@ impl ResourceStore {
         )
     }
 
-    pub fn get_render_pipeline(&self, pipeline_id: &PipelineId) -> &wgpu::RenderPipeline {
+    pub fn get_render_pipeline(&self, pipeline_id: PipelineId) -> &wgpu::RenderPipeline {
         self.render_pipeline_store.get_render_pipeline(pipeline_id)
     }
 
@@ -107,7 +106,7 @@ impl ResourceStore {
             .build_gpu_mesh(vertices, normals, indices)
     }
 
-    pub fn get_gpu_mesh(&self, gpu_mesh_id: &GpuMeshId) -> &GpuMesh {
+    pub fn get_gpu_mesh(&self, gpu_mesh_id: GpuMeshId) -> &GpuMesh {
         self.gpu_mesh_store.get_gpu_mesh(gpu_mesh_id)
     }
 }

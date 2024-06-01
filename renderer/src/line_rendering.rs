@@ -89,10 +89,9 @@ impl LineRenderering {
             .resource_store
             .build_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "line segment pipeline layout".to_string(),
-                bind_group_layouts: vec![rendering_context
+                bind_group_layouts: vec![*rendering_context
                     .primary_camera
-                    .bing_group_layout()
-                    .clone()],
+                    .bing_group_layout()],
                 push_constant_ranges: Vec::new(),
             });
 
@@ -103,7 +102,7 @@ impl LineRenderering {
                     label: "line segment pipeline".to_string(),
                     layout: Some(line_segment_pipeline_layout_id),
                     vertex: VertexState {
-                        module: line_segment_shader_id.clone(),
+                        module: line_segment_shader_id,
                         buffers: vec![
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Vec2>() as u64,
@@ -130,7 +129,7 @@ impl LineRenderering {
                     depth_stencil: rendering_context.primary_camera.depth_stencil(),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(FragmentState {
-                        module: line_segment_shader_id.clone(),
+                        module: line_segment_shader_id,
                         targets: targets.clone(),
                     }),
                     multiview: None,
@@ -160,7 +159,7 @@ impl LineRenderering {
 
             let pipeline = &rendering_context
                 .resource_store
-                .get_render_pipeline(&self.line_segment_pipeline);
+                .get_render_pipeline(self.line_segment_pipeline);
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, rendering_context.primary_camera.bing_group(), &[]);
