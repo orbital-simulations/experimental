@@ -89,8 +89,7 @@ impl<T: Sized + Gpu> Raw for Vec<T> {
     }
 }
 
-// TODO: This is something I don't like and I don't know how to make it vetter...
-impl<T: Sized + Gpu> Raw for [T; 4] {
+impl<T: Sized + Gpu, const N: usize > Raw for [T; N] {
     fn get_raw(&self) -> &[u8] {
         // SAFETY: This slice is supposed to be send to the GPU so the caller
         // must uphold the safety contract of the Gpu trait.
