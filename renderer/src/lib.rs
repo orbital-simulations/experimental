@@ -8,7 +8,6 @@ pub mod line_rendering;
 pub mod mesh_rendering;
 pub mod primitives;
 pub mod projection;
-pub mod raw;
 pub mod rectangle_rendering;
 pub mod rendering_context;
 pub mod resource_store;
@@ -88,12 +87,7 @@ impl Renderer {
     }
 
     // This is probably something that could be made transparent.
-    pub fn add_mesh(
-        &mut self,
-        vertices: &Vec<Vec3>,
-        normals: &Vec<Vec3>,
-        indices: &[u32],
-    ) -> GpuMeshId {
+    pub fn add_mesh(&mut self, vertices: &[Vec3], normals: &[Vec3], indices: &[u32]) -> GpuMeshId {
         self.rendering_context
             .resource_store
             .build_gpu_mesh(vertices, normals, indices)

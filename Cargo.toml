@@ -3,7 +3,7 @@ members = ["app", "physics", "game_engine", "renderer", "inspector"]
 resolver = "2"
 
 [workspace.dependencies]
-glam = "0.25"
+glam = { version = "0.25", features = ["bytemuck"] }
 tracing = "0.1"
 tracing-subscriber = {version = "0.3", features = ["env-filter"]}
 pollster = "0.3"
@@ -17,3 +17,4 @@ wgpu = "0.19"
 noise = "0.8"
 itertools = "0.12"
 egui = { version = "0.26", features = ["color-hex", "default_fonts", "log", "mint"] }
+bytemuck = { version = "1.16.0", features = ["derive", "must_cast"] }

@@ -1,11 +1,11 @@
+use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
 
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer},
+    buffers::{IndexBuffer, WriteableBuffer, WriteableVecBuffer},
     circle_rendering::Circle,
     primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES},
-    raw::Gpu,
     rendering_context::RenderingContext,
     resource_store::{
         pipeline_layout::PipelineLayoutDescriptor,
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
 pub struct Line {
     pub from: Vec3,
@@ -37,13 +37,9 @@ impl Line {
     }
 }
 
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for Line {}
-
 pub struct LineRenderering {
     line_segments: Vec<Line>,
-    line_segments_buffer: WriteableBuffer<Vec<Line>>,
+    line_segments_buffer: WriteableVecBuffer<Line>,
     line_segment_pipeline: PipelineId,
     quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
     quad_index_buffer: IndexBuffer<u16>,
@@ -52,7 +48,7 @@ pub struct LineRenderering {
 impl LineRenderering {
     pub fn new(rendering_context: &mut RenderingContext) -> Self {
         let line_segments = Vec::new();
-        let line_segments_buffer = WriteableBuffer::new(
+        let line_segments_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "line segments buffer",
             &line_segments,
@@ -144,7 +140,7 @@ impl LineRenderering {
     }
 
     pub fn add_line_segment(&mut self, line_segment: &Line) {
-        self.line_segments.push(line_segment.clone());
+        self.line_segments.push(*line_segment);
     }
 
     pub fn render<'a>(

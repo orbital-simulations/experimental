@@ -1,6 +1,8 @@
+use crate::buffers::WriteableBuffer;
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::resource_store::PipelineId;
 use crate::transform::Transform;
+use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
 
@@ -9,20 +11,19 @@ use crate::resource_store::render_pipeline::{
     FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
 };
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer},
-    raw::Gpu,
+    buffers::{IndexBuffer, WriteableVecBuffer},
     rendering_context::RenderingContext,
     resource_store::shader::ShaderSource,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
 pub struct Rectangle {
     size: Vec2,
     color: Vec3,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
 pub struct RectangleLine {
     size: Vec2,
@@ -30,19 +31,11 @@ pub struct RectangleLine {
     border: f32,
 }
 
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for Rectangle {}
-
 impl Rectangle {
     pub fn new(size: Vec2, color: Vec3) -> Self {
         Self { size, color }
     }
 }
-
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for RectangleLine {}
 
 impl RectangleLine {
     pub fn new(size: Vec2, color: Vec3, border: f32) -> Self {
@@ -55,14 +48,14 @@ impl RectangleLine {
 }
 
 pub struct RectangleRendering {
-    rectangles_buffer: WriteableBuffer<Vec<Rectangle>>,
+    rectangles_buffer: WriteableVecBuffer<Rectangle>,
     rectangles: Vec<Rectangle>,
     rectangles_transforms: Vec<Mat4>,
-    rectangles_transforms_buffer: WriteableBuffer<Vec<Mat4>>,
-    rectangle_lines_buffer: WriteableBuffer<Vec<RectangleLine>>,
+    rectangles_transforms_buffer: WriteableVecBuffer<Mat4>,
+    rectangle_lines_buffer: WriteableVecBuffer<RectangleLine>,
     rectangle_lines: Vec<RectangleLine>,
     rectangle_lines_transforms: Vec<Mat4>,
-    rectangle_lines_transforms_buffer: WriteableBuffer<Vec<Mat4>>,
+    rectangle_lines_transforms_buffer: WriteableVecBuffer<Mat4>,
     quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
     quad_index_buffer: IndexBuffer<u16>,
     rectangles_pipeline: PipelineId,
@@ -72,14 +65,14 @@ pub struct RectangleRendering {
 impl RectangleRendering {
     pub fn new(rendering_context: &mut RenderingContext) -> Self {
         let rectangles = Vec::new();
-        let rectangles_buffer = WriteableBuffer::new(
+        let rectangles_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "rectangles buffer",
             &rectangles,
             wgpu::BufferUsages::VERTEX,
         );
         let rectangle_lines = Vec::new();
-        let rectangle_lines_buffer = WriteableBuffer::new(
+        let rectangle_lines_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "rectangle lines buffer",
             &rectangle_lines,
@@ -87,14 +80,14 @@ impl RectangleRendering {
         );
 
         let rectangles_transforms = Vec::new();
-        let rectangles_transforms_buffer = WriteableBuffer::new(
+        let rectangles_transforms_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "rectangle transforms buffer",
             &rectangles_transforms,
             wgpu::BufferUsages::VERTEX,
         );
         let rectangle_lines_transforms = Vec::new();
-        let rectangle_lines_transforms_buffer = WriteableBuffer::new(
+        let rectangle_lines_transforms_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "rectangle line transforms buffer",
             &rectangle_lines_transforms,
@@ -272,12 +265,12 @@ impl RectangleRendering {
     }
 
     pub fn add_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {
-        self.rectangles.push(rectangle.clone());
+        self.rectangles.push(*rectangle);
         self.rectangles_transforms.push(transform.matrix());
     }
 
     pub fn add_rectangle_line(&mut self, transform: &Transform, rectangle: &RectangleLine) {
-        self.rectangle_lines.push(rectangle.clone());
+        self.rectangle_lines.push(*rectangle);
         self.rectangle_lines_transforms.push(transform.matrix());
     }
 

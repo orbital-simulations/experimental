@@ -1,10 +1,10 @@
 use std::mem::size_of;
 
+use bytemuck::bytes_of;
 use glam::{Mat4, Vec3};
 use wgpu::vertex_attr_array;
 
 use crate::{
-    raw::Raw,
     rendering_context::RenderingContext,
     resource_store::{
         pipeline_layout::PipelineLayoutDescriptor,
@@ -213,7 +213,7 @@ impl MeshRendering {
                 rendering_context.gpu_context.queue().write_buffer(
                     &self.transform_uniform_buffer,
                     aligned_size * i as u64,
-                    bundle.0.matrix().get_raw(),
+                    bytes_of(&bundle.0.matrix()),
                 );
             }
 

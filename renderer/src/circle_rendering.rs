@@ -1,6 +1,8 @@
+use crate::buffers::{WriteableBuffer, WriteableVecBuffer};
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::resource_store::PipelineId;
 use crate::transform::Transform;
+use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
 
@@ -9,20 +11,17 @@ use crate::resource_store::render_pipeline::{
     FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
 };
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer},
-    raw::Gpu,
-    rendering_context::RenderingContext,
-    resource_store::shader::ShaderSource,
+    buffers::IndexBuffer, rendering_context::RenderingContext, resource_store::shader::ShaderSource,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
 pub struct Circle {
     color: Vec3, // TODO: Maybe the collor should be with alpha????
     radius: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
 pub struct CircleLine {
     color: Vec3,
@@ -30,19 +29,11 @@ pub struct CircleLine {
     border: f32,
 }
 
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for Circle {}
-
 impl Circle {
     pub fn new(radius: f32, color: Vec3) -> Self {
         Self { radius, color }
     }
 }
-
-// SAFETY: This is fine because we make sure the corresponding Attribute
-// definitions are defined correctly.
-unsafe impl Gpu for CircleLine {}
 
 impl CircleLine {
     pub fn new(radius: f32, color: Vec3, border: f32) -> Self {
@@ -55,14 +46,14 @@ impl CircleLine {
 }
 
 pub struct CircleRendering {
-    circles_buffer: WriteableBuffer<Vec<Circle>>,
+    circles_buffer: WriteableVecBuffer<Circle>,
     circles: Vec<Circle>,
     circles_transforms: Vec<Mat4>,
-    circles_transforms_buffer: WriteableBuffer<Vec<Mat4>>,
-    circle_lines_buffer: WriteableBuffer<Vec<CircleLine>>,
+    circles_transforms_buffer: WriteableVecBuffer<Mat4>,
+    circle_lines_buffer: WriteableVecBuffer<CircleLine>,
     circle_lines: Vec<CircleLine>,
     circle_lines_transforms: Vec<Mat4>,
-    circle_lines_transforms_buffer: WriteableBuffer<Vec<Mat4>>,
+    circle_lines_transforms_buffer: WriteableVecBuffer<Mat4>,
     quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
     quad_index_buffer: IndexBuffer<u16>,
     circles_pipeline: PipelineId,
@@ -72,14 +63,14 @@ pub struct CircleRendering {
 impl CircleRendering {
     pub fn new(rendering_context: &mut RenderingContext) -> Self {
         let circles = Vec::new();
-        let circles_buffer = WriteableBuffer::new(
+        let circles_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "circles buffer",
             &circles,
             wgpu::BufferUsages::VERTEX,
         );
         let circle_lines = Vec::new();
-        let circle_lines_buffer = WriteableBuffer::new(
+        let circle_lines_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "circle lines buffer",
             &circle_lines,
@@ -87,14 +78,14 @@ impl CircleRendering {
         );
 
         let circles_transforms = Vec::new();
-        let circles_transforms_buffer = WriteableBuffer::new(
+        let circles_transforms_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "circle transforms buffer",
             &circles_transforms,
             wgpu::BufferUsages::VERTEX,
         );
         let circle_lines_transforms = Vec::new();
-        let circle_lines_transforms_buffer = WriteableBuffer::new(
+        let circle_lines_transforms_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
             "circle line transforms buffer",
             &circle_lines_transforms,
@@ -272,12 +263,12 @@ impl CircleRendering {
     }
 
     pub fn add_circle(&mut self, transform: &Transform, circle: &Circle) {
-        self.circles.push(circle.clone());
+        self.circles.push(*circle);
         self.circles_transforms.push(transform.matrix());
     }
 
     pub fn add_circle_line(&mut self, transform: &Transform, circle: &CircleLine) {
-        self.circle_lines.push(circle.clone());
+        self.circle_lines.push(*circle);
         self.circle_lines_transforms.push(transform.matrix());
     }
 
