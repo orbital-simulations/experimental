@@ -15,7 +15,7 @@ use tracing::debug;
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
 
-const CIRCLE_NUMBER: usize = 1000;
+const CIRCLE_NUMBER: usize = 100;
 
 pub struct GameState {
     engine: Engine,
@@ -107,7 +107,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                         p.pos.as_vec2().x,
                         p.pos.as_vec2().y,
                         0.0,
-                    )),
+                    )).to_world(),
                     &Circle::new(radius as f32, RED),
                 );
             }
@@ -116,7 +116,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 let tangent = DVec2::from_angle(normal_angle).perp();
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line(&Line {
+                renderer.draw_line(&Transform::IDENTITY.to_world(),&Line {
                     from: Vec3::new(from.x as f32, from.y as f32, 0.0),
                     to: Vec3::new(to.x as f32, to.y as f32, 0.0),
                     color: YELLOW,

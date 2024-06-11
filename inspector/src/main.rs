@@ -149,12 +149,13 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         match p.shape {
             Shape::Circle { radius } => {
                 renderer.draw_circle_line(
-                    &Transform::from_translation(&Vec3::new(p.pos.x as f32, p.pos.y as f32, 0.0)),
+                    &Transform::from_translation(&Vec3::new(p.pos.x as f32, p.pos.y as f32, 0.0)).to_world(),
                     &CircleLine::new(radius as f32, RED, 3.0),
                 );
                 let direction = DMat2::from_angle(p.angle) * DVec2::X;
                 let to = (p.pos + direction * radius).as_vec2();
-                renderer.draw_line(&Line::new(
+                renderer.draw_line(&Transform::IDENTITY.to_world()
+                    ,&Line::new(
                     Vec3::new(p.pos.x as f32, p.pos.y as f32, 0.0),
                     Vec3::new(to.x, to.y, 0.0),
                     RED,
@@ -166,7 +167,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 let tangent = DVec2::from_angle(normal_angle).perp();
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line(&Line::new(
+                renderer.draw_line(&Transform::IDENTITY.to_world(),&Line::new(
                     Vec3::new(from.x as f32, from.y as f32, 0.0),
                     Vec3::new(to.x as f32, to.y as f32, 0.0),
                     YELLOW,

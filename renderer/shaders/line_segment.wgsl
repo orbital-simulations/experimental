@@ -6,10 +6,14 @@ struct VertexInput {
 }
 
 struct InstanceInput {
-    @location(1) p1: vec3<f32>,
-    @location(2) p2: vec3<f32>,
-    @location(3) color: vec3<f32>,
-    @location(4) width: f32,
+    @location(1) affine_matrix_1: vec3<f32>,
+    @location(2) affine_matrix_2: vec3<f32>,
+    @location(3) affine_matrix_3: vec3<f32>,
+    @location(4) translation_vector: vec3<f32>,
+    @location(5) p1: vec3<f32>,
+    @location(6) p2: vec3<f32>,
+    @location(7) color: vec3<f32>,
+    @location(8) width: f32,
 }
 
 struct VertexOutput {

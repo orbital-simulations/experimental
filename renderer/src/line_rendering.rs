@@ -14,7 +14,7 @@ use crate::{
         },
         shader::ShaderSource,
         PipelineId,
-    },
+    }, transform::{WorldTransform, WorldTransformGpuRepresentation},
 };
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
@@ -40,6 +40,8 @@ impl Line {
 pub struct LineRenderering {
     line_segments: Vec<Line>,
     line_segments_buffer: WriteableVecBuffer<Line>,
+    line_segments_transforms: Vec<WorldTransformGpuRepresentation>,
+    line_segments_transforms_buffer: WriteableVecBuffer<WorldTransformGpuRepresentation>,
     line_segment_pipeline: PipelineId,
     quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
     quad_index_buffer: IndexBuffer<u16>,
@@ -52,6 +54,14 @@ impl LineRenderering {
             &rendering_context.gpu_context,
             "line segments buffer",
             &line_segments,
+            wgpu::BufferUsages::VERTEX,
+        );
+
+        let line_segments_transforms = Vec::new();
+        let line_segments_transforms_buffer = WriteableVecBuffer::new(
+            &rendering_context.gpu_context,
+            "line segments transforms buffer",
+            &line_segments_transforms,
             wgpu::BufferUsages::VERTEX,
         );
 
@@ -105,9 +115,14 @@ impl LineRenderering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
+                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>() as u64,
+                                step_mode: wgpu::VertexStepMode::Instance,
+                                attributes: WorldTransformGpuRepresentation::vertex_attributes(1, 2, 3, 4)
+                            },
+                            VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Circle>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: vertex_attr_array![1 => Float32x3, 2 => Float32x3, 3 => Float32x3, 4 => Float32]
+                                attributes: vertex_attr_array![5 => Float32x3, 6 => Float32x3, 7 => Float32x3, 8 => Float32]
                                     .to_vec(),
                             },
                         ],
@@ -136,11 +151,14 @@ impl LineRenderering {
             line_segment_pipeline,
             quad_vertex_buffer,
             quad_index_buffer,
+            line_segments_transforms,
+            line_segments_transforms_buffer,
         }
     }
 
-    pub fn add_line_segment(&mut self, line_segment: &Line) {
+    pub fn add_line_segment(&mut self, transform: &WorldTransform, line_segment: &Line) {
         self.line_segments.push(*line_segment);
+        self.line_segments_transforms.push(transform.gpu());
     }
 
     pub fn render<'a>(
@@ -151,6 +169,8 @@ impl LineRenderering {
         if !self.line_segments.is_empty() {
             self.line_segments_buffer
                 .write_data(&rendering_context.gpu_context, &self.line_segments);
+            self.line_segments_transforms_buffer
+                .write_data(&rendering_context.gpu_context, &self.line_segments_transforms);
 
             let pipeline = &rendering_context
                 .resource_store
@@ -159,7 +179,8 @@ impl LineRenderering {
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, rendering_context.primary_camera.bing_group(), &[]);
             render_pass.set_vertex_buffer(0, self.quad_vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.line_segments_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.line_segments_transforms_buffer.slice(..));
+            render_pass.set_vertex_buffer(2, self.line_segments_buffer.slice(..));
             render_pass.set_index_buffer(
                 self.quad_index_buffer.slice(..),
                 self.quad_index_buffer.index_format(),
