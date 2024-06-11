@@ -6,7 +6,7 @@ mod shared;
 fn main() -> color_eyre::eyre::Result<()> {
     pollster::block_on(shared::run(|renderer| {
         renderer.draw_rectangle(
-            &Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)),
+            &Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)).into(),
             &Rectangle::new(Vec2::new(200., 100.), GREEN),
         );
     }))?;

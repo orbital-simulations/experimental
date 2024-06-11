@@ -18,6 +18,7 @@ use std::sync::Arc;
 use glam::{Mat4, Vec2, Vec3};
 use mesh_rendering::{MeshBundle, MeshRendering};
 use resource_store::{GpuMeshId, PipelineId};
+use transform::WorldTransform;
 
 use crate::{
     camera::PrimaryCamera,
@@ -64,26 +65,31 @@ impl Renderer {
     // Thinking about consuming the Circle because it needs to be recreated in
     // the next render cycle anyway. On the other hand if it is an reference
     // then user can draw the same circle multiple times without much hassle.
-    pub fn draw_circle(&mut self, transform: &Transform, circle: &Circle) {
+    pub fn draw_circle(&mut self, transform: &WorldTransform, circle: &Circle) {
         self.circle_rendering.add_circle(transform, circle);
     }
 
-    pub fn draw_circle_line(&mut self, transform: &Transform, circle_line: &CircleLine) {
+    pub fn draw_circle_line(&mut self, transform: &WorldTransform, circle_line: &CircleLine) {
         self.circle_rendering
             .add_circle_line(transform, circle_line);
     }
 
-    pub fn draw_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {
+    pub fn draw_rectangle(&mut self, transform: &WorldTransform, rectangle: &Rectangle) {
         self.rectangle_rendering.add_rectangle(transform, rectangle);
     }
 
-    pub fn draw_rectangle_line(&mut self, transform: &Transform, rectangle_line: &RectangleLine) {
+    pub fn draw_rectangle_line(
+        &mut self,
+        transform: &WorldTransform,
+        rectangle_line: &RectangleLine,
+    ) {
         self.rectangle_rendering
             .add_rectangle_line(transform, rectangle_line);
     }
 
-    pub fn draw_line(&mut self, line_segment: &Line) {
-        self.line_rendering.add_line_segment(line_segment);
+    pub fn draw_line(&mut self, transform: &WorldTransform, line_segment: &Line) {
+        self.line_rendering
+            .add_line_segment(transform, line_segment);
     }
 
     // This is probably something that could be made transparent.
@@ -99,7 +105,7 @@ impl Renderer {
             .create_3d_pipeline(&mut self.rendering_context, shader)
     }
 
-    pub fn draw_mesh(&mut self, transform: &Transform, mesh_bundle: &MeshBundle) {
+    pub fn draw_mesh(&mut self, transform: &WorldTransform, mesh_bundle: &MeshBundle) {
         self.mesh_rendering.add_mesh_bundle(transform, mesh_bundle);
     }
 

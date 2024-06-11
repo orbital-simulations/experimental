@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use bytemuck::bytes_of;
-use glam::{Mat4, Vec3};
+use glam::Vec3;
 use wgpu::vertex_attr_array;
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
         shader::ShaderSource,
         BindGroupLayoutId, GpuMeshId, PipelineId,
     },
-    transform::Transform,
+    transform::{WorldTransform, WorldTransformGpuRepresentation},
 };
 
 #[derive(Debug, Clone)]
@@ -24,7 +24,7 @@ pub struct MeshBundle {
 }
 
 pub struct MeshRendering {
-    bundles: Vec<(Transform, MeshBundle)>,
+    bundles: Vec<(WorldTransform, MeshBundle)>,
     transform_uniform_bind_group_layout: BindGroupLayoutId,
     transform_uniform_bind_group: wgpu::BindGroup,
     transform_uniform_buffer: wgpu::Buffer,
@@ -94,8 +94,8 @@ impl MeshRendering {
         }
     }
 
-    pub fn add_mesh_bundle(&mut self, transform: &Transform, mesh_bundle: &MeshBundle) {
-        self.bundles.push((transform.clone(), mesh_bundle.clone()));
+    pub fn add_mesh_bundle(&mut self, transform: &WorldTransform, mesh_bundle: &MeshBundle) {
+        self.bundles.push((*transform, mesh_bundle.clone()));
     }
 
     pub fn create_3d_pipeline(
@@ -175,7 +175,7 @@ impl MeshRendering {
     ) {
         if !self.bundles.is_empty() {
             let aligned_size = ceil_to_next_multiple(
-                size_of::<Mat4>(),
+                size_of::<WorldTransformGpuRepresentation>(),
                 RenderingContext::wgpu_limits().min_uniform_buffer_offset_alignment,
             );
             if self.transform_uniform_buffer_size < self.bundles.len() {
@@ -203,7 +203,12 @@ impl MeshRendering {
                                 buffer: &self.transform_uniform_buffer,
                                 offset: 0,
                                 size: Some(
-                                    std::num::NonZeroU64::new(size_of::<Mat4>() as u64).unwrap(),
+                                    std::num::NonZeroU64::new(size_of::<
+                                        WorldTransformGpuRepresentation,
+                                    >(
+                                    )
+                                        as u64)
+                                    .unwrap(),
                                 ),
                             }),
                         }],
@@ -213,7 +218,7 @@ impl MeshRendering {
                 rendering_context.gpu_context.queue().write_buffer(
                     &self.transform_uniform_buffer,
                     aligned_size * i as u64,
-                    bytes_of(&bundle.0.matrix()),
+                    bytes_of(&bundle.0.gpu()),
                 );
             }
 
