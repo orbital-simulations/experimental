@@ -108,7 +108,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                         p.pos.as_vec2().y,
                         0.0,
                     ))
-                    .to_world(),
+                    .into(),
                     &Circle::new(radius as f32, RED),
                 );
             }
@@ -118,7 +118,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
                 renderer.draw_line(
-                    &Transform::IDENTITY.to_world(),
+                    &Transform::IDENTITY.into(),
                     &Line {
                         from: Vec3::new(from.x as f32, from.y as f32, 0.0),
                         to: Vec3::new(to.x as f32, to.y as f32, 0.0),

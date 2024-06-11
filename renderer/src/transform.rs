@@ -63,14 +63,6 @@ impl Transform {
     pub fn set_scale(&mut self, scale: &Vec3) {
         self.scale = *scale;
     }
-
-    pub fn to_world(&self) -> WorldTransform {
-        WorldTransform(Affine3A::from_scale_rotation_translation(
-            self.scale,
-            self.rotate,
-            self.translate,
-        ))
-    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -79,6 +71,16 @@ pub struct WorldTransform(Affine3A);
 impl WorldTransform {
     pub fn gpu(&self) -> WorldTransformGpuRepresentation {
         WorldTransformGpuRepresentation(self.0.to_cols_array())
+    }
+}
+
+impl From<Transform> for WorldTransform {
+    fn from(value: Transform) -> Self {
+        WorldTransform(Affine3A::from_scale_rotation_translation(
+            value.scale,
+            value.rotate,
+            value.translate,
+        ))
     }
 }
 
