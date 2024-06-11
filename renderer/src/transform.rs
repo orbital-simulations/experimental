@@ -1,7 +1,9 @@
+use std::ops::Mul;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Affine3A, EulerRot, Quat, Vec3};
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct Transform {
     translate: Vec3,
     scale: Vec3,
@@ -62,6 +64,36 @@ impl Transform {
 
     pub fn set_scale(&mut self, scale: &Vec3) {
         self.scale = *scale;
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Transform::IDENTITY
+    }
+}
+
+impl Mul for Transform {
+    type Output = Transform;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Transform {
+            translate: self.translate + self.rotate.mul_vec3(rhs.translate * self.scale),
+            scale: self.scale * rhs.scale,
+            rotate: self.rotate * rhs.rotate,
+        }
+    }
+}
+
+impl<'a> Mul<&'a Transform> for &'a Transform {
+    type Output = Transform;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Transform {
+            translate: self.translate + self.rotate.mul_vec3(rhs.translate * self.scale),
+            scale: self.scale * rhs.scale,
+            rotate: self.rotate * rhs.rotate,
+        }
     }
 }
 

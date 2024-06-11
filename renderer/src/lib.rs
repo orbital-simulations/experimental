@@ -1,3 +1,4 @@
+pub mod actor;
 pub mod buffers;
 pub mod camera;
 pub mod circle_rendering;
@@ -15,6 +16,7 @@ pub mod transform;
 
 use std::sync::Arc;
 
+use actor::Actor;
 use glam::{Mat4, Vec2, Vec3};
 use mesh_rendering::{MeshBundle, MeshRendering};
 use resource_store::{GpuMeshId, PipelineId};
@@ -107,6 +109,16 @@ impl Renderer {
 
     pub fn draw_mesh(&mut self, transform: &WorldTransform, mesh_bundle: &MeshBundle) {
         self.mesh_rendering.add_mesh_bundle(transform, mesh_bundle);
+    }
+
+    pub fn draw_actor(&mut self, actor: &Actor) {
+        Actor::draw_actors(
+            actor,
+            &mut self.line_rendering,
+            &mut self.rectangle_rendering,
+            &mut self.mesh_rendering,
+            &mut self.circle_rendering,
+        );
     }
 
     pub fn draw_instanced_mesh(&mut self, _transform: &[Transform], _mesh_bundle: &MeshBundle) {

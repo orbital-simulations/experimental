@@ -6,7 +6,7 @@ use game_engine::{
     obj_loader::load_model_static,
     GameEngine,
 };
-use glam::Vec3;
+use glam::{vec3, Vec3};
 use noise::{NoiseFn, SuperSimplex};
 use renderer::{
     mesh_rendering::MeshBundle, resource_store::shader::ShaderSource, transform::Transform,
@@ -133,18 +133,18 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
 
 fn render(state: &GameState, renderer: &mut Renderer) {
     renderer.draw_mesh(
-        &Transform::from_translation(&Vec3::new(0.0, 0.0, 0.0)).into(),
+        &Transform::from_translation(&vec3(0.0, 0.0, 0.0)).into(),
         &state.terain_bundle,
     );
 
     let mut cube_transform =
-        Transform::from_rotation_euler(&Vec3::new(0.0, 0.0, state.cube_rotation));
-    cube_transform.set_translation(&Vec3::new(-10.0, 100.0, 10.0));
+        Transform::from_rotation_euler(&vec3(0.0, 0.0, state.cube_rotation));
+    cube_transform.set_translation(&vec3(-10.0, 100.0, 10.0));
 
     renderer.draw_mesh(&cube_transform.into(), &state.cube_bundle);
     let mut reload_cube_transform =
-        Transform::from_rotation_euler(&Vec3::new(0.0, 0.0, state.cube_rotation));
-    reload_cube_transform.set_translation(&Vec3::new(-10.0, 80.0, 10.0));
+        Transform::from_rotation_euler(&vec3(0.0, 0.0, state.cube_rotation));
+    reload_cube_transform.set_translation(&vec3(-10.0, 80.0, 10.0));
     renderer.draw_mesh(&reload_cube_transform.into(), &state.reload_cube_bundle);
 }
 

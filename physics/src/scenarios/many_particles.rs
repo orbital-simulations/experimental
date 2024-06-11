@@ -8,7 +8,7 @@ use crate::{Engine, Particle, Shape};
 use super::Scenario;
 
 const CIRCLE_NUMBER: usize = 100;
-const GRAVITY: DVec2 = DVec2::new(0.0, -9.81);
+const GRAVITY: DVec2 = dvec2(0.0, -9.81);
 
 pub struct ManyParticles {}
 
