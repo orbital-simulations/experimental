@@ -8,11 +8,12 @@ fn main() -> color_eyre::eyre::Result<()> {
         renderer.draw_line(
             &Transform::IDENTITY.to_world(),
             &Line {
-            from: Vec3::new(0.0, 0.0, 0.0),
-            to: Vec3::new(200.0, 100.0, 0.0),
-            color: GREEN,
-            width: 10.,
-        });
+                from: Vec3::new(0.0, 0.0, 0.0),
+                to: Vec3::new(200.0, 100.0, 0.0),
+                color: GREEN,
+                width: 10.,
+            },
+        );
     }))?;
     Ok(())
 }

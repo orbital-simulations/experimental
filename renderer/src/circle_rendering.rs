@@ -150,9 +150,12 @@ impl CircleRendering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>() as u64,
+                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>()
+                                    as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: WorldTransformGpuRepresentation::vertex_attributes(1, 2, 3, 4)
+                                attributes: WorldTransformGpuRepresentation::vertex_attributes(
+                                    1, 2, 3, 4,
+                                ),
                             },
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Circle>() as u64,
@@ -203,9 +206,12 @@ impl CircleRendering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>() as u64,
+                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>()
+                                    as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: WorldTransformGpuRepresentation::vertex_attributes(1, 2, 3, 4)
+                                attributes: WorldTransformGpuRepresentation::vertex_attributes(
+                                    1, 2, 3, 4,
+                                ),
                             },
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<CircleLine>() as u64,

@@ -10,10 +10,10 @@ pub struct Transform {
 
 impl Transform {
     pub const IDENTITY: Transform = Transform {
-            translate: Vec3::ZERO,
-            scale: Vec3::ONE,
-            rotate: Quat::IDENTITY,
-        };
+        translate: Vec3::ZERO,
+        scale: Vec3::ONE,
+        rotate: Quat::IDENTITY,
+    };
 
     pub fn from_translation(position: &Vec3) -> Self {
         Self {
@@ -65,7 +65,11 @@ impl Transform {
     }
 
     pub fn to_world(&self) -> WorldTransform {
-        WorldTransform(Affine3A::from_scale_rotation_translation(self.scale, self.rotate, self.translate))
+        WorldTransform(Affine3A::from_scale_rotation_translation(
+            self.scale,
+            self.rotate,
+            self.translate,
+        ))
     }
 }
 
@@ -76,7 +80,6 @@ impl WorldTransform {
     pub fn gpu(&self) -> WorldTransformGpuRepresentation {
         WorldTransformGpuRepresentation(self.0.to_cols_array())
     }
-
 }
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
@@ -84,29 +87,33 @@ impl WorldTransform {
 pub struct WorldTransformGpuRepresentation([f32; 12]);
 
 impl WorldTransformGpuRepresentation {
-    pub fn vertex_attributes(x_location: wgpu::ShaderLocation, y_location: wgpu::ShaderLocation, z_location: wgpu::ShaderLocation, w_location: wgpu::ShaderLocation) -> Vec<wgpu::VertexAttribute>{
+    pub fn vertex_attributes(
+        x_location: wgpu::ShaderLocation,
+        y_location: wgpu::ShaderLocation,
+        z_location: wgpu::ShaderLocation,
+        w_location: wgpu::ShaderLocation,
+    ) -> Vec<wgpu::VertexAttribute> {
         vec![
             wgpu::VertexAttribute {
                 format: wgpu::VertexFormat::Float32x3,
                 offset: 0,
-                shader_location: x_location
+                shader_location: x_location,
             },
             wgpu::VertexAttribute {
                 format: wgpu::VertexFormat::Float32x3,
                 offset: wgpu::VertexFormat::Float32x3.size(),
-                shader_location: y_location
+                shader_location: y_location,
             },
             wgpu::VertexAttribute {
                 format: wgpu::VertexFormat::Float32x3,
                 offset: wgpu::VertexFormat::Float32x3.size() * 2,
-                shader_location: z_location
+                shader_location: z_location,
             },
             wgpu::VertexAttribute {
                 format: wgpu::VertexFormat::Float32x3,
                 offset: wgpu::VertexFormat::Float32x3.size() * 3,
-                shader_location: w_location
+                shader_location: w_location,
             },
-
         ]
     }
 }

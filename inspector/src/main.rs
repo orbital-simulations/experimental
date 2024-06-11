@@ -148,31 +148,32 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     for p in &state.history.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                let mut transform = Transform::from_translation(&Vec3::new(p.pos.x as f32, p.pos.y as f32, 0.0));
+                let mut transform =
+                    Transform::from_translation(&Vec3::new(p.pos.x as f32, p.pos.y as f32, 0.0));
                 transform.set_rotation(&Quat::from_rotation_z(p.angle as f32));
                 renderer.draw_circle_line(
                     &transform.to_world(),
                     &CircleLine::new(radius as f32, RED, 3.0),
                 );
-                renderer.draw_line(&transform.to_world()
-                    ,&Line::new(
-                    Vec3::ZERO,
-                    Vec3::new(radius as f32, 0.0, 0.0),
-                    RED,
-                    1.0,
-                ));
+                renderer.draw_line(
+                    &transform.to_world(),
+                    &Line::new(Vec3::ZERO, Vec3::new(radius as f32, 0.0, 0.0), RED, 1.0),
+                );
             }
             Shape::HalfPlane { normal_angle } => {
                 let extent = 10000.0;
                 let tangent = DVec2::from_angle(normal_angle).perp();
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line(&Transform::IDENTITY.to_world(),&Line::new(
-                    Vec3::new(from.x as f32, from.y as f32, 0.0),
-                    Vec3::new(to.x as f32, to.y as f32, 0.0),
-                    YELLOW,
-                    3.0,
-                ));
+                renderer.draw_line(
+                    &Transform::IDENTITY.to_world(),
+                    &Line::new(
+                        Vec3::new(from.x as f32, from.y as f32, 0.0),
+                        Vec3::new(to.x as f32, to.y as f32, 0.0),
+                        YELLOW,
+                        3.0,
+                    ),
+                );
             }
             _ => {
                 unimplemented!("Render unknown shape {:?}", p.shape)

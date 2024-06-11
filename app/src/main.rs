@@ -137,7 +137,8 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         &state.terain_bundle,
     );
 
-    let mut cube_transform = Transform::from_rotation_euler(&Vec3::new(0.0, 0.0, state.cube_rotation));
+    let mut cube_transform =
+        Transform::from_rotation_euler(&Vec3::new(0.0, 0.0, state.cube_rotation));
     cube_transform.set_translation(&Vec3::new(-10.0, 100.0, 10.0));
 
     renderer.draw_mesh(&cube_transform.to_world(), &state.cube_bundle);

@@ -203,7 +203,12 @@ impl MeshRendering {
                                 buffer: &self.transform_uniform_buffer,
                                 offset: 0,
                                 size: Some(
-                                    std::num::NonZeroU64::new(size_of::<WorldTransformGpuRepresentation>() as u64).unwrap(),
+                                    std::num::NonZeroU64::new(size_of::<
+                                        WorldTransformGpuRepresentation,
+                                    >(
+                                    )
+                                        as u64)
+                                    .unwrap(),
                                 ),
                             }),
                         }],

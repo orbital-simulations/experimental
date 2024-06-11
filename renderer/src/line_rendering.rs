@@ -13,7 +13,8 @@ use crate::{
         },
         shader::ShaderSource,
         PipelineId,
-    }, transform::{WorldTransform, WorldTransformGpuRepresentation},
+    },
+    transform::{WorldTransform, WorldTransformGpuRepresentation},
 };
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
@@ -168,8 +169,10 @@ impl LineRenderering {
         if !self.line_segments.is_empty() {
             self.line_segments_buffer
                 .write_data(&rendering_context.gpu_context, &self.line_segments);
-            self.line_segments_transforms_buffer
-                .write_data(&rendering_context.gpu_context, &self.line_segments_transforms);
+            self.line_segments_transforms_buffer.write_data(
+                &rendering_context.gpu_context,
+                &self.line_segments_transforms,
+            );
 
             let pipeline = &rendering_context
                 .resource_store

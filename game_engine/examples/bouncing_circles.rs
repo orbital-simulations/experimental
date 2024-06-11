@@ -107,7 +107,8 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                         p.pos.as_vec2().x,
                         p.pos.as_vec2().y,
                         0.0,
-                    )).to_world(),
+                    ))
+                    .to_world(),
                     &Circle::new(radius as f32, RED),
                 );
             }
@@ -116,12 +117,15 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 let tangent = DVec2::from_angle(normal_angle).perp();
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
-                renderer.draw_line(&Transform::IDENTITY.to_world(),&Line {
-                    from: Vec3::new(from.x as f32, from.y as f32, 0.0),
-                    to: Vec3::new(to.x as f32, to.y as f32, 0.0),
-                    color: YELLOW,
-                    width: 3.,
-                });
+                renderer.draw_line(
+                    &Transform::IDENTITY.to_world(),
+                    &Line {
+                        from: Vec3::new(from.x as f32, from.y as f32, 0.0),
+                        to: Vec3::new(to.x as f32, to.y as f32, 0.0),
+                        color: YELLOW,
+                        width: 3.,
+                    },
+                );
             }
             _ => {
                 unimplemented!("Render unknown shape {:?}", p.shape)

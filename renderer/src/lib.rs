@@ -78,13 +78,18 @@ impl Renderer {
         self.rectangle_rendering.add_rectangle(transform, rectangle);
     }
 
-    pub fn draw_rectangle_line(&mut self, transform: &WorldTransform, rectangle_line: &RectangleLine) {
+    pub fn draw_rectangle_line(
+        &mut self,
+        transform: &WorldTransform,
+        rectangle_line: &RectangleLine,
+    ) {
         self.rectangle_rendering
             .add_rectangle_line(transform, rectangle_line);
     }
 
     pub fn draw_line(&mut self, transform: &WorldTransform, line_segment: &Line) {
-        self.line_rendering.add_line_segment(transform, line_segment);
+        self.line_rendering
+            .add_line_segment(transform, line_segment);
     }
 
     // This is probably something that could be made transparent.
