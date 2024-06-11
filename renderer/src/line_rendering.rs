@@ -4,7 +4,6 @@ use wgpu::{include_wgsl, vertex_attr_array};
 
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer, WriteableVecBuffer},
-    circle_rendering::Circle,
     primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES},
     rendering_context::RenderingContext,
     resource_store::{
@@ -120,7 +119,7 @@ impl LineRenderering {
                                 attributes: WorldTransformGpuRepresentation::vertex_attributes(1, 2, 3, 4)
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<Circle>() as u64,
+                                array_stride: std::mem::size_of::<Line>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
                                 attributes: vertex_attr_array![5 => Float32x3, 6 => Float32x3, 7 => Float32x3, 8 => Float32]
                                     .to_vec(),
@@ -194,6 +193,7 @@ impl LineRenderering {
             // TODO: Think about some memory releasing strategy. Spike in number of
             // circles will lead to space leak.
             self.line_segments.clear();
+            self.line_segments_transforms.clear();
         }
     }
 }

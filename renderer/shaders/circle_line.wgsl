@@ -38,7 +38,7 @@ fn vs_main(
     );
     let world_position = model_matrix * vec4<f32>(model.position.x * instance.radius, model.position.y * instance.radius, 0.0, 1.0);
 
-    out.clip_position = projection * world_position;
+    out.clip_position = projection * camera * world_position;
     out.sdf_position = model.position;
     out.color = instance.color;
     out.half_border = (instance.border_size / instance.radius)/2.0;
