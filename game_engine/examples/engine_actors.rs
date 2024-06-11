@@ -48,12 +48,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     transform.set_rotation(&Quat::from_rotation_z(angle_2));
     let line_1 = Actor::from_line(
         transform,
-        Line::new(
-            vec3(0.0, 0.0, 1.0),
-            vec3(60.0, 0.0, 1.0),
-            PINK,
-            10.0,
-        ),
+        Line::new(vec3(0.0, 0.0, 1.0), vec3(60.0, 0.0, 1.0), PINK, 10.0),
     );
 
     let mut transform = Transform::from_translation(&vec3(200.0, 0.0, 0.0));

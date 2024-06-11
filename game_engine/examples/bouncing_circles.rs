@@ -103,12 +103,8 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         match p.shape {
             Shape::Circle { radius } => {
                 renderer.draw_circle(
-                    &Transform::from_translation(&vec3(
-                        p.pos.as_vec2().x,
-                        p.pos.as_vec2().y,
-                        0.0,
-                    ))
-                    .into(),
+                    &Transform::from_translation(&vec3(p.pos.as_vec2().x, p.pos.as_vec2().y, 0.0))
+                        .into(),
                     &Circle::new(radius as f32, RED),
                 );
             }
