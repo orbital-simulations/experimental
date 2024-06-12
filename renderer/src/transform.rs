@@ -1,26 +1,26 @@
 use std::ops::Mul;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Affine3A, EulerRot, Quat, Vec3};
+use glam::{vec3, Affine3A, EulerRot, Quat, Vec3};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Transform {
     translate: Vec3,
-    scale: Vec3,
     rotate: Quat,
+    scale: f32,
 }
 
 impl Transform {
     pub const IDENTITY: Transform = Transform {
         translate: Vec3::ZERO,
-        scale: Vec3::ONE,
+        scale: 1.0,
         rotate: Quat::IDENTITY,
     };
 
     pub fn from_translation(position: &Vec3) -> Self {
         Self {
             translate: *position,
-            scale: Vec3::ONE,
+            scale: 1.0,
             rotate: Quat::IDENTITY,
         }
     }
@@ -28,7 +28,7 @@ impl Transform {
     pub fn from_rotation(rotation: &Quat) -> Self {
         Self {
             translate: Vec3::ZERO,
-            scale: Vec3::ONE,
+            scale: 1.0,
             rotate: *rotation,
         }
     }
@@ -36,16 +36,80 @@ impl Transform {
     pub fn from_rotation_euler(rotation: &Vec3) -> Self {
         Self {
             translate: Vec3::ZERO,
-            scale: Vec3::ONE,
+            scale: 1.0,
             rotate: Quat::from_euler(EulerRot::XYZ, rotation.x, rotation.y, rotation.z),
         }
     }
 
-    pub fn from_scale(scale: &Vec3) -> Self {
+    pub fn from_rotation_x(rotation: f32) -> Self {
         Self {
             translate: Vec3::ZERO,
-            scale: *scale,
+            scale: 1.0,
+            rotate: Quat::from_rotation_x(rotation),
+        }
+    }
+
+    pub fn from_rotation_y(rotation: f32) -> Self {
+        Self {
+            translate: Vec3::ZERO,
+            scale: 1.0,
+            rotate: Quat::from_rotation_y(rotation),
+        }
+    }
+
+    pub fn from_rotation_z(rotation: f32) -> Self {
+        Self {
+            translate: Vec3::ZERO,
+            scale: 1.0,
+            rotate: Quat::from_rotation_z(rotation),
+        }
+    }
+
+    pub fn from_scale(scale: f32) -> Self {
+        Self {
+            translate: Vec3::ZERO,
+            scale,
             rotate: Quat::IDENTITY,
+        }
+    }
+
+    pub fn from_translation_rotation(position: &Vec3, rotation: &Quat) -> Self {
+        Self {
+            translate: *position,
+            scale: 1.0,
+            rotate: *rotation,
+        }
+    }
+
+    pub fn from_translation_rotation_euler(position: &Vec3, rotation: &Vec3) -> Self {
+        Self {
+            translate: *position,
+            scale: 1.0,
+            rotate: Quat::from_euler(EulerRot::XYZ, rotation.x, rotation.y, rotation.z),
+        }
+    }
+
+    pub fn from_translation_rotation_x(position: &Vec3, rotation: f32) -> Self {
+        Self {
+            translate: *position,
+            scale: 1.0,
+            rotate: Quat::from_rotation_x(rotation),
+        }
+    }
+
+    pub fn from_translation_rotation_y(position: &Vec3, rotation: f32) -> Self {
+        Self {
+            translate: *position,
+            scale: 1.0,
+            rotate: Quat::from_rotation_y(rotation),
+        }
+    }
+
+    pub fn from_translation_rotation_z(position: &Vec3, rotation: f32) -> Self {
+        Self {
+            translate: *position,
+            scale: 1.0,
+            rotate: Quat::from_rotation_z(rotation),
         }
     }
 
@@ -62,8 +126,8 @@ impl Transform {
         self.rotate = Quat::from_euler(EulerRot::XYZ, rotation.x, rotation.y, rotation.z);
     }
 
-    pub fn set_scale(&mut self, scale: &Vec3) {
-        self.scale = *scale;
+    pub fn set_scale(&mut self, scale: f32) {
+        self.scale = scale;
     }
 }
 
@@ -97,30 +161,37 @@ impl<'a> Mul<&'a Transform> for &'a Transform {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct WorldTransform(Affine3A);
-
-impl WorldTransform {
-    pub fn gpu(&self) -> WorldTransformGpuRepresentation {
-        WorldTransformGpuRepresentation(self.0.to_cols_array())
-    }
-}
-
-impl From<Transform> for WorldTransform {
-    fn from(value: Transform) -> Self {
-        WorldTransform(Affine3A::from_scale_rotation_translation(
-            value.scale,
-            value.rotate,
-            value.translate,
-        ))
-    }
-}
-
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
-pub struct WorldTransformGpuRepresentation([f32; 12]);
+pub struct TransformGpu([f32; 12]);
 
-impl WorldTransformGpuRepresentation {
+impl From<Transform> for TransformGpu {
+    fn from(value: Transform) -> Self {
+        TransformGpu(
+            Affine3A::from_scale_rotation_translation(
+                vec3(value.scale, value.scale, value.scale),
+                value.rotate,
+                value.translate,
+            )
+            .to_cols_array(),
+        )
+    }
+}
+
+impl<'a> From<&'a Transform> for TransformGpu {
+    fn from(value: &'a Transform) -> Self {
+        TransformGpu(
+            Affine3A::from_scale_rotation_translation(
+                vec3(value.scale, value.scale, value.scale),
+                value.rotate,
+                value.translate,
+            )
+            .to_cols_array(),
+        )
+    }
+}
+
+impl TransformGpu {
     pub fn vertex_attributes(
         x_location: wgpu::ShaderLocation,
         y_location: wgpu::ShaderLocation,

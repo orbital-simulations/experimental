@@ -103,7 +103,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         match p.shape {
             Shape::Circle { radius } => {
                 renderer.draw_circle(
-                    &Transform::from_translation(&(p.pos.as_vec2(), 0.0).into()).into(),
+                    &Transform::from_translation(&(p.pos.as_vec2(), 0.0).into()),
                     &Circle::new(radius as f32, RED),
                 );
             }
@@ -113,7 +113,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
                 renderer.draw_line(
-                    &Transform::IDENTITY.into(),
+                    &Transform::IDENTITY,
                     &Line {
                         from: vec3(from.x as f32, from.y as f32, 0.0),
                         to: vec3(to.x as f32, to.y as f32, 0.0),

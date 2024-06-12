@@ -133,18 +133,18 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
 
 fn render(state: &GameState, renderer: &mut Renderer) {
     renderer.draw_mesh(
-        &Transform::from_translation(&vec3(0.0, 0.0, 0.0)).into(),
+        &Transform::from_translation(&vec3(0.0, 0.0, 0.0)),
         &state.terain_bundle,
     );
 
     let mut cube_transform = Transform::from_rotation_euler(&vec3(0.0, 0.0, state.cube_rotation));
     cube_transform.set_translation(&vec3(-10.0, 100.0, 10.0));
 
-    renderer.draw_mesh(&cube_transform.into(), &state.cube_bundle);
+    renderer.draw_mesh(&cube_transform, &state.cube_bundle);
     let mut reload_cube_transform =
         Transform::from_rotation_euler(&vec3(0.0, 0.0, state.cube_rotation));
     reload_cube_transform.set_translation(&vec3(-10.0, 80.0, 10.0));
-    renderer.draw_mesh(&reload_cube_transform.into(), &state.reload_cube_bundle);
+    renderer.draw_mesh(&reload_cube_transform, &state.reload_cube_bundle);
 }
 
 fn main() -> color_eyre::eyre::Result<()> {

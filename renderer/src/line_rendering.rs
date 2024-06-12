@@ -14,7 +14,7 @@ use crate::{
         shader::ShaderSource,
         PipelineId,
     },
-    transform::{WorldTransform, WorldTransformGpuRepresentation},
+    transform::{Transform, TransformGpu},
 };
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
@@ -40,8 +40,8 @@ impl Line {
 pub struct LineRenderering {
     line_segments: Vec<Line>,
     line_segments_buffer: WriteableVecBuffer<Line>,
-    line_segments_transforms: Vec<WorldTransformGpuRepresentation>,
-    line_segments_transforms_buffer: WriteableVecBuffer<WorldTransformGpuRepresentation>,
+    line_segments_transforms: Vec<TransformGpu>,
+    line_segments_transforms_buffer: WriteableVecBuffer<TransformGpu>,
     line_segment_pipeline: PipelineId,
     quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
     quad_index_buffer: IndexBuffer<u16>,
@@ -115,9 +115,9 @@ impl LineRenderering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>() as u64,
+                                array_stride: std::mem::size_of::<TransformGpu>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: WorldTransformGpuRepresentation::vertex_attributes(1, 2, 3, 4)
+                                attributes: TransformGpu::vertex_attributes(1, 2, 3, 4)
                             },
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Line>() as u64,
@@ -156,9 +156,9 @@ impl LineRenderering {
         }
     }
 
-    pub fn add_line_segment(&mut self, transform: &WorldTransform, line_segment: &Line) {
+    pub fn add_line_segment(&mut self, transform: &Transform, line_segment: &Line) {
         self.line_segments.push(*line_segment);
-        self.line_segments_transforms.push(transform.gpu());
+        self.line_segments_transforms.push(transform.into());
     }
 
     pub fn render<'a>(

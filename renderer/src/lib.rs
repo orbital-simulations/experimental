@@ -1,4 +1,3 @@
-pub mod actor;
 pub mod buffers;
 pub mod camera;
 pub mod circle_rendering;
@@ -12,15 +11,16 @@ pub mod projection;
 pub mod rectangle_rendering;
 pub mod rendering_context;
 pub mod resource_store;
+pub mod scene_node;
 pub mod transform;
 
 use std::sync::Arc;
 
-use actor::Actor;
 use glam::{Mat4, Vec2, Vec3};
 use mesh_rendering::{MeshBundle, MeshRendering};
 use resource_store::{GpuMeshId, PipelineId};
-use transform::WorldTransform;
+use scene_node::SceneNode;
+use transform::Transform;
 
 use crate::{
     camera::PrimaryCamera,
@@ -31,7 +31,6 @@ use crate::{
     rectangle_rendering::{Rectangle, RectangleLine, RectangleRendering},
     rendering_context::RenderingContext,
     resource_store::shader::ShaderSource,
-    transform::Transform,
 };
 
 pub struct CameraId;
@@ -67,29 +66,25 @@ impl Renderer {
     // Thinking about consuming the Circle because it needs to be recreated in
     // the next render cycle anyway. On the other hand if it is an reference
     // then user can draw the same circle multiple times without much hassle.
-    pub fn draw_circle(&mut self, transform: &WorldTransform, circle: &Circle) {
+    pub fn draw_circle(&mut self, transform: &Transform, circle: &Circle) {
         self.circle_rendering.add_circle(transform, circle);
     }
 
-    pub fn draw_circle_line(&mut self, transform: &WorldTransform, circle_line: &CircleLine) {
+    pub fn draw_circle_line(&mut self, transform: &Transform, circle_line: &CircleLine) {
         self.circle_rendering
             .add_circle_line(transform, circle_line);
     }
 
-    pub fn draw_rectangle(&mut self, transform: &WorldTransform, rectangle: &Rectangle) {
+    pub fn draw_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {
         self.rectangle_rendering.add_rectangle(transform, rectangle);
     }
 
-    pub fn draw_rectangle_line(
-        &mut self,
-        transform: &WorldTransform,
-        rectangle_line: &RectangleLine,
-    ) {
+    pub fn draw_rectangle_line(&mut self, transform: &Transform, rectangle_line: &RectangleLine) {
         self.rectangle_rendering
             .add_rectangle_line(transform, rectangle_line);
     }
 
-    pub fn draw_line(&mut self, transform: &WorldTransform, line_segment: &Line) {
+    pub fn draw_line(&mut self, transform: &Transform, line_segment: &Line) {
         self.line_rendering
             .add_line_segment(transform, line_segment);
     }
@@ -107,12 +102,12 @@ impl Renderer {
             .create_3d_pipeline(&mut self.rendering_context, shader)
     }
 
-    pub fn draw_mesh(&mut self, transform: &WorldTransform, mesh_bundle: &MeshBundle) {
+    pub fn draw_mesh(&mut self, transform: &Transform, mesh_bundle: &MeshBundle) {
         self.mesh_rendering.add_mesh_bundle(transform, mesh_bundle);
     }
 
-    pub fn draw_actor(&mut self, actor: &Actor) {
-        Actor::draw_actors(
+    pub fn draw_actor(&mut self, actor: &SceneNode) {
+        SceneNode::draw_actors(
             actor,
             &mut self.line_rendering,
             &mut self.rectangle_rendering,

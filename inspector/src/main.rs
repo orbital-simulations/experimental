@@ -1,5 +1,5 @@
 use game_engine::{game_engine_2_5d_parameters, GameEngine};
-use glam::{vec3, DVec2, Quat, Vec3};
+use glam::{vec3, DVec2, Vec3};
 use physics::{
     scenarios::{Collision, Scenario},
     Engine, Shape,
@@ -148,9 +148,10 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     for p in &state.history.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                let mut transform = Transform::from_translation(&(p.pos.as_vec2(), 0.0).into());
-                transform.set_rotation(&Quat::from_rotation_z(p.angle as f32));
-                let transform = transform.into();
+                let transform = Transform::from_translation_rotation_z(
+                    &(p.pos.as_vec2(), 0.0).into(),
+                    p.angle as f32,
+                );
                 renderer.draw_circle_line(&transform, &CircleLine::new(radius as f32, RED, 3.0));
                 renderer.draw_line(
                     &transform,
@@ -163,7 +164,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
                 renderer.draw_line(
-                    &Transform::IDENTITY.into(),
+                    &Transform::IDENTITY,
                     &Line::new(
                         vec3(from.x as f32, from.y as f32, 0.0),
                         vec3(to.x as f32, to.y as f32, 0.0),
