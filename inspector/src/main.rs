@@ -148,8 +148,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
     for p in &state.history.engine.particles {
         match p.shape {
             Shape::Circle { radius } => {
-                let mut transform =
-                    Transform::from_translation(&(p.pos.as_vec2(), 0.0).into());
+                let mut transform = Transform::from_translation(&(p.pos.as_vec2(), 0.0).into());
                 transform.set_rotation(&Quat::from_rotation_z(p.angle as f32));
                 let transform = transform.into();
                 renderer.draw_circle_line(&transform, &CircleLine::new(radius as f32, RED, 3.0));
