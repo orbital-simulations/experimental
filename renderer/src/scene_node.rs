@@ -19,157 +19,157 @@ enum SceneNodeType {
 
 #[derive(Debug)]
 pub struct SceneNode {
-    actor_type: SceneNodeType,
+    node_type: SceneNodeType,
     tranform: Transform,
-    child_actors: Vec<SceneNode>,
+    child_nodes: Vec<SceneNode>,
 }
 
 impl SceneNode {
     pub fn new() -> Self {
         Self {
-            actor_type: SceneNodeType::Invisible,
+            node_type: SceneNodeType::Invisible,
             tranform: Transform::IDENTITY,
-            child_actors: vec![],
+            child_nodes: vec![],
         }
     }
 
     pub fn from_circle(transform: Transform, circle: Circle) -> Self {
         Self {
-            actor_type: SceneNodeType::Circle(circle),
+            node_type: SceneNodeType::Circle(circle),
             tranform: transform,
-            child_actors: vec![],
+            child_nodes: vec![],
         }
     }
 
     pub fn from_circle_children(
         transform: Transform,
         circle: Circle,
-        child_actors: Vec<SceneNode>,
+        child_nodes: Vec<SceneNode>,
     ) -> Self {
         Self {
-            actor_type: SceneNodeType::Circle(circle),
+            node_type: SceneNodeType::Circle(circle),
             tranform: transform,
-            child_actors,
+            child_nodes,
         }
     }
 
     pub fn from_circle_line(transform: Transform, circle_line: CircleLine) -> Self {
         Self {
-            actor_type: SceneNodeType::CircleLine(circle_line),
+            node_type: SceneNodeType::CircleLine(circle_line),
             tranform: transform,
-            child_actors: vec![],
+            child_nodes: vec![],
         }
     }
 
     pub fn from_circle_line_children(
         transform: Transform,
         circle_line: CircleLine,
-        child_actors: Vec<SceneNode>,
+        child_nodes: Vec<SceneNode>,
     ) -> Self {
         Self {
-            actor_type: SceneNodeType::CircleLine(circle_line),
+            node_type: SceneNodeType::CircleLine(circle_line),
             tranform: transform,
-            child_actors,
+            child_nodes,
         }
     }
 
     pub fn from_mesh_bundle(transform: Transform, mesh_bundle: MeshBundle) -> Self {
         Self {
-            actor_type: SceneNodeType::MeshBundle(mesh_bundle),
+            node_type: SceneNodeType::MeshBundle(mesh_bundle),
             tranform: transform,
-            child_actors: vec![],
+            child_nodes: vec![],
         }
     }
 
     pub fn from_mesh_bundle_children(
         transform: Transform,
         mesh_bundle: MeshBundle,
-        child_actors: Vec<SceneNode>,
+        child_nodes: Vec<SceneNode>,
     ) -> Self {
         Self {
-            actor_type: SceneNodeType::MeshBundle(mesh_bundle),
+            node_type: SceneNodeType::MeshBundle(mesh_bundle),
             tranform: transform,
-            child_actors,
+            child_nodes,
         }
     }
 
     pub fn from_rectangle(transform: Transform, rectangle: Rectangle) -> Self {
         Self {
-            actor_type: SceneNodeType::Rectangle(rectangle),
+            node_type: SceneNodeType::Rectangle(rectangle),
             tranform: transform,
-            child_actors: vec![],
+            child_nodes: vec![],
         }
     }
 
     pub fn from_rectangle_children(
         transform: Transform,
         rectangle: Rectangle,
-        child_actors: Vec<SceneNode>,
+        child_nodes: Vec<SceneNode>,
     ) -> Self {
         Self {
-            actor_type: SceneNodeType::Rectangle(rectangle),
+            node_type: SceneNodeType::Rectangle(rectangle),
             tranform: transform,
-            child_actors,
+            child_nodes,
         }
     }
 
     pub fn from_rectangle_line(transform: Transform, rectangle_line: RectangleLine) -> Self {
         Self {
-            actor_type: SceneNodeType::RectangleLine(rectangle_line),
+            node_type: SceneNodeType::RectangleLine(rectangle_line),
             tranform: transform,
-            child_actors: vec![],
+            child_nodes: vec![],
         }
     }
 
     pub fn from_rectangle_line_children(
         transform: Transform,
         rectangle_line: RectangleLine,
-        child_actors: Vec<SceneNode>,
+        child_nodes: Vec<SceneNode>,
     ) -> Self {
         Self {
-            actor_type: SceneNodeType::RectangleLine(rectangle_line),
+            node_type: SceneNodeType::RectangleLine(rectangle_line),
             tranform: transform,
-            child_actors,
+            child_nodes,
         }
     }
 
     pub fn from_line(transform: Transform, line: Line) -> Self {
         Self {
-            actor_type: SceneNodeType::Line(line),
+            node_type: SceneNodeType::Line(line),
             tranform: transform,
-            child_actors: vec![],
+            child_nodes: vec![],
         }
     }
 
     pub fn from_line_children(
         transform: Transform,
         line: Line,
-        child_actors: Vec<SceneNode>,
+        child_nodes: Vec<SceneNode>,
     ) -> Self {
         Self {
-            actor_type: SceneNodeType::Line(line),
+            node_type: SceneNodeType::Line(line),
             tranform: transform,
-            child_actors,
+            child_nodes,
         }
     }
 
-    pub fn invisible(transform: Transform, child_actors: Vec<SceneNode>) -> Self {
+    pub fn invisible(transform: Transform, child_nodes: Vec<SceneNode>) -> Self {
         Self {
-            actor_type: SceneNodeType::Invisible,
+            node_type: SceneNodeType::Invisible,
             tranform: transform,
-            child_actors,
+            child_nodes,
         }
     }
 
-    fn draw_actor(
+    fn draw_node(
         world_transform: Transform,
-        actor_type: &SceneNodeType,
+        node_type: &SceneNodeType,
         line_rendering: &mut LineRenderering,
         rectangle_rndering: &mut RectangleRendering,
         mesh_rendering: &mut MeshRendering,
         circle_rendering: &mut CircleRendering,
     ) {
-        match actor_type {
+        match node_type {
             SceneNodeType::Circle(circle) => {
                 circle_rendering.add_circle(&world_transform, circle);
             }
@@ -192,27 +192,27 @@ impl SceneNode {
         }
     }
 
-    fn draw_child_actor(
+    fn draw_child_node(
         transform: &Transform,
-        actor: &SceneNode,
+        node: &SceneNode,
         line_rendering: &mut LineRenderering,
         rectangle_rendering: &mut RectangleRendering,
         mesh_rendering: &mut MeshRendering,
         circle_rendering: &mut CircleRendering,
     ) {
-        let world_transform = transform * &actor.tranform;
-        Self::draw_actor(
+        let world_transform = transform * &node.tranform;
+        Self::draw_node(
             world_transform,
-            &actor.actor_type,
+            &node.node_type,
             line_rendering,
             rectangle_rendering,
             mesh_rendering,
             circle_rendering,
         );
-        for child_actor in &actor.child_actors {
-            SceneNode::draw_child_actor(
+        for child_node in &node.child_nodes {
+            SceneNode::draw_child_node(
                 &world_transform,
-                child_actor,
+                child_node,
                 line_rendering,
                 rectangle_rendering,
                 mesh_rendering,
@@ -221,26 +221,26 @@ impl SceneNode {
         }
     }
 
-    pub fn draw_actors(
-        actor: &SceneNode,
+    pub fn draw_nodes(
+        node: &SceneNode,
         line_rendering: &mut LineRenderering,
         rectangle_rendering: &mut RectangleRendering,
         mesh_rendering: &mut MeshRendering,
         circle_rendering: &mut CircleRendering,
     ) {
-        let world_transform = actor.tranform;
-        Self::draw_actor(
-            actor.tranform,
-            &actor.actor_type,
+        let world_transform = node.tranform;
+        Self::draw_node(
+            node.tranform,
+            &node.node_type,
             line_rendering,
             rectangle_rendering,
             mesh_rendering,
             circle_rendering,
         );
-        for child_actor in &actor.child_actors {
-            SceneNode::draw_child_actor(
+        for child_node in &node.child_nodes {
+            SceneNode::draw_child_node(
                 &world_transform,
-                child_actor,
+                child_node,
                 line_rendering,
                 rectangle_rendering,
                 mesh_rendering,

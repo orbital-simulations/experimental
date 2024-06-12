@@ -107,7 +107,7 @@ impl Renderer {
     }
 
     pub fn draw_actor(&mut self, actor: &SceneNode) {
-        SceneNode::draw_actors(
+        SceneNode::draw_nodes(
             actor,
             &mut self.line_rendering,
             &mut self.rectangle_rendering,
