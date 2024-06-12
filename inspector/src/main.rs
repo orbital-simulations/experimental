@@ -149,7 +149,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         match p.shape {
             Shape::Circle { radius } => {
                 let mut transform =
-                    Transform::from_translation(&vec3(p.pos.x as f32, p.pos.y as f32, 0.0));
+                    Transform::from_translation(&(p.pos.as_vec2(), 0.0).into());
                 transform.set_rotation(&Quat::from_rotation_z(p.angle as f32));
                 let transform = transform.into();
                 renderer.draw_circle_line(&transform, &CircleLine::new(radius as f32, RED, 3.0));
