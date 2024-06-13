@@ -1,7 +1,7 @@
 use std::ops::Mul;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{vec3, Affine3A, EulerRot, Quat, Vec3};
+use glam::{Affine3A, EulerRot, Quat, Vec3};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Transform {
@@ -169,7 +169,7 @@ impl From<Transform> for TransformGpu {
     fn from(value: Transform) -> Self {
         TransformGpu(
             Affine3A::from_scale_rotation_translation(
-                vec3(value.scale, value.scale, value.scale),
+                Vec3::splat(value.scale),
                 value.rotate,
                 value.translate,
             )
@@ -182,7 +182,7 @@ impl<'a> From<&'a Transform> for TransformGpu {
     fn from(value: &'a Transform) -> Self {
         TransformGpu(
             Affine3A::from_scale_rotation_translation(
-                vec3(value.scale, value.scale, value.scale),
+                Vec3::splat(value.scale),
                 value.rotate,
                 value.translate,
             )
