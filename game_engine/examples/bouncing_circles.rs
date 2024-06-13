@@ -1,7 +1,7 @@
 use std::{f64::consts::PI, iter::repeat_with};
 
 use game_engine::{game_engine_2_5d_parameters, GameEngine};
-use glam::{dvec2, DVec2, Vec3};
+use glam::{dvec2, vec3, DVec2};
 use physics::{Engine, Particle, Shape};
 use rand::Rng;
 use renderer::line_rendering::Line;
@@ -103,12 +103,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         match p.shape {
             Shape::Circle { radius } => {
                 renderer.draw_circle(
-                    &Transform::from_translation(&Vec3::new(
-                        p.pos.as_vec2().x,
-                        p.pos.as_vec2().y,
-                        0.0,
-                    ))
-                    .into(),
+                    &Transform::from_translation(&(p.pos.as_vec2(), 0.0).into()),
                     &Circle::new(radius as f32, RED),
                 );
             }
@@ -118,10 +113,10 @@ fn render(state: &GameState, renderer: &mut Renderer) {
                 let from: DVec2 = p.pos + extent * tangent;
                 let to: DVec2 = p.pos - extent * tangent;
                 renderer.draw_line(
-                    &Transform::IDENTITY.into(),
+                    &Transform::IDENTITY,
                     &Line {
-                        from: Vec3::new(from.x as f32, from.y as f32, 0.0),
-                        to: Vec3::new(to.x as f32, to.y as f32, 0.0),
+                        from: vec3(from.x as f32, from.y as f32, 0.0),
+                        to: vec3(to.x as f32, to.y as f32, 0.0),
                         color: YELLOW,
                         width: 3.,
                     },

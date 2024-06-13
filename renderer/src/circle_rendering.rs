@@ -1,7 +1,7 @@
 use crate::buffers::{WriteableBuffer, WriteableVecBuffer};
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::resource_store::PipelineId;
-use crate::transform::{WorldTransform, WorldTransformGpuRepresentation};
+use crate::transform::{Transform, TransformGpu};
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
@@ -48,12 +48,12 @@ impl CircleLine {
 pub struct CircleRendering {
     circles_buffer: WriteableVecBuffer<Circle>,
     circles: Vec<Circle>,
-    circles_transforms: Vec<WorldTransformGpuRepresentation>,
-    circles_transforms_buffer: WriteableVecBuffer<WorldTransformGpuRepresentation>,
+    circles_transforms: Vec<TransformGpu>,
+    circles_transforms_buffer: WriteableVecBuffer<TransformGpu>,
     circle_lines_buffer: WriteableVecBuffer<CircleLine>,
     circle_lines: Vec<CircleLine>,
-    circle_lines_transforms: Vec<WorldTransformGpuRepresentation>,
-    circle_lines_transforms_buffer: WriteableVecBuffer<WorldTransformGpuRepresentation>,
+    circle_lines_transforms: Vec<TransformGpu>,
+    circle_lines_transforms_buffer: WriteableVecBuffer<TransformGpu>,
     quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
     quad_index_buffer: IndexBuffer<u16>,
     circles_pipeline: PipelineId,
@@ -150,12 +150,9 @@ impl CircleRendering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>()
-                                    as u64,
+                                array_stride: std::mem::size_of::<TransformGpu>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: WorldTransformGpuRepresentation::vertex_attributes(
-                                    1, 2, 3, 4,
-                                ),
+                                attributes: TransformGpu::vertex_attributes(1, 2, 3, 4),
                             },
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Circle>() as u64,
@@ -206,12 +203,9 @@ impl CircleRendering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>()
-                                    as u64,
+                                array_stride: std::mem::size_of::<TransformGpu>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: WorldTransformGpuRepresentation::vertex_attributes(
-                                    1, 2, 3, 4,
-                                ),
+                                attributes: TransformGpu::vertex_attributes(1, 2, 3, 4),
                             },
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<CircleLine>() as u64,
@@ -256,14 +250,14 @@ impl CircleRendering {
         }
     }
 
-    pub fn add_circle(&mut self, transform: &WorldTransform, circle: &Circle) {
+    pub fn add_circle(&mut self, transform: &Transform, circle: &Circle) {
         self.circles.push(*circle);
-        self.circles_transforms.push(transform.gpu());
+        self.circles_transforms.push(transform.into());
     }
 
-    pub fn add_circle_line(&mut self, transform: &WorldTransform, circle: &CircleLine) {
+    pub fn add_circle_line(&mut self, transform: &Transform, circle: &CircleLine) {
         self.circle_lines.push(*circle);
-        self.circle_lines_transforms.push(transform.gpu());
+        self.circle_lines_transforms.push(transform.into());
     }
 
     pub fn render<'a>(

@@ -14,7 +14,7 @@ use crate::{
         shader::ShaderSource,
         BindGroupLayoutId, GpuMeshId, PipelineId,
     },
-    transform::{WorldTransform, WorldTransformGpuRepresentation},
+    transform::{Transform, TransformGpu},
 };
 
 #[derive(Debug, Clone)]
@@ -24,7 +24,7 @@ pub struct MeshBundle {
 }
 
 pub struct MeshRendering {
-    bundles: Vec<(WorldTransform, MeshBundle)>,
+    bundles: Vec<(Transform, MeshBundle)>,
     transform_uniform_bind_group_layout: BindGroupLayoutId,
     transform_uniform_bind_group: wgpu::BindGroup,
     transform_uniform_buffer: wgpu::Buffer,
@@ -94,7 +94,7 @@ impl MeshRendering {
         }
     }
 
-    pub fn add_mesh_bundle(&mut self, transform: &WorldTransform, mesh_bundle: &MeshBundle) {
+    pub fn add_mesh_bundle(&mut self, transform: &Transform, mesh_bundle: &MeshBundle) {
         self.bundles.push((*transform, mesh_bundle.clone()));
     }
 
@@ -175,7 +175,7 @@ impl MeshRendering {
     ) {
         if !self.bundles.is_empty() {
             let aligned_size = ceil_to_next_multiple(
-                size_of::<WorldTransformGpuRepresentation>(),
+                size_of::<TransformGpu>(),
                 RenderingContext::wgpu_limits().min_uniform_buffer_offset_alignment,
             );
             if self.transform_uniform_buffer_size < self.bundles.len() {
@@ -203,22 +203,19 @@ impl MeshRendering {
                                 buffer: &self.transform_uniform_buffer,
                                 offset: 0,
                                 size: Some(
-                                    std::num::NonZeroU64::new(size_of::<
-                                        WorldTransformGpuRepresentation,
-                                    >(
-                                    )
-                                        as u64)
-                                    .unwrap(),
+                                    std::num::NonZeroU64::new(size_of::<TransformGpu>() as u64)
+                                        .unwrap(),
                                 ),
                             }),
                         }],
                     });
             }
             for (i, bundle) in self.bundles.iter().enumerate() {
+                let transform: TransformGpu = bundle.0.into();
                 rendering_context.gpu_context.queue().write_buffer(
                     &self.transform_uniform_buffer,
                     aligned_size * i as u64,
-                    bytes_of(&bundle.0.gpu()),
+                    bytes_of(&transform),
                 );
             }
 

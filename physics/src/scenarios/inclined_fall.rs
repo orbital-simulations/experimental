@@ -3,7 +3,7 @@ use glam::{dvec2, DVec2};
 
 use super::Scenario;
 
-const GRAVITY: DVec2 = DVec2::new(0.0, -100.0);
+const GRAVITY: DVec2 = dvec2(0.0, -100.0);
 
 pub struct InclinedFall {}
 

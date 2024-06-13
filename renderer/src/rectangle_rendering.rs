@@ -1,7 +1,7 @@
 use crate::buffers::WriteableBuffer;
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::resource_store::PipelineId;
-use crate::transform::{WorldTransform, WorldTransformGpuRepresentation};
+use crate::transform::{Transform, TransformGpu};
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
 use wgpu::{include_wgsl, vertex_attr_array};
@@ -50,12 +50,12 @@ impl RectangleLine {
 pub struct RectangleRendering {
     rectangles_buffer: WriteableVecBuffer<Rectangle>,
     rectangles: Vec<Rectangle>,
-    rectangles_transforms: Vec<WorldTransformGpuRepresentation>,
-    rectangles_transforms_buffer: WriteableVecBuffer<WorldTransformGpuRepresentation>,
+    rectangles_transforms: Vec<TransformGpu>,
+    rectangles_transforms_buffer: WriteableVecBuffer<TransformGpu>,
     rectangle_lines_buffer: WriteableVecBuffer<RectangleLine>,
     rectangle_lines: Vec<RectangleLine>,
-    rectangle_lines_transforms: Vec<WorldTransformGpuRepresentation>,
-    rectangle_lines_transforms_buffer: WriteableVecBuffer<WorldTransformGpuRepresentation>,
+    rectangle_lines_transforms: Vec<TransformGpu>,
+    rectangle_lines_transforms_buffer: WriteableVecBuffer<TransformGpu>,
     quad_vertex_buffer: WriteableBuffer<[Vec2; 4]>,
     quad_index_buffer: IndexBuffer<u16>,
     rectangles_pipeline: PipelineId,
@@ -152,12 +152,9 @@ impl RectangleRendering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>()
-                                    as u64,
+                                array_stride: std::mem::size_of::<TransformGpu>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: WorldTransformGpuRepresentation::vertex_attributes(
-                                    1, 2, 3, 4,
-                                ),
+                                attributes: TransformGpu::vertex_attributes(1, 2, 3, 4),
                             },
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<Rectangle>() as u64,
@@ -208,12 +205,9 @@ impl RectangleRendering {
                                 attributes: vertex_attr_array![0 => Float32x2].to_vec(),
                             },
                             VertexBufferLayout {
-                                array_stride: std::mem::size_of::<WorldTransformGpuRepresentation>()
-                                    as u64,
+                                array_stride: std::mem::size_of::<TransformGpu>() as u64,
                                 step_mode: wgpu::VertexStepMode::Instance,
-                                attributes: WorldTransformGpuRepresentation::vertex_attributes(
-                                    1, 2, 3, 4,
-                                ),
+                                attributes: TransformGpu::vertex_attributes(1, 2, 3, 4),
                             },
                             VertexBufferLayout {
                                 array_stride: std::mem::size_of::<RectangleLine>() as u64,
@@ -258,14 +252,14 @@ impl RectangleRendering {
         }
     }
 
-    pub fn add_rectangle(&mut self, transform: &WorldTransform, rectangle: &Rectangle) {
+    pub fn add_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {
         self.rectangles.push(*rectangle);
-        self.rectangles_transforms.push(transform.gpu());
+        self.rectangles_transforms.push(transform.into());
     }
 
-    pub fn add_rectangle_line(&mut self, transform: &WorldTransform, rectangle: &RectangleLine) {
+    pub fn add_rectangle_line(&mut self, transform: &Transform, rectangle: &RectangleLine) {
         self.rectangle_lines.push(*rectangle);
-        self.rectangle_lines_transforms.push(transform.gpu());
+        self.rectangle_lines_transforms.push(transform.into());
     }
 
     pub fn render<'a>(
