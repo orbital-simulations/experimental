@@ -94,18 +94,12 @@ impl RectangleRendering {
             wgpu::BufferUsages::VERTEX,
         );
 
-        let rectangle_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&include_wgsl!(
-                    "../shaders/rectangle.wgsl"
-                ));
-        let rectangle_line_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&include_wgsl!(
-                    "../shaders/rectangle_line.wgsl"
-                ));
+        let rectangle_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/rectangle.wgsl"));
+        let rectangle_line_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/rectangle_line.wgsl"));
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,

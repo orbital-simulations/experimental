@@ -5,7 +5,7 @@
 ///
 /// ```ignore
 /// fn main() {
-///     let module: ShaderModuleDescriptor = include_wgsl!("shader.wgsl");
+///     let module: ShaderSource = include_wgsl!("shader.wgsl");
 /// }
 /// ```
 #[macro_export]

@@ -9,7 +9,8 @@ use game_engine::{
 use glam::{vec3, Vec3};
 use noise::{NoiseFn, SuperSimplex};
 use renderer::{
-    include_wgsl, mesh_rendering::MeshBundle, resource_store::shader::ShaderSource, transform::Transform, Renderer
+    include_wgsl, mesh_rendering::MeshBundle, resource_store::shader::ShaderSource,
+    transform::Transform, Renderer,
 };
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
@@ -33,9 +34,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         mesh_id: load_model_static(&mut game_engine.renderer, CUBE, &CUBE_MATERIALS).unwrap(),
         pipeline_id: game_engine
             .renderer
-            .create_3d_pipeline(&include_wgsl!(
-                "../shaders/cube.wgsl"
-            )),
+            .create_3d_pipeline(&include_wgsl!("../shaders/cube.wgsl")),
     };
 
     let reload_cube_bundle = MeshBundle {
@@ -67,9 +66,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
             .build_gpu_mesh(&vertices, &normals, &indices),
         pipeline_id: game_engine
             .renderer
-            .create_3d_pipeline(&include_wgsl!(
-                "../shaders/terain.wgsl"
-            )),
+            .create_3d_pipeline(&include_wgsl!("../shaders/terain.wgsl")),
     };
 
     GameState {

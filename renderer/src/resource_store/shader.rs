@@ -157,7 +157,8 @@ impl ShaderStore {
                         shader_type: ShaderType::Wgsl,
                         shader_defs: HashMap::new(),
                         additional_imports: &[],
-                    }).unwrap();
+                    })
+                    .unwrap();
 
                 let shader_module =
                     self.gpu_context
@@ -177,7 +178,8 @@ impl ShaderStore {
                         shader_type: ShaderType::Wgsl,
                         shader_defs: HashMap::new(),
                         additional_imports: &[],
-                    }).unwrap();
+                    })
+                    .unwrap();
 
                 let shader_module =
                     self.gpu_context

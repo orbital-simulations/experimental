@@ -11,9 +11,7 @@ use crate::resource_store::pipeline_layout::PipelineLayoutDescriptor;
 use crate::resource_store::render_pipeline::{
     FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
 };
-use crate::{
-    buffers::IndexBuffer, rendering_context::RenderingContext,
-};
+use crate::{buffers::IndexBuffer, rendering_context::RenderingContext};
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
@@ -93,18 +91,12 @@ impl CircleRendering {
             wgpu::BufferUsages::VERTEX,
         );
 
-        let circle_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&include_wgsl!(
-                    "../shaders/circle.wgsl"
-                ));
-        let circle_line_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&include_wgsl!(
-                    "../shaders/circle_line.wgsl"
-                ));
+        let circle_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/circle.wgsl"));
+        let circle_line_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/circle_line.wgsl"));
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
