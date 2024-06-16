@@ -1,3 +1,5 @@
+#import model_matrix::to_model_matrix;
+
 @group(0) @binding(0)
 var<uniform> projection: mat4x4<f32>;
 @group(0) @binding(1)
@@ -31,11 +33,11 @@ fn vs_main(
     var out: VertexOutput;
 
     let half_size = instance.size / 2.0;
-    let model_matrix = mat4x4<f32>(
-        vec4<f32>(instance.affine_matrix_1, 0.0),
-        vec4<f32>(instance.affine_matrix_2, 0.0),
-        vec4<f32>(instance.affine_matrix_3, 0.0),
-        vec4<f32>(instance.translation_vector, 1.0),
+    let model_matrix = to_model_matrix(
+        instance.affine_matrix_1,
+        instance.affine_matrix_2,
+        instance.affine_matrix_3,
+        instance.translation_vector
     );
     let world_position = model_matrix * vec4<f32>(model.position.x * half_size.x, model.position.y * half_size.y, 0.0, 1.0);
 

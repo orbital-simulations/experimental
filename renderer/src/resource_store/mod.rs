@@ -4,6 +4,7 @@ pub mod pipeline_layout;
 pub mod reload_command;
 pub mod render_pipeline;
 pub mod shader;
+pub mod shader_include;
 
 use std::env;
 

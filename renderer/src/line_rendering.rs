@@ -1,20 +1,15 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
-use wgpu::{include_wgsl, vertex_attr_array};
+use wgpu::vertex_attr_array;
 
 use crate::{
-    buffers::{IndexBuffer, WriteableBuffer, WriteableVecBuffer},
-    primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES},
-    rendering_context::RenderingContext,
-    resource_store::{
+    buffers::{IndexBuffer, WriteableBuffer, WriteableVecBuffer}, include_wgsl, primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES}, rendering_context::RenderingContext, resource_store::{
         pipeline_layout::PipelineLayoutDescriptor,
         render_pipeline::{
             FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
         },
-        shader::ShaderSource,
         PipelineId,
-    },
-    transform::{Transform, TransformGpu},
+    }, transform::{Transform, TransformGpu}
 };
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
@@ -68,9 +63,9 @@ impl LineRenderering {
         let line_segment_shader_id =
             rendering_context
                 .resource_store
-                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
+                .build_shader(&include_wgsl!(
                     "../shaders/line_segment.wgsl"
-                )));
+                ));
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
             "quad index buffer",
