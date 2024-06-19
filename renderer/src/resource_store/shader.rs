@@ -233,7 +233,10 @@ mod tests {
     fn test_existing_module_import() {
         use super::*;
         let mut naga_oil_composer = Composer::default();
-        let test_shaders = ["#define_import_path test_module\nfn test() {existing_module::foo()}", "#define_import_path existing_module\nfn foo() {}"];
+        let test_shaders = [
+            "#define_import_path test_module\nfn test() {existing_module::foo()}",
+            "#define_import_path existing_module\nfn foo() {}",
+        ];
         ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
     }
 }
