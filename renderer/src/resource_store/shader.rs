@@ -41,8 +41,20 @@ pub enum ShaderSource {
 impl ShaderStore {
     pub fn new(gpu_context: &GpuContext) -> Self {
         let mut naga_oil_composer = Composer::default();
+        Self::load_shader_lib(&mut naga_oil_composer, DEFAULT_SHADER_LIB);
+
+        Self {
+            store: SlotMap::with_key(),
+            gpu_context: gpu_context.clone(),
+            shader_sources: SecondaryMap::new(),
+            dependants: SecondaryMap::new(),
+            naga_oil_composer,
+        }
+    }
+
+    fn load_shader_lib(naga_oil_composer: &mut Composer, shader_lib: &[&str]) {
         let mut default_shaders: HashMap<String, (&str, Vec<ImportDefinition>)> = HashMap::new();
-        for shader_str in DEFAULT_SHADER_LIB {
+        for shader_str in shader_lib {
             let (module_name, imports, _) = get_preprocessor_data(shader_str);
             if let Some(module_name) = module_name {
                 default_shaders.insert(module_name, (shader_str, imports));
@@ -92,14 +104,6 @@ impl ShaderStore {
                     );
                 }
             }
-        }
-
-        Self {
-            store: SlotMap::with_key(),
-            gpu_context: gpu_context.clone(),
-            shader_sources: SecondaryMap::new(),
-            dependants: SecondaryMap::new(),
-            naga_oil_composer,
         }
     }
 
@@ -202,5 +206,34 @@ impl ShaderStore {
 
     pub fn register_dependant(&mut self, shader_id: ShaderId, reload_command: RebuildCommand) {
         self.dependants[shader_id].push(reload_command);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[should_panic]
+    fn test_missing_module_name() {
+        use super::*;
+        let mut naga_oil_composer = Composer::default();
+        let test_shaders = ["fn test() {}"];
+        ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_missing_import() {
+        use super::*;
+        let mut naga_oil_composer = Composer::default();
+        let test_shaders = ["#define_import_path test_module\nfn test() {missing_module::foo()}"];
+        ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+    }
+
+    #[test]
+    fn test_existing_module_import() {
+        use super::*;
+        let mut naga_oil_composer = Composer::default();
+        let test_shaders = ["#define_import_path test_module\nfn test() {existing_module::foo()}", "#define_import_path existing_module\nfn foo() {}"];
+        ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
     }
 }
