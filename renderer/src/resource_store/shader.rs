@@ -6,7 +6,6 @@ use naga_oil::compose::{
     NagaModuleDescriptor, ShaderLanguage, ShaderType,
 };
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
-use tracing::{debug, info};
 use wgpu::ShaderModuleDescriptor;
 
 use super::reload_command::RebuildCommand;
@@ -60,10 +59,7 @@ impl ShaderStore {
             }
             stack.push(("lib_root", module_name.as_str()));
 
-            debug!("stack----: {:?}", stack);
-
             while let Some((caller, module_name)) = stack.pop() {
-                info!("stack: {:?}", stack);
                 if let Some((module_source, imports)) = default_shaders.get(module_name) {
                     let mut missing_imports: Vec<&str> = Vec::new();
                     for import in imports.iter().map(|v| v.import.as_str()) {
@@ -76,7 +72,7 @@ impl ShaderStore {
                         naga_oil_composer
                             .add_composable_module(ComposableModuleDescriptor {
                                 source: module_source,
-                                file_path: "lib/module_name",
+                                file_path: format!("build-in-lib/{module_name}").as_str(),
                                 language: ShaderLanguage::Wgsl,
                                 as_name: None,
                                 additional_imports: &[],
@@ -91,7 +87,7 @@ impl ShaderStore {
                     }
                 } else {
                     panic!(
-                        "Imported module `{}` not fund. Import located in module `{}`",
+                        "Imported module `{}` not found. Import located in module `{}`",
                         module_name, caller
                     );
                 }
