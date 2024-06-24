@@ -225,7 +225,9 @@ mod tests {
     fn test_missing_import() {
         use super::*;
         let mut naga_oil_composer = Composer::default();
-        let test_shaders = ["#define_import_path test_module\nfn test() {missing_module::foo()}"];
+        let test_shaders = ["
+            #define_import_path test_module
+            fn test() { missing_module::foo() }"];
         ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
     }
 
