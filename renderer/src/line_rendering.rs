@@ -48,7 +48,7 @@ pub struct LineRenderering {
 }
 
 impl LineRenderering {
-    pub fn new(rendering_context: &mut RenderingContext) -> Self {
+    pub fn new(rendering_context: &mut RenderingContext) -> eyre::Result<Self> {
         let line_segments = Vec::new();
         let line_segments_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
@@ -67,7 +67,7 @@ impl LineRenderering {
 
         let line_segment_shader_id = rendering_context
             .resource_store
-            .build_shader(&include_wgsl!("../shaders/line_segment.wgsl"));
+            .build_shader(&include_wgsl!("../shaders/line_segment.wgsl"))?;
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
             "quad index buffer",
@@ -142,7 +142,7 @@ impl LineRenderering {
                     multiview: None,
                 });
 
-        Self {
+        Ok(Self {
             line_segments,
             line_segments_buffer,
             line_segment_pipeline,
@@ -150,7 +150,7 @@ impl LineRenderering {
             quad_index_buffer,
             line_segments_transforms,
             line_segments_transforms_buffer,
-        }
+        })
     }
 
     pub fn add_line_segment(&mut self, transform: &Transform, line_segment: &Line) {

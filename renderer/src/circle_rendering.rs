@@ -60,7 +60,7 @@ pub struct CircleRendering {
 }
 
 impl CircleRendering {
-    pub fn new(rendering_context: &mut RenderingContext) -> Self {
+    pub fn new(rendering_context: &mut RenderingContext) -> eyre::Result<Self> {
         let circles = Vec::new();
         let circles_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
@@ -93,10 +93,10 @@ impl CircleRendering {
 
         let circle_shader_id = rendering_context
             .resource_store
-            .build_shader(&include_wgsl!("../shaders/circle.wgsl"));
+            .build_shader(&include_wgsl!("../shaders/circle.wgsl"))?;
         let circle_line_shader_id = rendering_context
             .resource_store
-            .build_shader(&include_wgsl!("../shaders/circle_line.wgsl"));
+            .build_shader(&include_wgsl!("../shaders/circle_line.wgsl"))?;
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
@@ -227,7 +227,7 @@ impl CircleRendering {
                     multiview: None,
                 });
 
-        Self {
+        Ok(Self {
             circles_buffer,
             circles,
             circle_lines_buffer,
@@ -240,7 +240,7 @@ impl CircleRendering {
             circle_lines_transforms,
             circles_transforms_buffer,
             circle_lines_transforms_buffer,
-        }
+        })
     }
 
     pub fn add_circle(&mut self, transform: &Transform, circle: &Circle) {

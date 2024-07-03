@@ -87,9 +87,9 @@ impl ResourceStore {
             .get_pipeline_layout(pipeline_layout_id)
     }
 
-    pub fn build_shader(&mut self, shader_source: &ShaderSource) -> ShaderId {
-        self.shader_store
-            .build_shader(&mut self.file_watcher, shader_source)
+    pub fn build_shader(&mut self, shader_source: &ShaderSource) -> eyre::Result<ShaderId> {
+        Ok(self.shader_store
+            .build_shader(&mut self.file_watcher, shader_source)?)
     }
 
     pub fn get_shader(&self, shader_id: ShaderId) -> &wgpu::ShaderModule {
@@ -125,7 +125,7 @@ impl ResourceStore {
         self.gpu_mesh_store.get_gpu_mesh(gpu_mesh_id)
     }
 
-    pub fn reload_if_necessary(&mut self) {
+    pub fn reload_if_necessary(&mut self) -> eyre::Result<()> {
         let mut dependants = self.file_watcher.process_updates();
         while let Some(dependant) = dependants.pop() {
             let new_dependants = match dependant {
@@ -138,12 +138,13 @@ impl ResourceStore {
                         &self.pipeline_layout_store,
                         pipeline_id,
                     );
-                    Vec::new()
+                    Ok(Vec::new())
                 }
-            };
+            }?;
             for new_dependant in new_dependants {
                 dependants.push(new_dependant.clone());
             }
         }
+        Ok(())
     }
 }

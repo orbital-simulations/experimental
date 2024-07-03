@@ -50,9 +50,9 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> eyre::Result<Self> {
         let mut rendering_context = RenderingContext::new(gpu_context, primary_camera)?;
-        let circle_rendering = CircleRendering::new(&mut rendering_context);
-        let rectangle_rendering = RectangleRendering::new(&mut rendering_context);
-        let line_rendering = LineRenderering::new(&mut rendering_context);
+        let circle_rendering = CircleRendering::new(&mut rendering_context)?;
+        let rectangle_rendering = RectangleRendering::new(&mut rendering_context)?;
+        let line_rendering = LineRenderering::new(&mut rendering_context)?;
         let mesh_rendering = MeshRendering::new(&mut rendering_context);
         Ok(Self {
             rendering_context,
@@ -97,7 +97,7 @@ impl Renderer {
     }
 
     // This is probably something that could be made transparent.
-    pub fn create_3d_pipeline(&mut self, shader: &ShaderSource) -> PipelineId {
+    pub fn create_3d_pipeline(&mut self, shader: &ShaderSource) -> eyre::Result<PipelineId> {
         self.mesh_rendering
             .create_3d_pipeline(&mut self.rendering_context, shader)
     }
@@ -199,7 +199,8 @@ impl Renderer {
             .gpu_context
             .queue()
             .submit(std::iter::once(encoder.finish()));
-        self.rendering_context.resource_store.reload_if_necessary();
+        // TODO: Think about how far to push the errors.
+        self.rendering_context.resource_store.reload_if_necessary().unwrap();
     }
 
     // For later use???

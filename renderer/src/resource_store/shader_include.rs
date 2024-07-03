@@ -12,7 +12,6 @@
 macro_rules! include_wgsl {
     ($($token:tt)*) => {
         {
-            //log::info!("including '{}'", $($token)*);
             $crate::resource_store::shader::ShaderSource::StaticFile($crate::resource_store::shader::StaticShaderFile {
                 file_path: $($token)*,
                 source: include_str!($($token)*).into(),

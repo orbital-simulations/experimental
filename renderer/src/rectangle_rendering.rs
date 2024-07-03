@@ -63,7 +63,7 @@ pub struct RectangleRendering {
 }
 
 impl RectangleRendering {
-    pub fn new(rendering_context: &mut RenderingContext) -> Self {
+    pub fn new(rendering_context: &mut RenderingContext) -> eyre::Result<Self> {
         let rectangles = Vec::new();
         let rectangles_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
@@ -96,10 +96,10 @@ impl RectangleRendering {
 
         let rectangle_shader_id = rendering_context
             .resource_store
-            .build_shader(&include_wgsl!("../shaders/rectangle.wgsl"));
+            .build_shader(&include_wgsl!("../shaders/rectangle.wgsl"))?;
         let rectangle_line_shader_id = rendering_context
             .resource_store
-            .build_shader(&include_wgsl!("../shaders/rectangle_line.wgsl"));
+            .build_shader(&include_wgsl!("../shaders/rectangle_line.wgsl"))?;
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
@@ -230,7 +230,7 @@ impl RectangleRendering {
                     multiview: None,
                 });
 
-        Self {
+        Ok(Self {
             rectangles_buffer,
             rectangles,
             rectangle_lines_buffer,
@@ -243,7 +243,7 @@ impl RectangleRendering {
             rectangle_lines_transforms,
             rectangles_transforms_buffer,
             rectangle_lines_transforms_buffer,
-        }
+        })
     }
 
     pub fn add_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {

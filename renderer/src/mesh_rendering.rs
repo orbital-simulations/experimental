@@ -102,8 +102,8 @@ impl MeshRendering {
         &self,
         rendering_context: &mut RenderingContext,
         shader: &ShaderSource,
-    ) -> PipelineId {
-        let shader_id = rendering_context.resource_store.build_shader(shader);
+    ) -> eyre::Result<PipelineId> {
+        let shader_id = rendering_context.resource_store.build_shader(shader)?;
 
         let pipeline_layout_id =
             rendering_context
@@ -126,7 +126,7 @@ impl MeshRendering {
             write_mask: wgpu::ColorWrites::ALL,
         })];
 
-        rendering_context
+        Ok(rendering_context
             .resource_store
             .build_render_pipeline(&RenderPipelineDescriptor {
                 label: "3d mesh pipeline".to_string(),
@@ -165,7 +165,7 @@ impl MeshRendering {
                     targets: targets.clone(),
                 }),
                 multiview: None,
-            })
+            }))
     }
 
     pub fn render<'a>(

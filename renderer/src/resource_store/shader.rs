@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::io;
 use std::{borrow::Cow, env, io::Read, path::PathBuf};
 
 use naga_oil::compose::{
-    get_preprocessor_data, ComposableModuleDescriptor, Composer, ImportDefinition,
-    NagaModuleDescriptor, ShaderLanguage, ShaderType,
+    get_preprocessor_data, ComposableModuleDescriptor, Composer, ComposerError, ImportDefinition, NagaModuleDescriptor, ShaderLanguage, ShaderType
 };
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
+use thiserror::Error;
 use wgpu::ShaderModuleDescriptor;
 
 use super::reload_command::RebuildCommand;
@@ -36,6 +37,18 @@ pub struct StaticShaderFile {
 pub enum ShaderSource {
     ShaderFile(PathBuf),
     StaticFile(StaticShaderFile),
+}
+
+#[derive(Error, Debug)]
+pub enum BuildShaderError {
+    #[error("current working directory")]
+    CurrentWorkingDirectory(#[from] io::Error),
+    #[error("can't read shader file \"{file}\" because of internal error: {source}")]
+    CantReadShaderFile{file: PathBuf, source: io::Error},
+    #[error("shader file \"{file}\" hash incorent utf8 format")]
+    NotValidUtf8{file: PathBuf},
+    #[error("naga oil composer filed for shader file \"{file}\" with error: {source}")]
+    NagaComposerFailed{file: PathBuf, source: ComposerError},
 }
 
 impl ShaderStore {
@@ -111,54 +124,44 @@ impl ShaderStore {
         &mut self,
         file_watcher: &mut FileWatcher,
         shader_source: &ShaderSource,
-    ) -> ShaderId {
-        let (shader_module, file_path) = self.build(shader_source);
+    ) -> Result<ShaderId, BuildShaderError> {
+        let (shader_module, file_path) = self.build(shader_source)?;
         let shader_id = self.store.insert(shader_module);
         self.shader_sources.insert(shader_id, shader_source.clone());
         self.dependants.insert(shader_id, Vec::new());
         if let Some(file_path) = file_path {
             file_watcher.watch_file(file_path, RebuildCommand::Shader(shader_id));
         }
-        shader_id
+        Ok(shader_id)
     }
 
-    fn build(&mut self, shader_source: &ShaderSource) -> (wgpu::ShaderModule, Option<PathBuf>) {
+    fn build(&mut self, shader_source: &ShaderSource) -> Result<(wgpu::ShaderModule, Option<PathBuf>), BuildShaderError> {
+        use BuildShaderError::*;
         match shader_source {
             ShaderSource::ShaderFile(file_path) => {
                 // TODO: In future. We should start using some kind of an asset loader so we can
                 // cross compile to web.
                 // TODO: In future. There probably should be some
                 // configuration for directories where to look for shaders.
-                let pwd = env::current_dir()
-                    .unwrap_or_else(|_| panic!("can't get current working directory"));
+                let pwd = env::current_dir().map_err(CurrentWorkingDirectory)?;
                 let file_path = pwd.join(file_path);
-                let mut source_file = std::fs::File::open(&file_path).unwrap_or_else(|_| {
-                    panic!(
-                        "missing shader file: {}",
-                        file_path.as_os_str().to_str().unwrap()
-                    )
-                });
+                let mut source_file = std::fs::File::open(&file_path).map_err(|err| CantReadShaderFile{file: file_path.clone(), source: err})?;
                 let mut source = String::new();
                 // TODO: Maybe this should just make the shader not work instead of terminating the
                 // app.
-                source_file.read_to_string(&mut source).unwrap_or_else(|_| {
-                    panic!(
-                        "Can't read the shader: {}",
-                        file_path.as_os_str().to_str().unwrap()
-                    )
-                });
+                source_file.read_to_string(&mut source).map_err(|err| CantReadShaderFile{file: file_path.clone(), source: err})?;
 
                 // TODO: unwrap here sucks...
                 let naga_module = self
                     .naga_oil_composer
                     .make_naga_module(NagaModuleDescriptor {
                         source: source.as_str(),
-                        file_path: file_path.as_os_str().to_str().unwrap(),
+                        file_path: file_path.as_os_str().to_str().ok_or_else(|| NotValidUtf8{file: file_path.clone()})?,
                         shader_type: ShaderType::Wgsl,
                         shader_defs: HashMap::new(),
                         additional_imports: &[],
                     })
-                    .unwrap();
+                    .map_err(|err| NagaComposerFailed{file: file_path.clone(), source: err})?;
 
                 let shader_module =
                     self.gpu_context
@@ -167,7 +170,7 @@ impl ShaderStore {
                             label: Some(file_path.as_os_str().to_str().unwrap()),
                             source: wgpu::ShaderSource::Naga(Cow::Owned(naga_module)),
                         });
-                (shader_module, Some(file_path))
+                Ok((shader_module, Some(file_path)))
             }
             ShaderSource::StaticFile(static_file) => {
                 let naga_module = self
@@ -179,7 +182,7 @@ impl ShaderStore {
                         shader_defs: HashMap::new(),
                         additional_imports: &[],
                     })
-                    .unwrap();
+                    .map_err(|err| NagaComposerFailed{file: static_file.file_path.into(), source: err})?;
 
                 let shader_module =
                     self.gpu_context
@@ -188,7 +191,7 @@ impl ShaderStore {
                             label: Some(static_file.file_path),
                             source: wgpu::ShaderSource::Naga(Cow::Owned(naga_module)),
                         });
-                (shader_module, None)
+                Ok((shader_module, None))
             }
         }
     }
@@ -197,11 +200,11 @@ impl ShaderStore {
         &self.store[shader_id]
     }
 
-    pub fn rebuild(&mut self, shader_id: ShaderId) -> Vec<RebuildCommand> {
+    pub fn rebuild(&mut self, shader_id: ShaderId) -> Result<Vec<RebuildCommand>, BuildShaderError> {
         let shader_source = self.shader_sources[shader_id].clone();
-        let (shader_module, _) = self.build(&shader_source);
+        let (shader_module, _) = self.build(&shader_source)?;
         self.store[shader_id] = shader_module;
-        self.dependants[shader_id].clone()
+        Ok(self.dependants[shader_id].clone())
     }
 
     pub fn register_dependant(&mut self, shader_id: ShaderId, reload_command: RebuildCommand) {
