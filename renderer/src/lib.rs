@@ -200,7 +200,10 @@ impl Renderer {
             .queue()
             .submit(std::iter::once(encoder.finish()));
         // TODO: Think about how far to push the errors.
-        self.rendering_context.resource_store.reload_if_necessary().unwrap();
+        self.rendering_context
+            .resource_store
+            .reload_if_necessary()
+            .unwrap();
     }
 
     // For later use???

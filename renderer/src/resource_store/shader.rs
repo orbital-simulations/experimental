@@ -3,7 +3,8 @@ use std::io;
 use std::{borrow::Cow, env, io::Read, path::PathBuf};
 
 use naga_oil::compose::{
-    get_preprocessor_data, ComposableModuleDescriptor, Composer, ComposerError, ImportDefinition, NagaModuleDescriptor, ShaderLanguage, ShaderType
+    get_preprocessor_data, ComposableModuleDescriptor, Composer, ComposerError, ImportDefinition,
+    NagaModuleDescriptor, ShaderLanguage, ShaderType,
 };
 use slotmap::{new_key_type, SecondaryMap, SlotMap};
 use thiserror::Error;
@@ -44,11 +45,14 @@ pub enum BuildShaderError {
     #[error("current working directory")]
     CurrentWorkingDirectory(#[from] io::Error),
     #[error("can't read shader file \"{file}\" because of internal error: {source}")]
-    CantReadShaderFile{file: PathBuf, source: io::Error},
+    CantReadShaderFile { file: PathBuf, source: io::Error },
     #[error("shader file \"{file}\" hash incorent utf8 format")]
-    NotValidUtf8{file: PathBuf},
+    NotValidUtf8 { file: PathBuf },
     #[error("naga oil composer filed for shader file \"{file}\" with error: {source}")]
-    NagaComposerFailed{file: PathBuf, source: ComposerError},
+    NagaComposerFailed {
+        file: PathBuf,
+        source: ComposerError,
+    },
 }
 
 impl ShaderStore {
@@ -135,7 +139,10 @@ impl ShaderStore {
         Ok(shader_id)
     }
 
-    fn build(&mut self, shader_source: &ShaderSource) -> Result<(wgpu::ShaderModule, Option<PathBuf>), BuildShaderError> {
+    fn build(
+        &mut self,
+        shader_source: &ShaderSource,
+    ) -> Result<(wgpu::ShaderModule, Option<PathBuf>), BuildShaderError> {
         use BuildShaderError::*;
         match shader_source {
             ShaderSource::ShaderFile(file_path) => {
@@ -145,23 +152,37 @@ impl ShaderStore {
                 // configuration for directories where to look for shaders.
                 let pwd = env::current_dir().map_err(CurrentWorkingDirectory)?;
                 let file_path = pwd.join(file_path);
-                let mut source_file = std::fs::File::open(&file_path).map_err(|err| CantReadShaderFile{file: file_path.clone(), source: err})?;
+                let mut source_file =
+                    std::fs::File::open(&file_path).map_err(|err| CantReadShaderFile {
+                        file: file_path.clone(),
+                        source: err,
+                    })?;
                 let mut source = String::new();
                 // TODO: Maybe this should just make the shader not work instead of terminating the
                 // app.
-                source_file.read_to_string(&mut source).map_err(|err| CantReadShaderFile{file: file_path.clone(), source: err})?;
+                source_file
+                    .read_to_string(&mut source)
+                    .map_err(|err| CantReadShaderFile {
+                        file: file_path.clone(),
+                        source: err,
+                    })?;
 
                 // TODO: unwrap here sucks...
                 let naga_module = self
                     .naga_oil_composer
                     .make_naga_module(NagaModuleDescriptor {
                         source: source.as_str(),
-                        file_path: file_path.as_os_str().to_str().ok_or_else(|| NotValidUtf8{file: file_path.clone()})?,
+                        file_path: file_path.as_os_str().to_str().ok_or_else(|| NotValidUtf8 {
+                            file: file_path.clone(),
+                        })?,
                         shader_type: ShaderType::Wgsl,
                         shader_defs: HashMap::new(),
                         additional_imports: &[],
                     })
-                    .map_err(|err| NagaComposerFailed{file: file_path.clone(), source: err})?;
+                    .map_err(|err| NagaComposerFailed {
+                        file: file_path.clone(),
+                        source: err,
+                    })?;
 
                 let shader_module =
                     self.gpu_context
@@ -182,7 +203,10 @@ impl ShaderStore {
                         shader_defs: HashMap::new(),
                         additional_imports: &[],
                     })
-                    .map_err(|err| NagaComposerFailed{file: static_file.file_path.into(), source: err})?;
+                    .map_err(|err| NagaComposerFailed {
+                        file: static_file.file_path.into(),
+                        source: err,
+                    })?;
 
                 let shader_module =
                     self.gpu_context
@@ -200,7 +224,10 @@ impl ShaderStore {
         &self.store[shader_id]
     }
 
-    pub fn rebuild(&mut self, shader_id: ShaderId) -> Result<Vec<RebuildCommand>, BuildShaderError> {
+    pub fn rebuild(
+        &mut self,
+        shader_id: ShaderId,
+    ) -> Result<Vec<RebuildCommand>, BuildShaderError> {
         let shader_source = self.shader_sources[shader_id].clone();
         let (shader_module, _) = self.build(&shader_source)?;
         self.store[shader_id] = shader_module;

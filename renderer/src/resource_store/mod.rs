@@ -88,7 +88,8 @@ impl ResourceStore {
     }
 
     pub fn build_shader(&mut self, shader_source: &ShaderSource) -> eyre::Result<ShaderId> {
-        Ok(self.shader_store
+        Ok(self
+            .shader_store
             .build_shader(&mut self.file_watcher, shader_source)?)
     }
 
