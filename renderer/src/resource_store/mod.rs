@@ -41,7 +41,7 @@ pub enum ResourceStoreInitializationError {
     #[error("Error during shader store initialization: {0}")]
     ShaderInitializationError(#[from] shader::InitializationError),
     #[error("Can't retreive current working directory")]
-    CurrentWowkingDir(#[from] std::io::Error),
+    CurrentWorkingDir(#[from] std::io::Error),
     #[error("Error during file watcher initializaiton: {0}")]
     FileWatcher(#[from] FileWatcherError),
 }
