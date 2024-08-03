@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
-use tracing::{info, warn};
 use thiserror::Error;
+use tracing::{info, warn};
 
 use crate::resource_store::reload_command::RebuildCommand;
 
@@ -18,7 +18,7 @@ pub struct FileWatcher {
 #[derive(Error, Debug)]
 pub enum FileWatcherError {
     #[error("Internal inotify watcher error {0}")]
-    InternalError(#[from] notify::Error)
+    InternalError(#[from] notify::Error),
 }
 
 impl FileWatcher {

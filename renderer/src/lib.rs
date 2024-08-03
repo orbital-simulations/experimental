@@ -48,11 +48,10 @@ pub struct Renderer {
     mesh_rendering: MeshRendering,
 }
 
-
 #[derive(Error, Debug)]
 pub enum RenderError {
     #[error("Internal inotify watcher error {0}")]
-    RenderError(#[from] ReloadError)
+    RenderError(#[from] ReloadError),
 }
 
 impl Renderer {

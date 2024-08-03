@@ -60,9 +60,9 @@ pub enum InitializationError {
     #[error("Oil composer error")]
     ComposerError(#[from] ComposerError),
     #[error("Imported module `{module_name}` not found. Import located in module `{caller}`")]
-    ImportError{module_name: String, caller: String},
+    ImportError { module_name: String, caller: String },
     #[error("Missing `#define_import_path` in a lib shader shader_str: `{shader_str}`")]
-    MissingDefinitionOfImportPath{shader_str: String},
+    MissingDefinitionOfImportPath { shader_str: String },
 }
 
 impl ShaderStore {
@@ -79,14 +79,19 @@ impl ShaderStore {
         })
     }
 
-    fn load_shader_lib(naga_oil_composer: &mut Composer, shader_lib: &[&str]) -> Result<(), InitializationError> {
+    fn load_shader_lib(
+        naga_oil_composer: &mut Composer,
+        shader_lib: &[&str],
+    ) -> Result<(), InitializationError> {
         let mut default_shaders: HashMap<String, (&str, Vec<ImportDefinition>)> = HashMap::new();
         for shader_str in shader_lib {
             let (module_name, imports, _) = get_preprocessor_data(shader_str);
             if let Some(module_name) = module_name {
                 default_shaders.insert(module_name, (shader_str, imports));
             } else {
-                return Err(InitializationError::MissingDefinitionOfImportPath{shader_str: shader_str.to_string()});
+                return Err(InitializationError::MissingDefinitionOfImportPath {
+                    shader_str: shader_str.to_string(),
+                });
             }
         }
 
@@ -108,15 +113,14 @@ impl ShaderStore {
                     }
 
                     if missing_imports.is_empty() {
-                        naga_oil_composer
-                            .add_composable_module(ComposableModuleDescriptor {
-                                source: module_source,
-                                file_path: format!("build-in-lib/{module_name}").as_str(),
-                                language: ShaderLanguage::Wgsl,
-                                as_name: None,
-                                additional_imports: &[],
-                                shader_defs: HashMap::new(),
-                            })?;
+                        naga_oil_composer.add_composable_module(ComposableModuleDescriptor {
+                            source: module_source,
+                            file_path: format!("build-in-lib/{module_name}").as_str(),
+                            language: ShaderLanguage::Wgsl,
+                            as_name: None,
+                            additional_imports: &[],
+                            shader_defs: HashMap::new(),
+                        })?;
                     } else {
                         stack.push((caller, module_name));
                         stack.append(
@@ -124,8 +128,10 @@ impl ShaderStore {
                         );
                     }
                 } else {
-
-                    return Err(InitializationError::ImportError { module_name: module_name.into(), caller: caller.into() });
+                    return Err(InitializationError::ImportError {
+                        module_name: module_name.into(),
+                        caller: caller.into(),
+                    });
                 }
             }
         }
@@ -256,7 +262,10 @@ mod tests {
         let test_shaders = ["fn test() {}"];
         let ret = ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
         assert!(ret.is_err());
-        assert_eq!(ret.unwrap_err().to_string(), "Missing `#define_import_path` in a lib shader shader_str: `fn test() {}`");
+        assert_eq!(
+            ret.unwrap_err().to_string(),
+            "Missing `#define_import_path` in a lib shader shader_str: `fn test() {}`"
+        );
     }
 
     #[test]
@@ -268,7 +277,10 @@ mod tests {
             fn test() { missing_module::foo() }"];
         let ret = ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
         assert!(ret.is_err());
-        assert_eq!(ret.unwrap_err().to_string(), "Imported module `missing_module` not found. Import located in module `test_module`");
+        assert_eq!(
+            ret.unwrap_err().to_string(),
+            "Imported module `missing_module` not found. Import located in module `test_module`"
+        );
     }
 
     #[test]

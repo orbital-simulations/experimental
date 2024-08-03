@@ -11,7 +11,10 @@ use std::env;
 use glam::Vec3;
 use thiserror::Error;
 
-use crate::{file_watcher::{FileWatcher, FileWatcherError}, gpu_context::GpuContext};
+use crate::{
+    file_watcher::{FileWatcher, FileWatcherError},
+    gpu_context::GpuContext,
+};
 
 use self::{
     bind_group_layout::BindGroupLayoutStore,
@@ -49,7 +52,7 @@ pub enum ResourceStoreInitializationError {
 #[derive(Error, Debug)]
 pub enum ReloadError {
     #[error("Error during shader reloading: {0}")]
-    BuildShaderError(#[from] BuildShaderError)
+    BuildShaderError(#[from] BuildShaderError),
 }
 
 impl ResourceStore {
@@ -104,9 +107,11 @@ impl ResourceStore {
             .get_pipeline_layout(pipeline_layout_id)
     }
 
-    pub fn build_shader(&mut self, shader_source: &ShaderSource) -> Result<ShaderId, BuildShaderError> {
-        self
-            .shader_store
+    pub fn build_shader(
+        &mut self,
+        shader_source: &ShaderSource,
+    ) -> Result<ShaderId, BuildShaderError> {
+        self.shader_store
             .build_shader(&mut self.file_watcher, shader_source)
     }
 
