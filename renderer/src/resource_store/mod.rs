@@ -9,15 +9,16 @@ pub mod shader_include;
 use std::env;
 
 use glam::Vec3;
+use thiserror::Error;
 
-use crate::{file_watcher::FileWatcher, gpu_context::GpuContext};
+use crate::{file_watcher::{FileWatcher, FileWatcherError}, gpu_context::GpuContext};
 
 use self::{
     bind_group_layout::BindGroupLayoutStore,
     gpu_mesh::{GpuMesh, GpuMeshStore},
     pipeline_layout::{PipelineLayoutDescriptor, PipelineLayoutStore},
     render_pipeline::{RenderPipelineDescriptor, RenderPipelineStore},
-    shader::{ShaderSource, ShaderStore},
+    shader::{BuildShaderError, ShaderSource, ShaderStore},
 };
 
 pub use self::bind_group_layout::BindGroupLayoutId;
@@ -35,11 +36,27 @@ pub struct ResourceStore {
     gpu_mesh_store: GpuMeshStore,
 }
 
+#[derive(Error, Debug)]
+pub enum ResourceStoreInitializationError {
+    #[error("Error during shader store initialization: {0}")]
+    ShaderInitializationError(#[from] shader::InitializationError),
+    #[error("Can't retreive current working directory")]
+    CurrentWowkingDir(#[from] std::io::Error),
+    #[error("Error during file watcher initializaiton: {0}")]
+    FileWatcher(#[from] FileWatcherError),
+}
+
+#[derive(Error, Debug)]
+pub enum ReloadError {
+    #[error("Error during shader reloading: {0}")]
+    BuildShaderError(#[from] BuildShaderError)
+}
+
 impl ResourceStore {
-    pub fn new(gpu_context: &GpuContext) -> eyre::Result<Self> {
+    pub fn new(gpu_context: &GpuContext) -> Result<Self, ResourceStoreInitializationError> {
         let bind_group_layout_store = BindGroupLayoutStore::new(gpu_context);
         let pipeline_layout_store = PipelineLayoutStore::new(gpu_context);
-        let shader_store = ShaderStore::new(gpu_context);
+        let shader_store = ShaderStore::new(gpu_context)?;
         let render_pipeline_store = RenderPipelineStore::new(gpu_context);
         let gpu_mesh_store = GpuMeshStore::new(gpu_context);
         let pwd = env::current_dir()?;
@@ -87,10 +104,10 @@ impl ResourceStore {
             .get_pipeline_layout(pipeline_layout_id)
     }
 
-    pub fn build_shader(&mut self, shader_source: &ShaderSource) -> eyre::Result<ShaderId> {
-        Ok(self
+    pub fn build_shader(&mut self, shader_source: &ShaderSource) -> Result<ShaderId, BuildShaderError> {
+        self
             .shader_store
-            .build_shader(&mut self.file_watcher, shader_source)?)
+            .build_shader(&mut self.file_watcher, shader_source)
     }
 
     pub fn get_shader(&self, shader_id: ShaderId) -> &wgpu::ShaderModule {
@@ -126,7 +143,7 @@ impl ResourceStore {
         self.gpu_mesh_store.get_gpu_mesh(gpu_mesh_id)
     }
 
-    pub fn reload_if_necessary(&mut self) -> eyre::Result<()> {
+    pub fn reload_if_necessary(&mut self) -> Result<(), ReloadError> {
         let mut dependants = self.file_watcher.process_updates();
         while let Some(dependant) = dependants.pop() {
             let new_dependants = match dependant {

@@ -55,28 +55,38 @@ pub enum BuildShaderError {
     },
 }
 
-impl ShaderStore {
-    pub fn new(gpu_context: &GpuContext) -> Self {
-        let mut naga_oil_composer = Composer::default();
-        Self::load_shader_lib(&mut naga_oil_composer, DEFAULT_SHADER_LIB);
+#[derive(Error, Debug)]
+pub enum InitializationError {
+    #[error("Oil composer error")]
+    ComposerError(#[from] ComposerError),
+    #[error("Imported module `{module_name}` not found. Import located in module `{caller}`")]
+    ImportError{module_name: String, caller: String},
+    #[error("Missing `#define_import_path` in a lib shader shader_str: `{shader_str}`")]
+    MissingDefinitionOfImportPath{shader_str: String},
+}
 
-        Self {
+impl ShaderStore {
+    pub fn new(gpu_context: &GpuContext) -> Result<Self, InitializationError> {
+        let mut naga_oil_composer = Composer::default();
+        Self::load_shader_lib(&mut naga_oil_composer, DEFAULT_SHADER_LIB)?;
+
+        Ok(Self {
             store: SlotMap::with_key(),
             gpu_context: gpu_context.clone(),
             shader_sources: SecondaryMap::new(),
             dependants: SecondaryMap::new(),
             naga_oil_composer,
-        }
+        })
     }
 
-    fn load_shader_lib(naga_oil_composer: &mut Composer, shader_lib: &[&str]) {
+    fn load_shader_lib(naga_oil_composer: &mut Composer, shader_lib: &[&str]) -> Result<(), InitializationError> {
         let mut default_shaders: HashMap<String, (&str, Vec<ImportDefinition>)> = HashMap::new();
         for shader_str in shader_lib {
             let (module_name, imports, _) = get_preprocessor_data(shader_str);
             if let Some(module_name) = module_name {
                 default_shaders.insert(module_name, (shader_str, imports));
             } else {
-                panic!("Lib shaders need to have `#define_import_path`");
+                return Err(InitializationError::MissingDefinitionOfImportPath{shader_str: shader_str.to_string()});
             }
         }
 
@@ -106,8 +116,7 @@ impl ShaderStore {
                                 as_name: None,
                                 additional_imports: &[],
                                 shader_defs: HashMap::new(),
-                            })
-                            .unwrap();
+                            })?;
                     } else {
                         stack.push((caller, module_name));
                         stack.append(
@@ -115,13 +124,12 @@ impl ShaderStore {
                         );
                     }
                 } else {
-                    panic!(
-                        "Imported module `{}` not found. Import located in module `{}`",
-                        module_name, caller
-                    );
+
+                    return Err(InitializationError::ImportError { module_name: module_name.into(), caller: caller.into() });
                 }
             }
         }
+        Ok(())
     }
 
     pub fn build_shader(
@@ -167,7 +175,6 @@ impl ShaderStore {
                         source: err,
                     })?;
 
-                // TODO: unwrap here sucks...
                 let naga_module = self
                     .naga_oil_composer
                     .make_naga_module(NagaModuleDescriptor {
@@ -188,6 +195,7 @@ impl ShaderStore {
                     self.gpu_context
                         .device()
                         .create_shader_module(ShaderModuleDescriptor {
+                            // TODO: Can this unwrap even fail?
                             label: Some(file_path.as_os_str().to_str().unwrap()),
                             source: wgpu::ShaderSource::Naga(Cow::Owned(naga_module)),
                         });
@@ -242,23 +250,25 @@ impl ShaderStore {
 #[cfg(test)]
 mod tests {
     #[test]
-    #[should_panic]
     fn test_missing_module_name() {
         use super::*;
         let mut naga_oil_composer = Composer::default();
         let test_shaders = ["fn test() {}"];
-        ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+        let ret = ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+        assert!(ret.is_err());
+        assert_eq!(ret.unwrap_err().to_string(), "Missing `#define_import_path` in a lib shader shader_str: `fn test() {}`");
     }
 
     #[test]
-    #[should_panic]
     fn test_missing_import() {
         use super::*;
         let mut naga_oil_composer = Composer::default();
         let test_shaders = ["
             #define_import_path test_module
             fn test() { missing_module::foo() }"];
-        ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+        let ret = ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+        assert!(ret.is_err());
+        assert_eq!(ret.unwrap_err().to_string(), "Imported module `missing_module` not found. Import located in module `test_module`");
     }
 
     #[test]
@@ -271,6 +281,7 @@ mod tests {
             "#define_import_path existing_module
              fn foo() {}",
         ];
-        ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+        let ret = ShaderStore::load_shader_lib(&mut naga_oil_composer, &test_shaders);
+        assert!(ret.is_ok());
     }
 }

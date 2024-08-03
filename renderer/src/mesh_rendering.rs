@@ -203,6 +203,8 @@ impl MeshRendering {
                                 buffer: &self.transform_uniform_buffer,
                                 offset: 0,
                                 size: Some(
+                                    // I don't think the unwrap can ever fail here because the
+                                    // size_of will always return positive value.
                                     std::num::NonZeroU64::new(size_of::<TransformGpu>() as u64)
                                         .unwrap(),
                                 ),

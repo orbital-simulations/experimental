@@ -18,8 +18,9 @@ use std::sync::Arc;
 
 use glam::{Mat4, Vec2, Vec3};
 use mesh_rendering::{MeshBundle, MeshRendering};
-use resource_store::{GpuMeshId, PipelineId};
+use resource_store::{GpuMeshId, PipelineId, ReloadError};
 use scene_node::SceneNode;
+use thiserror::Error;
 use transform::Transform;
 
 use crate::{
@@ -45,6 +46,13 @@ pub struct Renderer {
     rectangle_rendering: RectangleRendering,
     line_rendering: LineRenderering,
     mesh_rendering: MeshRendering,
+}
+
+
+#[derive(Error, Debug)]
+pub enum RenderError {
+    #[error("Internal inotify watcher error {0}")]
+    RenderError(#[from] ReloadError)
 }
 
 impl Renderer {
@@ -137,7 +145,7 @@ impl Renderer {
             .on_scale_factor_change(scale_factor as f32);
     }
 
-    pub fn render(&mut self, target_texture: &wgpu::Texture) {
+    pub fn render(&mut self, target_texture: &wgpu::Texture) -> Result<(), RenderError> {
         let texture_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
             .rendering_context
@@ -202,8 +210,8 @@ impl Renderer {
         // TODO: Think about how far to push the errors.
         self.rendering_context
             .resource_store
-            .reload_if_necessary()
-            .unwrap();
+            .reload_if_necessary()?;
+        Ok(())
     }
 
     // For later use???
