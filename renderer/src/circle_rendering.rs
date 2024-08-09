@@ -1,18 +1,17 @@
 use crate::buffers::{WriteableBuffer, WriteableVecBuffer};
+use crate::include_wgsl;
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::resource_store::PipelineId;
 use crate::transform::{Transform, TransformGpu};
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
-use wgpu::{include_wgsl, vertex_attr_array};
+use wgpu::vertex_attr_array;
 
 use crate::resource_store::pipeline_layout::PipelineLayoutDescriptor;
 use crate::resource_store::render_pipeline::{
     FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
 };
-use crate::{
-    buffers::IndexBuffer, rendering_context::RenderingContext, resource_store::shader::ShaderSource,
-};
+use crate::{buffers::IndexBuffer, rendering_context::RenderingContext};
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
 #[repr(C, packed)]
@@ -61,7 +60,7 @@ pub struct CircleRendering {
 }
 
 impl CircleRendering {
-    pub fn new(rendering_context: &mut RenderingContext) -> Self {
+    pub fn new(rendering_context: &mut RenderingContext) -> eyre::Result<Self> {
         let circles = Vec::new();
         let circles_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
@@ -92,18 +91,12 @@ impl CircleRendering {
             wgpu::BufferUsages::VERTEX,
         );
 
-        let circle_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
-                    "../shaders/circle.wgsl"
-                )));
-        let circle_line_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
-                    "../shaders/circle_line.wgsl"
-                )));
+        let circle_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/circle.wgsl"))?;
+        let circle_line_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/circle_line.wgsl"))?;
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
@@ -234,7 +227,7 @@ impl CircleRendering {
                     multiview: None,
                 });
 
-        Self {
+        Ok(Self {
             circles_buffer,
             circles,
             circle_lines_buffer,
@@ -247,7 +240,7 @@ impl CircleRendering {
             circle_lines_transforms,
             circles_transforms_buffer,
             circle_lines_transforms_buffer,
-        }
+        })
     }
 
     pub fn add_circle(&mut self, transform: &Transform, circle: &Circle) {

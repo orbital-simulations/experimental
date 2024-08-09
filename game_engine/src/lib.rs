@@ -15,7 +15,7 @@ use renderer::Renderer;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use wgpu::util::parse_backends_from_comma_list;
 use wgpu::{
     DeviceDescriptor, Features, Gles3MinorVersion, Instance, InstanceDescriptor, InstanceFlags,
@@ -308,14 +308,14 @@ impl<'a> GameEngine<'a> {
         FUpdate: Fn(&mut State, &mut GameEngine),
         FRender: Fn(&State, &mut Renderer),
     {
-        info!("rendering as per the RedrawRequested was received");
+        info!("Rendering as per the RedrawRequested was received");
 
         self.last_frame_delta = self.timer.elapsed().as_secs_f32();
         self.camera_controler
             .update_camera(&mut self.camera, self.last_frame_delta, &self.inputs);
         self.renderer
             .set_primary_camera_matrix(&self.camera.calc_matrix());
-        warn!("camera: {:?}", self.camera);
+        debug!("camera: {:?}", self.camera);
         self.timer = Instant::now();
 
         self.egui_integration.prepare_frame(self.window);
@@ -324,7 +324,7 @@ impl<'a> GameEngine<'a> {
 
         match self.surface.get_current_texture() {
             Ok(output) => {
-                self.renderer.render(&output.texture);
+                self.renderer.render(&output.texture).unwrap();
                 self.egui_integration.render(
                     self.renderer.rendering_context.gpu_context.device(),
                     self.renderer.rendering_context.gpu_context.queue(),

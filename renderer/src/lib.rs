@@ -18,8 +18,9 @@ use std::sync::Arc;
 
 use glam::{Mat4, Vec2, Vec3};
 use mesh_rendering::{MeshBundle, MeshRendering};
-use resource_store::{GpuMeshId, PipelineId};
+use resource_store::{GpuMeshId, PipelineId, ReloadError};
 use scene_node::SceneNode;
+use thiserror::Error;
 use transform::Transform;
 
 use crate::{
@@ -47,12 +48,18 @@ pub struct Renderer {
     mesh_rendering: MeshRendering,
 }
 
+#[derive(Error, Debug)]
+pub enum RenderError {
+    #[error("Internal inotify watcher error {0}")]
+    RenderError(#[from] ReloadError),
+}
+
 impl Renderer {
     pub fn new(gpu_context: &Arc<GpuContext>, primary_camera: PrimaryCamera) -> eyre::Result<Self> {
         let mut rendering_context = RenderingContext::new(gpu_context, primary_camera)?;
-        let circle_rendering = CircleRendering::new(&mut rendering_context);
-        let rectangle_rendering = RectangleRendering::new(&mut rendering_context);
-        let line_rendering = LineRenderering::new(&mut rendering_context);
+        let circle_rendering = CircleRendering::new(&mut rendering_context)?;
+        let rectangle_rendering = RectangleRendering::new(&mut rendering_context)?;
+        let line_rendering = LineRenderering::new(&mut rendering_context)?;
         let mesh_rendering = MeshRendering::new(&mut rendering_context);
         Ok(Self {
             rendering_context,
@@ -97,7 +104,7 @@ impl Renderer {
     }
 
     // This is probably something that could be made transparent.
-    pub fn create_3d_pipeline(&mut self, shader: &ShaderSource) -> PipelineId {
+    pub fn create_3d_pipeline(&mut self, shader: &ShaderSource) -> eyre::Result<PipelineId> {
         self.mesh_rendering
             .create_3d_pipeline(&mut self.rendering_context, shader)
     }
@@ -137,7 +144,7 @@ impl Renderer {
             .on_scale_factor_change(scale_factor as f32);
     }
 
-    pub fn render(&mut self, target_texture: &wgpu::Texture) {
+    pub fn render(&mut self, target_texture: &wgpu::Texture) -> Result<(), RenderError> {
         let texture_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
             .rendering_context
@@ -199,7 +206,11 @@ impl Renderer {
             .gpu_context
             .queue()
             .submit(std::iter::once(encoder.finish()));
-        self.rendering_context.resource_store.reload_if_necessary();
+        // TODO: Think about how far to push the errors.
+        self.rendering_context
+            .resource_store
+            .reload_if_necessary()?;
+        Ok(())
     }
 
     // For later use???

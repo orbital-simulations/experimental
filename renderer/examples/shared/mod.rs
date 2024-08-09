@@ -126,7 +126,7 @@ where
 
     render(&mut renderer);
 
-    renderer.render(&texture);
+    renderer.render(&texture).unwrap();
 
     let mut encoder = renderer
         .rendering_context

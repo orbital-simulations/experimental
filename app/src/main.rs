@@ -9,11 +9,10 @@ use game_engine::{
 use glam::{vec3, Vec3};
 use noise::{NoiseFn, SuperSimplex};
 use renderer::{
-    mesh_rendering::MeshBundle, resource_store::shader::ShaderSource, transform::Transform,
-    Renderer,
+    include_wgsl, mesh_rendering::MeshBundle, resource_store::shader::ShaderSource,
+    transform::Transform, Renderer,
 };
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
-use wgpu::include_wgsl;
 use winit::{event_loop::EventLoop, window::Window};
 
 pub struct GameState {
@@ -35,9 +34,9 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         mesh_id: load_model_static(&mut game_engine.renderer, CUBE, &CUBE_MATERIALS).unwrap(),
         pipeline_id: game_engine
             .renderer
-            .create_3d_pipeline(&ShaderSource::StaticFile(include_wgsl!(
-                "../shaders/cube.wgsl"
-            ))),
+            // TODO: Again think about how far to push the errors
+            .create_3d_pipeline(&include_wgsl!("../shaders/cube.wgsl"))
+            .unwrap(),
     };
 
     let reload_cube_bundle = MeshBundle {
@@ -46,7 +45,8 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
             .renderer
             .create_3d_pipeline(&ShaderSource::ShaderFile(
                 "app/shaders/cube_reload_test.wgsl".into(),
-            )),
+            ))
+            .unwrap(),
     };
 
     let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
@@ -69,9 +69,8 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
             .build_gpu_mesh(&vertices, &normals, &indices),
         pipeline_id: game_engine
             .renderer
-            .create_3d_pipeline(&ShaderSource::StaticFile(include_wgsl!(
-                "../shaders/terain.wgsl"
-            ))),
+            .create_3d_pipeline(&include_wgsl!("../shaders/terain.wgsl"))
+            .unwrap(),
     };
 
     GameState {

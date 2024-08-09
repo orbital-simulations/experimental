@@ -1,10 +1,11 @@
 use crate::buffers::WriteableBuffer;
+use crate::include_wgsl;
 use crate::primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES};
 use crate::resource_store::PipelineId;
 use crate::transform::{Transform, TransformGpu};
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
-use wgpu::{include_wgsl, vertex_attr_array};
+use wgpu::vertex_attr_array;
 
 use crate::resource_store::pipeline_layout::PipelineLayoutDescriptor;
 use crate::resource_store::render_pipeline::{
@@ -13,7 +14,6 @@ use crate::resource_store::render_pipeline::{
 use crate::{
     buffers::{IndexBuffer, WriteableVecBuffer},
     rendering_context::RenderingContext,
-    resource_store::shader::ShaderSource,
 };
 
 #[derive(Debug, Copy, Clone, Zeroable, Pod)]
@@ -63,7 +63,7 @@ pub struct RectangleRendering {
 }
 
 impl RectangleRendering {
-    pub fn new(rendering_context: &mut RenderingContext) -> Self {
+    pub fn new(rendering_context: &mut RenderingContext) -> eyre::Result<Self> {
         let rectangles = Vec::new();
         let rectangles_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
@@ -94,18 +94,12 @@ impl RectangleRendering {
             wgpu::BufferUsages::VERTEX,
         );
 
-        let rectangle_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
-                    "../shaders/rectangle.wgsl"
-                )));
-        let rectangle_line_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
-                    "../shaders/rectangle_line.wgsl"
-                )));
+        let rectangle_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/rectangle.wgsl"))?;
+        let rectangle_line_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/rectangle_line.wgsl"))?;
 
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
@@ -236,7 +230,7 @@ impl RectangleRendering {
                     multiview: None,
                 });
 
-        Self {
+        Ok(Self {
             rectangles_buffer,
             rectangles,
             rectangle_lines_buffer,
@@ -249,7 +243,7 @@ impl RectangleRendering {
             rectangle_lines_transforms,
             rectangles_transforms_buffer,
             rectangle_lines_transforms_buffer,
-        }
+        })
     }
 
     pub fn add_rectangle(&mut self, transform: &Transform, rectangle: &Rectangle) {

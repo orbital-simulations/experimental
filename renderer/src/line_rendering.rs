@@ -1,9 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
-use wgpu::{include_wgsl, vertex_attr_array};
+use wgpu::vertex_attr_array;
 
 use crate::{
     buffers::{IndexBuffer, WriteableBuffer, WriteableVecBuffer},
+    include_wgsl,
     primitives::quad::{QUAD_2D_INDICES, QUAD_2D_VERICES},
     rendering_context::RenderingContext,
     resource_store::{
@@ -11,7 +12,6 @@ use crate::{
         render_pipeline::{
             FragmentState, RenderPipelineDescriptor, VertexBufferLayout, VertexState,
         },
-        shader::ShaderSource,
         PipelineId,
     },
     transform::{Transform, TransformGpu},
@@ -48,7 +48,7 @@ pub struct LineRenderering {
 }
 
 impl LineRenderering {
-    pub fn new(rendering_context: &mut RenderingContext) -> Self {
+    pub fn new(rendering_context: &mut RenderingContext) -> eyre::Result<Self> {
         let line_segments = Vec::new();
         let line_segments_buffer = WriteableVecBuffer::new(
             &rendering_context.gpu_context,
@@ -65,12 +65,9 @@ impl LineRenderering {
             wgpu::BufferUsages::VERTEX,
         );
 
-        let line_segment_shader_id =
-            rendering_context
-                .resource_store
-                .build_shader(&ShaderSource::StaticFile(include_wgsl!(
-                    "../shaders/line_segment.wgsl"
-                )));
+        let line_segment_shader_id = rendering_context
+            .resource_store
+            .build_shader(&include_wgsl!("../shaders/line_segment.wgsl"))?;
         let quad_vertex_buffer = WriteableBuffer::new(
             &rendering_context.gpu_context,
             "quad index buffer",
@@ -145,7 +142,7 @@ impl LineRenderering {
                     multiview: None,
                 });
 
-        Self {
+        Ok(Self {
             line_segments,
             line_segments_buffer,
             line_segment_pipeline,
@@ -153,7 +150,7 @@ impl LineRenderering {
             quad_index_buffer,
             line_segments_transforms,
             line_segments_transforms_buffer,
-        }
+        })
     }
 
     pub fn add_line_segment(&mut self, transform: &Transform, line_segment: &Line) {

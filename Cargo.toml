@@ -13,8 +13,11 @@ criterion = "0.5"
 rand = "0.8"
 winit = {version = "0.29", features = ["rwh_06"]}
 dyn-clone = "1.0"
-wgpu = "0.19"
+wgpu = { version = "0.19", features = ["naga-ir"] }
 noise = "0.8"
 itertools = "0.12"
 egui = { version = "0.26", features = ["color-hex", "default_fonts", "log", "mint"] }
 bytemuck = { version = "1.16.0", features = ["derive", "must_cast"] }
+naga_oil = "0.13"
+naga = "0.20"
+thiserror = "1.0"
