@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use game_engine::{game_engine_2_5d_parameters, GameEngine};
+use game_engine::{GameEngine, MkGameEngine};
 use glam::{vec3, Quat, Vec2};
 use renderer::colors::{GREEN, PINK, RED};
 use renderer::line_rendering::Line;
@@ -79,7 +79,7 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         vec![pivot],
     );
 
-    renderer.draw_actor(&root_rectangle_actor);
+    renderer.draw_scene_node(&root_rectangle_actor);
 }
 
 fn main() -> color_eyre::eyre::Result<()> {
@@ -95,7 +95,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(
         event_loop,
         &window,
-        game_engine_2_5d_parameters(),
+        MkGameEngine::game_engine_2_5d_parameters(),
     ))?;
     game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())

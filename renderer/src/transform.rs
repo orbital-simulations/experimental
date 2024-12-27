@@ -1,7 +1,8 @@
+use core::panic;
 use std::ops::Mul;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Affine3A, EulerRot, Quat, Vec3};
+use glam::{Affine3A, EulerRot, Mat4, Quat, Vec3, Vec4};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Transform {
@@ -81,6 +82,14 @@ impl Transform {
         }
     }
 
+    pub fn from_translation_rotation_scale(position: &Vec3, rotation: &Quat, scale: f32) -> Self {
+        Self {
+            translate: *position,
+            scale,
+            rotate: *rotation,
+        }
+    }
+
     pub fn from_translation_rotation_euler(position: &Vec3, rotation: &Vec3) -> Self {
         Self {
             translate: *position,
@@ -110,6 +119,26 @@ impl Transform {
             translate: *position,
             scale: 1.0,
             rotate: Quat::from_rotation_z(rotation),
+        }
+    }
+
+    pub fn from_columns(columns: &[[f32; 4]; 4]) -> Self {
+        let transform = Mat4::from_cols(
+         Vec4::from_array(columns[0]),
+         Vec4::from_array(columns[1]),
+         Vec4::from_array(columns[2]),
+         Vec4::from_array(columns[3])
+        );
+
+        let (scale, rotate, translate) = transform.to_scale_rotation_translation();
+        if scale[0] != scale[1] && scale[0] != scale[2] {
+            panic!("scale needs to be uniform `Vec3(n, n, n)` where `n` is \
+                scalar scale. The scale actually is: {scale}");
+        }
+        Self {
+            translate,
+            scale: scale[0],
+            rotate,
         }
     }
 

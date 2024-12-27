@@ -34,7 +34,7 @@ fn main() -> color_eyre::eyre::Result<()> {
         let transform =
             Transform::from_translation_rotation_z(&vec3(100.0, 0.0, 0.0), (PI / 180.0) * 10.0);
         let pivot = SceneNode::invisible(transform, vec![circle]);
-        renderer.draw_actor(&pivot);
+        renderer.draw_scene_node(&pivot);
 
         renderer.draw_line(
             &Transform::IDENTITY,

@@ -1,16 +1,12 @@
 use std::f32::consts::PI;
 
 use game_engine::{
-    game_engine_3d_parameters,
-    mesh::{generate_mesh_normals, generate_mesh_plane},
-    obj_loader::load_model_static,
-    GameEngine,
+    camera::Camera, gltf::load_gltf, mesh::{generate_mesh_normals, generate_mesh_plane}, obj_loader::load_model_static, GameEngine, MkGameEngine, ProjectionInit
 };
 use glam::{vec3, Vec3};
 use noise::{NoiseFn, SuperSimplex};
 use renderer::{
-    include_wgsl, mesh_rendering::MeshBundle, resource_store::shader::ShaderSource,
-    transform::Transform, Renderer,
+    include_wgsl, mesh_rendering::MeshBundle, resource_store::shader::ShaderSource, scene_node::SceneNode, transform::Transform, Renderer
 };
 use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use winit::{event_loop::EventLoop, window::Window};
@@ -23,6 +19,7 @@ pub struct GameState {
     cube_bundle: MeshBundle,
     reload_cube_bundle: MeshBundle,
     cube_rotation: f32,
+    loaded_objects: Vec<SceneNode>,
     terain_bundle: MeshBundle,
 }
 
@@ -48,6 +45,8 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
             ))
             .unwrap(),
     };
+
+    let loaded_objects = load_gltf(&mut game_engine.renderer, "app/assets/umbrella.glb").unwrap();
 
     let (mut vertices, indices) = generate_mesh_plane(200, 200, 1.);
     let noise1 = SuperSimplex::new(0);
@@ -82,6 +81,7 @@ fn setup(game_engine: &mut GameEngine) -> GameState {
         reload_cube_bundle,
         terain_bundle,
         cube_rotation: 0.0,
+        loaded_objects,
     }
 }
 
@@ -131,10 +131,10 @@ fn update(state: &mut GameState, game_engine: &mut GameEngine) {
 }
 
 fn render(state: &GameState, renderer: &mut Renderer) {
-    renderer.draw_mesh(
-        &Transform::from_translation(&vec3(0.0, 0.0, 0.0)),
-        &state.terain_bundle,
-    );
+    //renderer.draw_mesh(
+    //    &Transform::from_translation(&vec3(0.0, 0.0, 0.0)),
+    //    &state.terain_bundle,
+    //);
 
     let mut cube_transform = Transform::from_rotation_euler(&vec3(0.0, 0.0, state.cube_rotation));
     cube_transform.set_translation(&vec3(-10.0, 100.0, 10.0));
@@ -144,6 +144,9 @@ fn render(state: &GameState, renderer: &mut Renderer) {
         Transform::from_rotation_euler(&vec3(0.0, 0.0, state.cube_rotation));
     reload_cube_transform.set_translation(&vec3(-10.0, 80.0, 10.0));
     renderer.draw_mesh(&reload_cube_transform, &state.reload_cube_bundle);
+    for node in state.loaded_objects.iter() {
+        renderer.draw_scene_node(node);
+    }
 }
 
 fn main() -> color_eyre::eyre::Result<()> {
@@ -159,7 +162,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(
         event_loop,
         &window,
-        game_engine_3d_parameters(),
+    MkGameEngine::new(ProjectionInit::Perspective, Camera::new(vec3(0., -5., 3.), 0., -0.3))
     ))?;
     game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())

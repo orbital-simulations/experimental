@@ -3,6 +3,7 @@ mod egui_integration;
 pub mod inputs;
 pub mod mesh;
 pub mod obj_loader;
+pub mod gltf;
 
 use camera::{Camera, CameraController};
 use egui_integration::EguiIntegration;
@@ -54,6 +55,13 @@ pub struct MkGameEngine {
     camera: Camera,
 }
 
+impl MkGameEngine {
+    pub fn new(projection: ProjectionInit, camera: Camera) -> MkGameEngine {
+        MkGameEngine {
+            projection,
+            camera,
+        }
+    }
 pub fn game_engine_3d_parameters() -> MkGameEngine {
     MkGameEngine {
         projection: ProjectionInit::Perspective,
@@ -67,8 +75,10 @@ pub fn game_engine_2_5d_parameters() -> MkGameEngine {
         camera: Camera::new(vec3(0., 0., 10.), 0., -PI / 2.),
     }
 }
+}
 
-enum ProjectionInit {
+
+pub enum ProjectionInit {
     Perspective,
     Orthographic,
 }

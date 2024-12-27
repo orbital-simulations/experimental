@@ -1,4 +1,4 @@
-use game_engine::{game_engine_2_5d_parameters, GameEngine};
+use game_engine::{GameEngine, MkGameEngine};
 use glam::{vec3, DVec2, Vec3};
 use physics::{
     scenarios::{Collision, Scenario},
@@ -193,7 +193,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let (mut game_engine, event_loop) = pollster::block_on(GameEngine::new(
         event_loop,
         &window,
-        game_engine_2_5d_parameters(),
+        MkGameEngine::game_engine_2_5d_parameters(),
     ))?;
     game_engine.run(event_loop, setup, &update, &render)?;
     Ok(())

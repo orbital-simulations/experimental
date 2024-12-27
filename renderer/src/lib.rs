@@ -113,9 +113,9 @@ impl Renderer {
         self.mesh_rendering.add_mesh_bundle(transform, mesh_bundle);
     }
 
-    pub fn draw_actor(&mut self, actor: &SceneNode) {
+    pub fn draw_scene_node(&mut self, scene_node: &SceneNode) {
         SceneNode::draw_nodes(
-            actor,
+            scene_node,
             &mut self.line_rendering,
             &mut self.rectangle_rendering,
             &mut self.mesh_rendering,
